@@ -21,7 +21,7 @@ class Auth
         }
 
         $stmt = $this->pdo->prepare('SELECT * FROM users WHERE email = :email LIMIT 1');
-        $stmt->execute(['email' => $email]);
+        $stmt->execute(['email' => mb_strtolower($email)]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($password, $user['password'])) {
@@ -52,5 +52,12 @@ class Auth
     public function user(): ?array
     {
         return $_SESSION['user'] ?? null;
+    }
+
+    public function updatePassword(int $userId, string $password): void
+    {
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $this->pdo->prepare('UPDATE users SET password = :password WHERE id = :id');
+        $stmt->execute(['password' => $hash, 'id' => $userId]);
     }
 }
