@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/audit.php';
+
 use App\StartNumber\StartNumberService;
 
 function getStartNumberRule(array $context): array
