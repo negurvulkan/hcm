@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/app/helpers/start_number_rules.php';
 
 $user = auth_require('events');
 $isAdmin = auth_is_admin($user);
@@ -13,13 +14,13 @@ if ($editEvent && !empty($editEvent['start_number_rules'])) {
     $editEvent['start_number_rules_text'] = $editEvent['start_number_rules'];
 }
 
-$ruleDefaults = events_rule_defaults();
+$ruleDefaults = start_number_rule_defaults();
 $designerRule = $ruleDefaults;
 if ($editEvent && !empty($editEvent['start_number_rules'])) {
     try {
         $decoded = json_decode($editEvent['start_number_rules'], true, 512, JSON_THROW_ON_ERROR);
         if (is_array($decoded)) {
-            $designerRule = events_merge_rule_defaults($decoded);
+            $designerRule = start_number_rule_merge_defaults($decoded);
         }
     } catch (\JsonException $e) {
         $designerRule = $ruleDefaults;
@@ -62,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $simulationError = 'Regel-JSON muss ein Objekt sein.';
                 } else {
                     $simulation = events_simulate_numbers($rulesDecoded, 20);
-                    $designerRule = events_merge_rule_defaults($rulesDecoded);
+                    $designerRule = start_number_rule_merge_defaults($rulesDecoded);
                 }
             } catch (\JsonException $e) {
                 $simulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
@@ -122,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $decodedRules = json_decode($rulesInput, true, 512, JSON_THROW_ON_ERROR);
                 $rulesEncoded = json_encode($decodedRules, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
-                $designerRule = events_merge_rule_defaults($decodedRules);
+                $designerRule = start_number_rule_merge_defaults($decodedRules);
             } catch (\JsonException $e) {
                 flash('error', 'Regel-JSON ungültig: ' . $e->getMessage());
                 header('Location: events.php' . ($eventId ? '?edit=' . $eventId : ''));
@@ -181,8 +182,9 @@ render_page('events.tpl', [
     'isAdmin' => $isAdmin,
     'simulation' => $simulation,
     'simulationError' => $simulationError,
-    'ruleDesignerJson' => events_safe_json($designerRule),
-    'ruleDesignerDefaultsJson' => events_safe_json($ruleDefaults),
+    'ruleDesignerJson' => start_number_rule_safe_json($designerRule),
+    'ruleDesignerDefaultsJson' => start_number_rule_safe_json($ruleDefaults),
+    'extraScripts' => ['public/assets/js/start-number-designer.js'],
 ]);
 
 function events_simulate_numbers(array $rule, int $count): array
@@ -234,49 +236,3 @@ function events_format_number(int $number, array $format): string
     return $separator === '' ? implode('', $parts) : implode($separator, $parts);
 }
 
-function events_rule_defaults(): array
-{
-    return [
-        'mode' => 'classic',
-        'scope' => 'tournament',
-        'sequence' => [
-            'start' => 1,
-            'step' => 1,
-            'range' => null,
-            'reset' => 'never',
-        ],
-        'format' => [
-            'prefix' => '',
-            'width' => 0,
-            'suffix' => '',
-            'separator' => '',
-        ],
-        'allocation' => [
-            'entity' => 'start',
-            'time' => 'on_startlist',
-            'reuse' => 'never',
-            'lock_after' => 'sign_off',
-        ],
-        'constraints' => [
-            'unique_per' => 'tournament',
-            'blocklists' => [],
-            'club_spacing' => 0,
-            'horse_cooldown_min' => 0,
-        ],
-        'overrides' => [],
-    ];
-}
-
-function events_merge_rule_defaults(array $rule): array
-{
-    return array_replace_recursive(events_rule_defaults(), $rule);
-}
-
-function events_safe_json(array $data): string
-{
-    try {
-        return json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    } catch (\JsonException $e) {
-        return '{}';
-    }
-}
