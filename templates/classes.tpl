@@ -69,77 +69,7 @@
                                         <option value="western">Western</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6">
-                                    <p class="text-muted small mb-0">Die Eingaben werden automatisch als Regel-JSON gespeichert.</p>
-                                </div>
-                            </div>
-                            <div data-rule-panel="dressage" class="rule-panel">
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h3 class="h6 mb-0">Lektionen</h3>
-                                        <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-movement">Bewegung hinzufügen</button>
-                                    </div>
-                                    <div class="d-grid gap-2" data-dressage-movements></div>
-                                    <p class="text-muted small mb-0 d-none" data-dressage-empty>Füge mindestens eine Lektion hinzu.</p>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-sm-4">
-                                        <label class="form-label">Schrittweite</label>
-                                        <input type="number" class="form-control form-control-sm" min="0" step="0.1" data-dressage-step>
-                                    </div>
-                                    <div class="col-sm-4">
-                                        <label class="form-label">Aggregation</label>
-                                        <select class="form-select form-select-sm" data-dressage-aggregate>
-                                            <option value="average">Durchschnitt</option>
-                                            <option value="sum">Summe</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-sm-4">
-                                        <div class="form-check mt-4">
-                                            <input class="form-check-input" type="checkbox" value="1" id="rule-drop-high-low" data-dressage-drop>
-                                            <label class="form-check-label" for="rule-drop-high-low">Beste/Schlechteste streichen</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div data-rule-panel="jumping" class="rule-panel d-none">
-                                <div class="row g-3">
-                                    <div class="col-sm-4">
-                                        <div class="form-check mt-sm-4">
-                                            <input class="form-check-input" type="checkbox" value="1" id="rule-jump-faults" data-jumping-faults>
-                                            <label class="form-check-label" for="rule-jump-faults">Fehlerpunkte erfassen</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-sm-4">
-                                        <label class="form-label">Erlaubte Zeit (Sekunden)</label>
-                                        <input type="number" class="form-control form-control-sm" min="0" data-jumping-time>
-                                    </div>
-                                    <div class="col-sm-4">
-                                        <label class="form-label">Zeitfehler pro Sekunde</label>
-                                        <input type="number" class="form-control form-control-sm" step="0.01" data-jumping-penalty>
-                                    </div>
-                                </div>
-                            </div>
-                            <div data-rule-panel="western" class="rule-panel d-none">
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h3 class="h6 mb-0">Manöver</h3>
-                                        <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-maneuver">Manöver hinzufügen</button>
-                                    </div>
-                                    <div class="d-grid gap-2" data-western-maneuvers></div>
-                                    <p class="text-muted small mb-0 d-none" data-western-empty>Füge mindestens ein Manöver hinzu.</p>
-                                </div>
-                                <div>
-                                    <label class="form-label">Strafpunkte</label>
-                                    <div class="input-group input-group-sm mb-2">
-                                        <input type="number" class="form-control" step="0.5" data-western-penalty-input placeholder="z. B. 1">
-                                        <button class="btn btn-outline-secondary" type="button" data-action="add-penalty">Hinzufügen</button>
-                                    </div>
-                                    <div class="d-flex flex-wrap gap-2" data-western-penalties></div>
-                                </div>
-                            </div>
-                        </div>
-                        <textarea name="rules_json" class="form-control" rows="6" spellcheck="false" data-rule-json placeholder='{"type":"dressage"}'><?= htmlspecialchars($editClass['rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                                
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="class-start-number-rules">Startnummern-Regel (JSON)</label>
