@@ -69,7 +69,7 @@
                                         <option value="western">Western</option>
                                     </select>
                                 </div>
-                                
+                      </div>     
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="class-start-number-rules">Startnummern-Regel (JSON)</label>
