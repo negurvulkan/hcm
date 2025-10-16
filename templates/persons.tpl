@@ -25,6 +25,15 @@
                         <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($editPerson['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Passwort</label>
+                        <input type="password" name="password" class="form-control" <?= $editPerson ? '' : 'autocomplete="new-password"' ?>>
+                        <small class="text-muted">Mindestens 8 Zeichen<?= $editPerson ? ', leer lassen für keine Änderung' : '' ?>.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Passwort bestätigen</label>
+                        <input type="password" name="password_confirm" class="form-control" <?= $editPerson ? '' : 'autocomplete="new-password"' ?>>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Rollen</label>
                         <select name="roles[]" class="form-select" multiple size="<?= min(6, count($roles)) ?>">
                             <?php foreach ($roles as $role): ?>
