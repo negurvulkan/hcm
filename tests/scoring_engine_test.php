@@ -1,0 +1,111 @@
+<?php
+declare(strict_types=1);
+
+use App\Scoring\RuleManager;
+use App\Scoring\ScoringEngine;
+
+require __DIR__ . '/../app/Scoring/Expression.php';
+require __DIR__ . '/../app/Scoring/RuleManager.php';
+require __DIR__ . '/../app/Scoring/ScoringEngine.php';
+
+function assertSame(mixed $expected, mixed $actual, string $message = ''): void
+{
+    if ($expected !== $actual) {
+        throw new RuntimeException(($message ? $message . ': ' : '') . 'expected ' . var_export($expected, true) . ' got ' . var_export($actual, true));
+    }
+}
+
+function assertTrue(bool $condition, string $message = ''): void
+{
+    if (!$condition) {
+        throw new RuntimeException($message ?: 'Assertion failed');
+    }
+}
+
+$engine = new ScoringEngine();
+
+$rule = RuleManager::dressagePreset();
+$input = [
+    'fields' => [],
+    'judges' => [
+        ['id' => 'a', 'components' => ['C1' => 7.5, 'C2' => 8.0, 'C3' => 7.0, 'IMP' => 8.5]],
+        ['id' => 'b', 'components' => ['C1' => 7.0, 'C2' => 7.5, 'C3' => 7.0, 'IMP' => 8.0]],
+    ],
+];
+$evaluation = $engine->evaluate($rule, $input);
+assertSame(2, count($evaluation['per_judge']), 'Two judges expected');
+assertTrue(abs($evaluation['per_judge'][0]['score'] - 7.642857) < 0.001, 'Weighted sum judge A');
+assertTrue(abs($evaluation['aggregate']['score'] - 7.464285) < 0.001, 'Average aggregate');
+
+$western = RuleManager::westernPreset();
+$westernInput = [
+    'fields' => ['penalties' => [1]],
+    'judges' => [
+        ['id' => 'j1', 'components' => ['M1' => 1.0, 'M2' => 0.5, 'M3' => 0.0]],
+        ['id' => 'j2', 'components' => ['M1' => 0.5, 'M2' => 0.0, 'M3' => -0.5]],
+        ['id' => 'j3', 'components' => ['M1' => -1.0, 'M2' => -0.5, 'M3' => -1.0]],
+    ],
+];
+$westernEval = $engine->evaluate($western, $westernInput);
+assertTrue(abs($westernEval['aggregate']['score'] - 70.0) < 0.001, 'Drop high/low mean');
+assertSame(1.0, $westernEval['totals']['penalties']['total'], 'Penalty applied');
+
+$ruleWithElim = RuleManager::mergeDefaults([
+    'id' => 'test.elim',
+    'input' => [
+        'judges' => ['min' => 1, 'max' => 1],
+        'components' => [['id' => 'X', 'label' => 'Score', 'min' => 0, 'max' => 10]],
+    ],
+    'penalties' => [
+        ['id' => 'elim', 'when' => 'components.X < 5', 'eliminate' => true],
+    ],
+    'per_judge_formula' => 'components.X',
+    'aggregate_formula' => 'aggregate.score',
+]);
+$elimEval = $engine->evaluate($ruleWithElim, ['fields' => [], 'judges' => [['id' => 'solo', 'components' => ['X' => 4.0]]]]);
+assertTrue($elimEval['totals']['eliminated'] === true, 'Elimination flag expected');
+
+$timeRule = RuleManager::mergeDefaults([
+    'id' => 'test.time',
+    'input' => [
+        'judges' => ['min' => 1, 'max' => 1],
+        'components' => [['id' => 'base', 'label' => 'Base']]
+    ],
+    'time' => [
+        'mode' => 'faults_from_time',
+        'allowed_s' => 60,
+        'fault_per_s' => 0.25,
+    ],
+    'per_judge_formula' => 'components.base',
+    'aggregate_formula' => 'aggregate.score + time.faults',
+]);
+$timeEval = $engine->evaluate($timeRule, ['fields' => ['time_s' => 70], 'judges' => [['id' => 't', 'components' => ['base' => 4]]]]);
+assertTrue(abs($timeEval['totals']['total_raw'] - 6.5) < 0.001, 'Time faults should add');
+assertTrue(abs($timeEval['totals']['time']['faults'] - 2.5) < 0.001, 'Time faults value');
+
+$rankRule = RuleManager::mergeDefaults([
+    'id' => 'test.rank',
+    'ranking' => ['order' => 'asc', 'tiebreak_chain' => ['least_time', 'lowest_penalties']],
+    'input' => [
+        'judges' => ['min' => 1, 'max' => 1],
+        'components' => [['id' => 'base', 'label' => 'Base']],
+        'fields' => [['id' => 'time_s', 'type' => 'number']],
+    ],
+    'per_judge_formula' => 'components.base',
+    'aggregate_formula' => 'aggregate.score',
+]);
+$totals = [
+    ['total_raw' => 4.0, 'time' => ['seconds' => 65], 'penalties' => ['total' => 2], 'random_seed' => 1, 'aggregate' => ['components' => []]],
+    ['total_raw' => 4.0, 'time' => ['seconds' => 63], 'penalties' => ['total' => 4], 'random_seed' => 2, 'aggregate' => ['components' => []]],
+    ['total_raw' => 5.0, 'time' => ['seconds' => 70], 'penalties' => ['total' => 1], 'random_seed' => 3, 'aggregate' => ['components' => []]],
+];
+$ranked = $engine->rankWithTiebreak($totals, $rankRule);
+assertSame(1, $ranked[0]['rank']);
+assertSame(2, $ranked[1]['rank']);
+assertSame(3, $ranked[2]['rank']);
+
+$snapshot = $engine->snapshotRule($rule);
+assertTrue(!empty($snapshot['hash']), 'Snapshot hash missing');
+assertTrue(str_contains($snapshot['json'], 'dressage'), 'Snapshot json should contain rule id');
+
+echo "Scoring engine tests passed\n";

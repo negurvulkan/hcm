@@ -22,23 +22,44 @@
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                 <tr>
+                    <th>Rang</th>
                     <th>Startnr.</th>
                     <th>Reiter</th>
                     <th>Pferd</th>
                     <th>Gesamt</th>
+                    <th>Penalties</th>
+                    <th>Zeit</th>
                     <th>Status</th>
-                    <th></th>
+                    <th>Regel</th>
+                    <th class="text-end"></th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($results as $result): ?>
-                    <tr>
+                    <?php $breakdown = $result['breakdown'] ?? []; $totals = $breakdown['totals'] ?? []; $timeInfo = $totals['time'] ?? []; ?>
+                    <tr<?= !empty($result['eliminated']) ? ' class="table-danger"' : '' ?> >
+                        <td><?= $result['rank'] ? (int) $result['rank'] : '–' ?></td>
                         <td><span class="badge bg-primary text-light"><?= htmlspecialchars($result['start_number_display'] ?? $result['start_number_raw'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td><?= htmlspecialchars($result['rider'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($result['horse'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars(number_format((float) $result['total'], 2), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <?= htmlspecialchars(number_format((float) $result['total'], 2), ENT_QUOTES, 'UTF-8') ?>
+                            <?php if (!empty($result['eliminated'])): ?><span class="badge bg-danger ms-2">elim.</span><?php endif; ?>
+                            <?php if (!empty($result['tiebreak_path'])): ?>
+                                <div class="text-muted small"><?= htmlspecialchars(implode(' → ', $result['tiebreak_path']), ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= htmlspecialchars(number_format((float) ($totals['penalties']['total'] ?? $result['penalties'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= isset($timeInfo['seconds']) ? htmlspecialchars(number_format((float) $timeInfo['seconds'], 2), ENT_QUOTES, 'UTF-8') : '–' ?></td>
                         <td>
                             <span class="badge <?= $result['status'] === 'released' ? 'bg-success' : 'bg-warning text-dark' ?>"><?= htmlspecialchars($result['status'], ENT_QUOTES, 'UTF-8') ?></span>
+                        </td>
+                        <td class="small text-muted">
+                            <?php if (!empty($result['rule_snapshot']['hash'])): ?>
+                                Hash: <?= htmlspecialchars(substr($result['rule_snapshot']['hash'], 0, 8), ENT_QUOTES, 'UTF-8') ?>
+                            <?php else: ?>
+                                –
+                            <?php endif; ?>
                         </td>
                         <td class="text-end">
                             <form method="post" class="d-inline">
@@ -59,7 +80,7 @@
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$results): ?>
-                    <tr><td colspan="6" class="text-muted">Keine Ergebnisse erfasst.</td></tr>
+                    <tr><td colspan="10" class="text-muted">Keine Ergebnisse erfasst.</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>

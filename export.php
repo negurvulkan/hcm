@@ -50,7 +50,14 @@ if ($type) {
                 header('Location: export.php');
                 exit;
             }
-            $rows = db_all('SELECT r.total, r.status, p.name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id', ['class_id' => $classId]);
+            $rows = db_all('SELECT r.total, r.rank, r.status, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, p.name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id', ['class_id' => $classId]);
+            foreach ($rows as &$row) {
+                $row['breakdown'] = $row['breakdown_json'] ? json_decode($row['breakdown_json'], true, 512, JSON_THROW_ON_ERROR) : null;
+                $row['rule_snapshot'] = $row['rule_snapshot'] ? json_decode($row['rule_snapshot'], true, 512, JSON_THROW_ON_ERROR) : null;
+                $row['tiebreak_path'] = $row['tiebreak_path'] ? json_decode($row['tiebreak_path'], true, 512, JSON_THROW_ON_ERROR) : [];
+                unset($row['breakdown_json']);
+            }
+            unset($row);
             header('Content-Type: application/json');
             header('Content-Disposition: attachment; filename="results.json"');
             echo json_encode($rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

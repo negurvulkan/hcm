@@ -1,7 +1,9 @@
 <?php
 require __DIR__ . '/auth.php';
 require_once __DIR__ . '/app/helpers/start_number_rules.php';
+require_once __DIR__ . '/app/helpers/scoring.php';
 
+use App\Scoring\RuleManager;
 use App\Setup\Installer;
 
 $user = auth_require('classes');
@@ -14,11 +16,7 @@ if (!$isAdmin) {
 }
 $eventsQuery .= ' ORDER BY title';
 $events = db_all($eventsQuery);
-$presets = [
-    'dressage' => Installer::dressagePreset(),
-    'jumping' => Installer::jumpingPreset(),
-    'western' => Installer::westernPreset(),
-];
+$presets = scoring_rule_presets();
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editClass = null;
@@ -43,6 +41,9 @@ if ($editId) {
 
 $classSimulation = [];
 $classSimulationError = null;
+$scoringSimulation = [];
+$scoringSimulationError = null;
+$simulationCount = 10;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
@@ -54,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'create';
     if (isset($_POST['simulate'])) {
         $action = 'simulate_start_numbers';
+    }
+    if (isset($_POST['simulate_scoring'])) {
+        $action = 'simulate_scoring';
     }
 
     if ($action === 'simulate_start_numbers') {
@@ -115,6 +119,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $classSimulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
             }
         }
+    } elseif ($action === 'simulate_scoring') {
+        $classId = (int) ($_POST['class_id'] ?? 0);
+        $eventId = (int) ($_POST['event_id'] ?? 0);
+        $rulesRaw = (string) ($_POST['rules_json'] ?? '');
+        $simulationCount = max(1, min(50, (int) ($_POST['simulation_count'] ?? 10)));
+        $count = $simulationCount;
+        $resolvedRule = null;
+        if ($rulesRaw !== '') {
+            try {
+                $decoded = json_decode($rulesRaw, true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    $resolvedRule = $decoded;
+                } else {
+                    $scoringSimulationError = 'Regel-JSON ungültig.';
+                }
+            } catch (\JsonException $e) {
+                $scoringSimulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
+            }
+        }
+        if (!$resolvedRule && $classId) {
+            $existing = db_first('SELECT event_id, rules_json FROM classes WHERE id = :id', ['id' => $classId]);
+            if ($existing) {
+                $resolvedRule = scoring_rule_decode($existing['rules_json'] ?? '') ?? ($existing['event_id'] ? scoring_rule_for_event((int) $existing['event_id']) : null);
+            }
+        }
+        if (!$resolvedRule && $eventId) {
+            $resolvedRule = scoring_rule_for_event($eventId);
+        }
+        if (!$resolvedRule) {
+            $resolvedRule = Installer::dressagePreset();
+        }
+        if (!$scoringSimulationError) {
+            try {
+                $scoringSimulation = scoring_simulate($resolvedRule, $count);
+            } catch (\Throwable $e) {
+                $scoringSimulationError = 'Simulation fehlgeschlagen: ' . $e->getMessage();
+            }
+        }
+        if ($classId && !$editClass) {
+            $editClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
+        }
     } else {
         if ($action === 'delete') {
             $classId = (int) ($_POST['class_id'] ?? 0);
@@ -163,12 +208,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rules = null;
         if ($rulesRaw !== '') {
             try {
-                $rules = json_decode($rulesRaw, true, 512, JSON_THROW_ON_ERROR);
-            } catch (\Throwable $e) {
-                flash('error', 'Regeln enthalten kein gültiges JSON.');
-                header('Location: classes.php');
+                $decodedRule = json_decode($rulesRaw, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $e) {
+                flash('error', 'Scoring-Regeln ungültig: ' . $e->getMessage());
+                header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
                 exit;
             }
+            if (!is_array($decodedRule)) {
+                flash('error', 'Scoring-Regeln müssen ein JSON-Objekt sein.');
+                header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
+                exit;
+            }
+            try {
+                RuleManager::validate($decodedRule);
+            } catch (\Throwable $e) {
+                flash('error', 'Scoring-Regeln ungültig: ' . $e->getMessage());
+                header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
+                exit;
+            }
+            $rules = RuleManager::mergeDefaults($decodedRule);
+        }
+
+        $eventRule = $eventId ? scoring_rule_for_event($eventId) : null;
+        $resolvedRule = $rules ?? $eventRule ?? RuleManager::dressagePreset();
+        try {
+            RuleManager::validate($resolvedRule);
+            $resolvedRule = RuleManager::mergeDefaults($resolvedRule);
+            $rulesSnapshotJson = json_encode($resolvedRule, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            flash('error', 'Scoring-Regel ungültig: ' . $e->getMessage());
+            header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
+            exit;
         }
 
         $startNumberRule = null;
@@ -191,20 +261,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'end_time' => $end ?: null,
             'max_starters' => $maxStarters,
             'judge_assignments' => $judges ? json_encode(array_values($judges), JSON_THROW_ON_ERROR) : null,
-            'rules_json' => $rules ? json_encode($rules, JSON_THROW_ON_ERROR) : null,
+            'rules_json' => $rules ? json_encode($rules, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : null,
             'tiebreaker_json' => $tiebreakers ? json_encode(array_values($tiebreakers), JSON_THROW_ON_ERROR) : null,
             'start_number_rules' => $startNumberRule,
+            'scoring_rule_snapshot' => $rulesSnapshotJson,
         ];
 
         if ($action === 'update' && $classId > 0) {
             db_execute(
-                'UPDATE classes SET event_id = :event_id, label = :label, arena = :arena, start_time = :start_time, end_time = :end_time, max_starters = :max_starters, judge_assignments = :judge_assignments, rules_json = :rules_json, tiebreaker_json = :tiebreaker_json, start_number_rules = :start_number_rules WHERE id = :id',
+                'UPDATE classes SET event_id = :event_id, label = :label, arena = :arena, start_time = :start_time, end_time = :end_time, max_starters = :max_starters, judge_assignments = :judge_assignments, rules_json = :rules_json, tiebreaker_json = :tiebreaker_json, start_number_rules = :start_number_rules, scoring_rule_snapshot = :scoring_rule_snapshot WHERE id = :id',
                 $data + ['id' => $classId]
             );
             flash('success', 'Prüfung aktualisiert.');
         } else {
             db_execute(
-                'INSERT INTO classes (event_id, label, arena, start_time, end_time, max_starters, judge_assignments, rules_json, tiebreaker_json, start_number_rules) VALUES (:event_id, :label, :arena, :start_time, :end_time, :max_starters, :judge_assignments, :rules_json, :tiebreaker_json, :start_number_rules)',
+                'INSERT INTO classes (event_id, label, arena, start_time, end_time, max_starters, judge_assignments, rules_json, tiebreaker_json, start_number_rules, scoring_rule_snapshot) VALUES (:event_id, :label, :arena, :start_time, :end_time, :max_starters, :judge_assignments, :rules_json, :tiebreaker_json, :start_number_rules, :scoring_rule_snapshot)',
                 $data
             );
             flash('success', 'Prüfung angelegt.');
@@ -276,6 +347,9 @@ render_page('classes.tpl', [
     'editClass' => $editClass,
     'classSimulation' => $classSimulation,
     'classSimulationError' => $classSimulationError,
+    'scoringSimulation' => $scoringSimulation,
+    'scoringSimulationError' => $scoringSimulationError,
+    'simulationCount' => $simulationCount,
     'classRuleDesignerJson' => start_number_rule_safe_json($classRuleDesigner),
     'classRuleDefaultsJson' => start_number_rule_safe_json($classRuleDefaults),
     'classRuleEventJson' => $classRuleEvent ? start_number_rule_safe_json($classRuleEvent) : null,

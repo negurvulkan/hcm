@@ -1,6 +1,9 @@
 <?php
 require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
+require_once __DIR__ . '/app/helpers/scoring.php';
+
+use App\Scoring\ScoringEngine;
 
 $user = auth_require('judge');
 $isAdmin = auth_is_admin($user);
@@ -87,9 +90,32 @@ if (!$start) {
     $startId = (int) $start['id'];
 }
 
-$rule = $selectedClass['rules_json'] ? json_decode($selectedClass['rules_json'], true, 512, JSON_THROW_ON_ERROR) : ['type' => 'dressage'];
+$rule = scoring_rule_for_class($selectedClass);
 $result = db_first('SELECT * FROM results WHERE startlist_id = :id', ['id' => $startId]);
-$scores = $result ? ($result['scores_json'] ? json_decode($result['scores_json'], true, 512, JSON_THROW_ON_ERROR) : []) : [];
+$scoresPayload = $result && $result['scores_json'] ? json_decode($result['scores_json'], true, 512, JSON_THROW_ON_ERROR) : null;
+$existingInput = is_array($scoresPayload['input'] ?? null) ? $scoresPayload['input'] : ['fields' => [], 'judges' => []];
+$existingEvaluation = $scoresPayload['evaluation'] ?? null;
+$fieldsInput = is_array($existingInput['fields'] ?? null) ? $existingInput['fields'] : [];
+$judgeEntries = [];
+foreach ($existingInput['judges'] ?? [] as $entry) {
+    if (is_array($entry) && !empty($entry['id'])) {
+        $judgeEntries[$entry['id']] = $entry;
+    }
+}
+$judgeKey = judge_identifier($user);
+$currentJudgeComponents = $judgeEntries[$judgeKey]['components'] ?? [];
+$otherJudges = array_filter($judgeEntries, static fn(string $key): bool => $key !== $judgeKey, ARRAY_FILTER_USE_KEY);
+$perJudgeScores = [];
+if (is_array($existingEvaluation['per_judge'] ?? null)) {
+    foreach ($existingEvaluation['per_judge'] as $entry) {
+        if (!empty($entry['id'])) {
+            $perJudgeScores[$entry['id']] = $entry;
+        }
+    }
+}
+
+$fieldsInput = judge_normalize_field_values($rule['input']['fields'] ?? [], $fieldsInput);
+$judgeComponents = judge_normalize_component_values($rule['input']['components'] ?? [], $currentJudgeComponents);
 
 if ($start && $start['state'] !== 'running' && $start['state'] !== 'withdrawn') {
     $before = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $startId]);
@@ -145,41 +171,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $payload = $_POST['score'] ?? [];
-    $scores = buildScores($rule, $payload);
-    $total = calculateTotal($rule, $scores, $_POST);
-    $penaltyValue = null;
-    if (($rule['type'] ?? '') === 'jumping') {
-        $penaltyValue = (float) ($_POST['time_penalties'] ?? 0);
-    } elseif (($rule['type'] ?? '') === 'western') {
-        $penaltyValue = array_sum($scores['penalties'] ?? []);
+    $parsedFields = judge_parse_fields($rule['input']['fields'] ?? [], $payload['fields'] ?? []);
+    $parsedComponents = judge_parse_components($rule['input']['components'] ?? [], $payload['components'] ?? []);
+    $fieldsData = $fieldsInput;
+    foreach ($parsedFields as $key => $value) {
+        $fieldsData[$key] = $value;
     }
+    $judgeEntries[$judgeKey] = [
+        'id' => $judgeKey,
+        'user' => ['id' => $user['id'] ?? null, 'name' => $user['name'] ?? null],
+        'components' => $parsedComponents,
+        'submitted_at' => (new \DateTimeImmutable())->format('c'),
+    ];
+    $evaluationInput = [
+        'fields' => $fieldsData,
+        'judges' => array_values($judgeEntries),
+    ];
+    $engine = scoring_engine();
+    $evaluation = $engine->evaluate($rule, $evaluationInput);
+    $totals = $evaluation['totals'];
     $status = isset($_POST['sign']) ? 'signed' : 'submitted';
+    $scoresPayload = [
+        'input' => $evaluationInput,
+        'evaluation' => $evaluation,
+    ];
+    $ruleSnapshot = $totals['rule_snapshot'] ?? $engine->snapshotRule($rule);
+    $breakdown = [
+        'per_judge' => $evaluation['per_judge'],
+        'aggregate' => $evaluation['aggregate'],
+        'totals' => [
+            'penalties' => $totals['penalties'],
+            'time' => $totals['time'],
+        ],
+    ];
+
+    $store = [
+        'scores' => json_encode($scoresPayload, JSON_THROW_ON_ERROR),
+        'total' => $totals['total_rounded'] ?? $totals['total_raw'],
+        'penalties' => $totals['penalties']['total'] ?? 0,
+        'status' => $status,
+        'signed_by' => $status === 'signed' ? ($user['name'] ?? null) : null,
+        'signed_at' => $status === 'signed' ? (new \DateTimeImmutable())->format('c') : null,
+        'signature' => $status === 'signed' ? hash('sha256', ($user['email'] ?? '') . $startId . time()) : null,
+        'breakdown' => json_encode($breakdown, JSON_THROW_ON_ERROR),
+        'rule_snapshot' => json_encode($ruleSnapshot, JSON_THROW_ON_ERROR),
+        'engine_version' => $totals['engine_version'] ?? ScoringEngine::ENGINE_VERSION,
+        'tiebreak_path' => json_encode([], JSON_THROW_ON_ERROR),
+        'rank' => null,
+        'eliminated' => !empty($totals['eliminated']) ? 1 : 0,
+    ];
 
     if ($result) {
         $before = $result;
-        db_execute('UPDATE results SET scores_json = :scores, total = :total, penalties = :penalties, status = :status, signed_by = :signed_by, signed_at = :signed_at, signature_hash = :signature WHERE id = :id', [
-            'scores' => json_encode($scores, JSON_THROW_ON_ERROR),
-            'total' => $total,
-            'penalties' => $penaltyValue,
-            'status' => $status,
-            'signed_by' => $status === 'signed' ? $user['name'] : null,
-            'signed_at' => $status === 'signed' ? (new \DateTimeImmutable())->format('c') : null,
-            'signature' => $status === 'signed' ? hash('sha256', $user['email'] . $startId . time()) : null,
+        db_execute('UPDATE results SET scores_json = :scores, total = :total, penalties = :penalties, status = :status, signed_by = :signed_by, signed_at = :signed_at, signature_hash = :signature, breakdown_json = :breakdown, rule_snapshot = :rule_snapshot, engine_version = :engine_version, tiebreak_path = :tiebreak_path, rank = :rank, eliminated = :eliminated WHERE id = :id', [
+            'scores' => $store['scores'],
+            'total' => $store['total'],
+            'penalties' => $store['penalties'],
+            'status' => $store['status'],
+            'signed_by' => $store['signed_by'],
+            'signed_at' => $store['signed_at'],
+            'signature' => $store['signature'],
+            'breakdown' => $store['breakdown'],
+            'rule_snapshot' => $store['rule_snapshot'],
+            'engine_version' => $store['engine_version'],
+            'tiebreak_path' => $store['tiebreak_path'],
+            'rank' => $store['rank'],
+            'eliminated' => $store['eliminated'],
             'id' => $result['id'],
         ]);
         $result = db_first('SELECT * FROM results WHERE id = :id', ['id' => $result['id']]);
         audit_log('results', (int) $result['id'], 'update', $before, $result);
     } else {
-        db_execute('INSERT INTO results (startlist_id, scores_json, total, penalties, status, signed_by, signed_at, signature_hash, created_at) VALUES (:startlist_id, :scores, :total, :penalties, :status, :signed_by, :signed_at, :signature, :created)', [
+        db_execute('INSERT INTO results (startlist_id, scores_json, total, penalties, status, signed_by, signed_at, signature_hash, created_at, breakdown_json, rule_snapshot, engine_version, tiebreak_path, rank, eliminated) VALUES (:startlist_id, :scores, :total, :penalties, :status, :signed_by, :signed_at, :signature, :created, :breakdown, :rule_snapshot, :engine_version, :tiebreak_path, :rank, :eliminated)', [
             'startlist_id' => $startId,
-            'scores' => json_encode($scores, JSON_THROW_ON_ERROR),
-            'total' => $total,
-            'penalties' => $penaltyValue,
-            'status' => $status,
-            'signed_by' => $status === 'signed' ? $user['name'] : null,
-            'signed_at' => $status === 'signed' ? (new \DateTimeImmutable())->format('c') : null,
-            'signature' => $status === 'signed' ? hash('sha256', $user['email'] . $startId . time()) : null,
+            'scores' => $store['scores'],
+            'total' => $store['total'],
+            'penalties' => $store['penalties'],
+            'status' => $store['status'],
+            'signed_by' => $store['signed_by'],
+            'signed_at' => $store['signed_at'],
+            'signature' => $store['signature'],
             'created' => (new \DateTimeImmutable())->format('c'),
+            'breakdown' => $store['breakdown'],
+            'rule_snapshot' => $store['rule_snapshot'],
+            'engine_version' => $store['engine_version'],
+            'tiebreak_path' => $store['tiebreak_path'],
+            'rank' => $store['rank'],
+            'eliminated' => $store['eliminated'],
         ]);
         $resultId = (int) app_pdo()->lastInsertId();
         $result = db_first('SELECT * FROM results WHERE id = :id', ['id' => $resultId]);
@@ -198,6 +276,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    scoring_recalculate_class($classId, $user, 'judge_submit');
+
     flash('success', 'Wertung gespeichert.');
     header('Location: judge.php?class_id=' . $classId . '&start_id=' . $startId);
     exit;
@@ -210,55 +290,94 @@ render_page('judge.tpl', [
     'selectedClass' => $selectedClass,
     'start' => $start,
     'starts' => $starts,
-    'scores' => $scores,
+    'fieldsInput' => $fieldsInput,
+    'judgeComponents' => $judgeComponents,
     'rule' => $rule,
     'result' => $result,
+    'evaluation' => $existingEvaluation,
+    'perJudgeScores' => $perJudgeScores,
+    'otherJudges' => $otherJudges,
+    'judgeKey' => $judgeKey,
     'startNumberRule' => $startNumberRule,
 ]);
 
-function buildScores(array $rule, array $payload): array
+function judge_identifier(array $user): string
 {
-    switch ($rule['type'] ?? 'dressage') {
-        case 'jumping':
-            return [
-                'time' => (float) ($payload['time'] ?? 0),
-                'faults' => (int) ($payload['faults'] ?? 0),
-            ];
-        case 'western':
-            $maneuvers = [];
-            foreach ($rule['maneuvers'] ?? [] as $index => $maneuver) {
-                $maneuvers[$index] = (float) ($payload['maneuvers'][$index] ?? 0);
-            }
-            $penalties = array_map('floatval', $payload['penalties'] ?? []);
-            return [
-                'maneuvers' => $maneuvers,
-                'penalties' => $penalties,
-            ];
-        default:
-            $movements = [];
-            foreach ($rule['movements'] ?? [] as $index => $movement) {
-                $movements[$index] = (float) ($payload['movements'][$index] ?? 0);
-            }
-            return ['movements' => $movements];
+    if (!empty($user['id'])) {
+        return 'judge:' . (int) $user['id'];
     }
+    $token = $user['email'] ?? $user['name'] ?? uniqid('judge', true);
+    return 'judge:' . substr(hash('sha1', $token), 0, 12);
 }
 
-function calculateTotal(array $rule, array $scores, array $payload): float
+function judge_normalize_field_values(array $definitions, array $values): array
 {
-    switch ($rule['type'] ?? 'dressage') {
-        case 'jumping':
-            $total = ($scores['faults'] ?? 0) + (float) ($payload['time_penalties'] ?? 0);
-            return $total;
-        case 'western':
-            $maneuverSum = array_sum($scores['maneuvers'] ?? []);
-            $penalties = array_sum($scores['penalties'] ?? []);
-            return $maneuverSum - $penalties;
-        default:
-            $values = $scores['movements'] ?? [];
-            if (!$values) {
-                return 0.0;
-            }
-            $sum = array_sum($values);
-            return $sum / count($values);
+    $normalized = [];
+    foreach ($definitions as $definition) {
+        $id = $definition['id'] ?? null;
+        if (!$id) {
+            continue;
+        }
+        $value = $values[$id] ?? ($definition['default'] ?? null);
+        if (($definition['type'] ?? 'number') === 'set') {
+            $normalized[$id] = is_array($value) ? array_values(array_unique($value)) : [];
+        } elseif (($definition['type'] ?? 'number') === 'boolean') {
+            $normalized[$id] = (bool) $value;
+        } elseif (($definition['type'] ?? 'number') === 'number' || ($definition['type'] ?? '') === 'time') {
+            $normalized[$id] = $value !== null && $value !== '' ? (float) $value : null;
+        } else {
+            $normalized[$id] = $value;
+        }
     }
+    return $normalized;
+}
+
+function judge_normalize_component_values(array $components, array $values): array
+{
+    $normalized = [];
+    foreach ($components as $component) {
+        $id = $component['id'] ?? null;
+        if (!$id) {
+            continue;
+        }
+        $normalized[$id] = $values[$id] ?? null;
+    }
+    return $normalized;
+}
+
+function judge_parse_fields(array $definitions, array $payload): array
+{
+    $parsed = [];
+    foreach ($definitions as $definition) {
+        $id = $definition['id'] ?? null;
+        if (!$id) {
+            continue;
+        }
+        $type = $definition['type'] ?? 'number';
+        $raw = $payload[$id] ?? null;
+        if ($type === 'set') {
+            $parsed[$id] = is_array($raw) ? array_values(array_unique(array_filter($raw, static fn($item) => $item !== '' && $item !== null))) : [];
+        } elseif ($type === 'boolean') {
+            $parsed[$id] = !empty($raw);
+        } elseif ($type === 'number' || $type === 'time') {
+            $parsed[$id] = $raw === '' || $raw === null ? null : (float) $raw;
+        } else {
+            $parsed[$id] = $raw;
+        }
+    }
+    return $parsed;
+}
+
+function judge_parse_components(array $definitions, array $payload): array
+{
+    $parsed = [];
+    foreach ($definitions as $definition) {
+        $id = $definition['id'] ?? null;
+        if (!$id) {
+            continue;
+        }
+        $value = $payload[$id] ?? null;
+        $parsed[$id] = $value === '' || $value === null ? null : (float) $value;
+    }
+    return $parsed;
 }
