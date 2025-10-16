@@ -30,11 +30,15 @@
                     <div class="row g-2">
                         <div class="col">
                             <label class="form-label">Beginn</label>
-                            <input type="datetime-local" name="start_time" class="form-control">
+                            <div data-datetime-picker>
+                                <input type="datetime-local" name="start_time" class="form-control">
+                            </div>
                         </div>
                         <div class="col">
                             <label class="form-label">Ende</label>
-                            <input type="datetime-local" name="end_time" class="form-control">
+                            <div data-datetime-picker>
+                                <input type="datetime-local" name="end_time" class="form-control">
+                            </div>
                         </div>
                     </div>
                     <button class="btn btn-accent w-100 mt-3" type="submit">Speichern</button>

@@ -29,5 +29,76 @@
         });
     };
 
-    window.AppHelpers = { debounce, ajax, markDirty };
+    const initDateTimePickers = () => {
+        const containers = window.document.querySelectorAll('[data-datetime-picker]');
+        containers.forEach((container) => {
+            if (container.dataset.enhanced === 'true') {
+                return;
+            }
+
+            const original = container.querySelector('input[name]');
+            if (!original) {
+                return;
+            }
+
+            container.dataset.enhanced = 'true';
+
+            const hidden = original;
+            hidden.classList.remove('form-control');
+            hidden.type = 'hidden';
+            hidden.setAttribute('data-datetime-storage', 'true');
+
+            const group = window.document.createElement('div');
+            group.className = 'input-group';
+
+            const dateInput = window.document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.className = 'form-control';
+            dateInput.setAttribute('aria-label', hidden.getAttribute('aria-label') || 'Datum');
+
+            const timeInput = window.document.createElement('input');
+            timeInput.type = 'time';
+            timeInput.className = 'form-control';
+            timeInput.step = hidden.getAttribute('step') || '60';
+            timeInput.setAttribute('aria-label', hidden.getAttribute('aria-label') || 'Uhrzeit');
+
+            group.append(dateInput);
+            group.append(timeInput);
+            container.append(group);
+
+            const sync = () => {
+                if (dateInput.value && timeInput.value) {
+                    hidden.value = `${dateInput.value}T${timeInput.value}`;
+                } else if (dateInput.value) {
+                    hidden.value = dateInput.value;
+                } else {
+                    hidden.value = '';
+                }
+            };
+
+            const populate = () => {
+                if (!hidden.value) {
+                    return;
+                }
+                const [datePart, timePart] = hidden.value.split('T');
+                if (datePart) {
+                    dateInput.value = datePart;
+                }
+                if (timePart) {
+                    timeInput.value = timePart.slice(0, 5);
+                }
+            };
+
+            populate();
+
+            dateInput.addEventListener('change', sync);
+            timeInput.addEventListener('change', sync);
+            dateInput.addEventListener('input', sync);
+            timeInput.addEventListener('input', sync);
+        });
+    };
+
+    window.document.addEventListener('DOMContentLoaded', initDateTimePickers);
+
+    window.AppHelpers = { debounce, ajax, markDirty, initDateTimePickers };
 })(window, window.jQuery);
