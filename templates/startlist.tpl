@@ -45,7 +45,7 @@
                     <th>#</th>
                     <th>Reiter</th>
                     <th>Pferd</th>
-                    <th>Geplanter Start</th>
+                    <th>Geplanter Start &amp; Notiz</th>
                     <th>Status</th>
                     <th>Aktionen</th>
                 </tr>
@@ -57,12 +57,15 @@
                         <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
-                            <form method="post" class="d-flex gap-2 align-items-center">
+                            <form method="post" class="d-flex flex-column gap-2">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="update_time">
                                 <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-                                <input type="datetime-local" class="form-control form-control-sm" name="planned_start" value="<?= htmlspecialchars($item['planned_start'] ? date('Y-m-d\TH:i', strtotime($item['planned_start'])) : '', ENT_QUOTES, 'UTF-8') ?>">
-                                <button class="btn btn-sm btn-outline-secondary" type="submit">Speichern</button>
+                                <div class="d-flex gap-2">
+                                    <input type="datetime-local" class="form-control form-control-sm" name="planned_start" value="<?= htmlspecialchars($item['planned_start'] ? date('Y-m-d\TH:i', strtotime($item['planned_start'])) : '', ENT_QUOTES, 'UTF-8') ?>">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Speichern</button>
+                                </div>
+                                <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Notiz"><?= htmlspecialchars($item['note'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                             </form>
                         </td>
                         <td>
@@ -92,6 +95,12 @@
                                 <button class="btn btn-sm <?= $item['state'] === 'withdrawn' ? 'btn-outline-success' : 'btn-outline-warning' ?>" type="submit">
                                     <?= $item['state'] === 'withdrawn' ? 'Reaktivieren' : 'Abmelden' ?>
                                 </button>
+                            </form>
+                            <form method="post" class="d-inline" onsubmit="return confirm('Start endgültig entfernen?')">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="delete_item">
+                                <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Löschen</button>
                             </form>
                         </td>
                     </tr>

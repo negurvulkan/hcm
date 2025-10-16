@@ -3,6 +3,9 @@ require __DIR__ . '/auth.php';
 
 $user = auth_require('clubs');
 
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editClub = $editId ? db_first('SELECT * FROM clubs WHERE id = :id', ['id' => $editId]) : null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', 'CSRF ungültig.');
@@ -10,17 +13,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $action = $_POST['action'] ?? 'create';
+
+    if ($action === 'delete') {
+        $clubId = (int) ($_POST['club_id'] ?? 0);
+        if ($clubId) {
+            db_execute('DELETE FROM clubs WHERE id = :id', ['id' => $clubId]);
+            flash('success', 'Verein gelöscht.');
+        }
+        header('Location: clubs.php');
+        exit;
+    }
+
+    $clubId = (int) ($_POST['club_id'] ?? 0);
     $name = trim((string) ($_POST['name'] ?? ''));
     $short = strtoupper(trim((string) ($_POST['short_name'] ?? '')));
 
     if ($name === '' || $short === '') {
         flash('error', 'Name und Kürzel angeben.');
     } else {
-        db_execute('INSERT INTO clubs (name, short_name) VALUES (:name, :short)', [
-            'name' => $name,
-            'short' => $short,
-        ]);
-        flash('success', 'Verein gespeichert.');
+        if ($action === 'update' && $clubId > 0) {
+            db_execute('UPDATE clubs SET name = :name, short_name = :short WHERE id = :id', [
+                'name' => $name,
+                'short' => $short,
+                'id' => $clubId,
+            ]);
+            flash('success', 'Verein aktualisiert.');
+        } else {
+            db_execute('INSERT INTO clubs (name, short_name) VALUES (:name, :short)', [
+                'name' => $name,
+                'short' => $short,
+            ]);
+            flash('success', 'Verein gespeichert.');
+        }
     }
 
     header('Location: clubs.php');
@@ -42,4 +67,5 @@ render_page('clubs.tpl', [
     'page' => 'clubs',
     'clubs' => $clubs,
     'filter' => $filter,
+    'editClub' => $editClub,
 ]);

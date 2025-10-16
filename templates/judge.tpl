@@ -95,7 +95,12 @@
     </div>
     <div class="card-footer d-flex justify-content-between align-items-center">
         <div class="text-muted small">Zwischenspeichern möglich – Abschicken speichert endgültig.</div>
-        <button class="btn btn-accent" type="submit">Wertung speichern</button>
+        <div class="d-flex gap-2">
+            <?php if ($result): ?>
+                <button class="btn btn-outline-danger" type="submit" name="action" value="delete_result" formnovalidate onclick="return confirm('Wertung wirklich löschen?')">Löschen</button>
+            <?php endif; ?>
+            <button class="btn btn-accent" type="submit" name="action" value="save">Wertung speichern</button>
+        </div>
     </div>
 </form>
 <?php endif; ?>

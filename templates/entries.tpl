@@ -8,16 +8,17 @@
     <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h5 mb-3">Manuelle Nennung</h2>
+                <h2 class="h5 mb-3"><?= $editEntry ? 'Nennung bearbeiten' : 'Manuelle Nennung' ?></h2>
                 <form method="post">
                     <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="create">
+                    <input type="hidden" name="action" value="<?= $editEntry ? 'update' : 'create' ?>">
+                    <input type="hidden" name="entry_id" value="<?= $editEntry ? (int) $editEntry['id'] : '' ?>">
                     <div class="mb-3">
                         <label class="form-label">Reiter</label>
                         <select name="person_id" class="form-select" required>
                             <option value="">Wählen…</option>
                             <?php foreach ($persons as $person): ?>
-                                <option value="<?= (int) $person['id'] ?>"><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $person['id'] ?>" <?= $editEntry && (int) $editEntry['person_id'] === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -26,7 +27,7 @@
                         <select name="horse_id" class="form-select" required>
                             <option value="">Wählen…</option>
                             <?php foreach ($horses as $horse): ?>
-                                <option value="<?= (int) $horse['id'] ?>"><?= htmlspecialchars($horse['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $horse['id'] ?>" <?= $editEntry && (int) $editEntry['horse_id'] === (int) $horse['id'] ? 'selected' : '' ?>><?= htmlspecialchars($horse['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -35,18 +36,23 @@
                         <select name="class_id" class="form-select" required>
                             <option value="">Wählen…</option>
                             <?php foreach ($classes as $class): ?>
-                                <option value="<?= (int) $class['id'] ?>"><?= htmlspecialchars($class['title'] . ' · ' . $class['label'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $class['id'] ?>" <?= $editEntry && (int) $editEntry['class_id'] === (int) $class['id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['title'] . ' · ' . $class['label'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-select">
-                            <option value="open">offen</option>
-                            <option value="paid">bezahlt</option>
+                            <option value="open" <?= !$editEntry || $editEntry['status'] === 'open' ? 'selected' : '' ?>>offen</option>
+                            <option value="paid" <?= $editEntry && $editEntry['status'] === 'paid' ? 'selected' : '' ?>>bezahlt</option>
                         </select>
                     </div>
-                    <button class="btn btn-accent w-100" type="submit">Speichern</button>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-accent" type="submit">Speichern</button>
+                        <?php if ($editEntry): ?>
+                            <a href="entries.php" class="btn btn-outline-secondary">Abbrechen</a>
+                        <?php endif; ?>
+                    </div>
                 </form>
                 <hr>
                 <h3 class="h6">CSV-Import</h3>
@@ -76,7 +82,7 @@
                             <th>Pferd</th>
                             <th>Prüfung</th>
                             <th>Status</th>
-                            <th></th>
+                            <th class="text-end">Aktionen</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -90,16 +96,16 @@
                                         <?= htmlspecialchars($entry['status'], ENT_QUOTES, 'UTF-8') ?>
                                     </span>
                                 </td>
-                                <td>
-                                    <form method="post" class="d-flex gap-2 align-items-center">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="action" value="update_status">
-                                        <input type="hidden" name="entry_id" value="<?= (int) $entry['id'] ?>">
-                                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                            <option value="open" <?= $entry['status'] === 'open' ? 'selected' : '' ?>>offen</option>
-                                            <option value="paid" <?= $entry['status'] === 'paid' ? 'selected' : '' ?>>bezahlt</option>
-                                        </select>
-                                    </form>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a class="btn btn-sm btn-outline-secondary" href="entries.php?edit=<?= (int) $entry['id'] ?>">Bearbeiten</a>
+                                        <form method="post" onsubmit="return confirm('Nennung und ggf. Startlisten-Einträge löschen?')">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="entry_id" value="<?= (int) $entry['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

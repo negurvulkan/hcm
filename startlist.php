@@ -115,16 +115,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_time') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
         $time = trim((string) ($_POST['planned_start'] ?? ''));
+        $note = trim((string) ($_POST['note'] ?? ''));
         $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
         if ($item) {
             $before = $item;
-            db_execute('UPDATE startlist_items SET planned_start = :start, updated_at = :updated WHERE id = :id', [
+            db_execute('UPDATE startlist_items SET planned_start = :start, note = :note, updated_at = :updated WHERE id = :id', [
                 'start' => $time ?: null,
+                'note' => $note !== '' ? $note : null,
                 'updated' => (new \DateTimeImmutable())->format('c'),
                 'id' => $itemId,
             ]);
-            audit_log('startlist_items', $itemId, 'time_update', $before, ['planned_start' => $time]);
-            flash('success', 'Zeit aktualisiert.');
+            $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+            audit_log('startlist_items', $itemId, 'time_update', $before, $after);
+            flash('success', 'Start aktualisiert.');
+        }
+        header('Location: startlist.php?class_id=' . $classId);
+        exit;
+    }
+
+    if ($action === 'delete_item') {
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        if ($item) {
+            db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
+            db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+            audit_log('startlist_items', $itemId, 'delete', $item, null);
+            flash('success', 'Start aus der Liste entfernt.');
         }
         header('Location: startlist.php?class_id=' . $classId);
         exit;

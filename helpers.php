@@ -4,6 +4,9 @@ require __DIR__ . '/auth.php';
 $user = auth_require('helpers');
 $persons = db_all('SELECT id, name FROM persons ORDER BY name');
 
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editShift = $editId ? db_first('SELECT * FROM helper_shifts WHERE id = :id', ['id' => $editId]) : null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', 'CSRF ungültig.');
@@ -46,6 +49,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: helpers.php');
         exit;
     }
+    if ($action === 'update') {
+        $shiftId = (int) ($_POST['shift_id'] ?? 0);
+        $role = trim((string) ($_POST['role'] ?? ''));
+        $station = trim((string) ($_POST['station'] ?? ''));
+        $personId = (int) ($_POST['person_id'] ?? 0) ?: null;
+        $start = trim((string) ($_POST['start_time'] ?? ''));
+        $end = trim((string) ($_POST['end_time'] ?? ''));
+        if ($shiftId && $role !== '') {
+            db_execute('UPDATE helper_shifts SET role = :role, station = :station, person_id = :person, start_time = :start, end_time = :end WHERE id = :id', [
+                'role' => $role,
+                'station' => $station ?: null,
+                'person' => $personId,
+                'start' => $start ?: null,
+                'end' => $end ?: null,
+                'id' => $shiftId,
+            ]);
+            flash('success', 'Schicht aktualisiert.');
+        }
+        header('Location: helpers.php');
+        exit;
+    }
     if ($action === 'checkin') {
         $shiftId = (int) ($_POST['shift_id'] ?? 0);
         if ($shiftId) {
@@ -54,6 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $shiftId,
             ]);
             flash('success', 'Check-in registriert.');
+        }
+        header('Location: helpers.php');
+        exit;
+    }
+    if ($action === 'delete') {
+        $shiftId = (int) ($_POST['shift_id'] ?? 0);
+        if ($shiftId) {
+            db_execute('DELETE FROM helper_shifts WHERE id = :id', ['id' => $shiftId]);
+            flash('success', 'Schicht gelöscht.');
         }
         header('Location: helpers.php');
         exit;
@@ -67,4 +100,5 @@ render_page('helpers.tpl', [
     'page' => 'helpers',
     'persons' => $persons,
     'shifts' => $shifts,
+    'editShift' => $editShift,
 ]);

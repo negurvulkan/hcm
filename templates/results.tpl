@@ -47,6 +47,12 @@
                                     <?= $result['status'] === 'released' ? 'Freigabe zurückziehen' : 'Freigeben' ?>
                                 </button>
                             </form>
+                            <form method="post" class="d-inline" onsubmit="return confirm('Ergebnis löschen?')">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="result_id" value="<?= (int) $result['id'] ?>">
+                                <input type="hidden" name="action" value="delete">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Löschen</button>
+                            </form>
                         </td>
                     </tr>
                 <?php endforeach; ?>
