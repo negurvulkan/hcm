@@ -7,6 +7,10 @@ use App\Core\Csrf;
 use App\Core\Rbac;
 use App\Core\SmartyView;
 
+if (!class_exists('Csrf', false)) {
+    class_alias(Csrf::class, 'Csrf');
+}
+
 if (!is_file(__DIR__ . '/config/app.php')) {
     header('Location: setup.php');
     exit;
