@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/app/helpers/start_number_rules.php';
 
 use App\Setup\Installer;
 
@@ -232,6 +233,40 @@ foreach ($classes as &$class) {
 }
 unset($class);
 
+$classRuleDefaults = start_number_rule_defaults();
+$classRuleDesigner = $classRuleDefaults;
+$classRuleEvent = null;
+$designerEventId = null;
+if ($editClass) {
+    $designerEventId = (int) ($editClass['event_id'] ?? 0);
+    if ($designerEventId > 0) {
+        $eventRuleRow = db_first('SELECT start_number_rules FROM events WHERE id = :id', ['id' => $designerEventId]);
+        if (!empty($eventRuleRow['start_number_rules'])) {
+            try {
+                $decodedEventRule = json_decode($eventRuleRow['start_number_rules'], true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decodedEventRule)) {
+                    $classRuleEvent = start_number_rule_merge_defaults($decodedEventRule);
+                }
+            } catch (\JsonException $e) {
+                $classRuleEvent = null;
+            }
+        }
+    }
+    $rawOverride = $editClass['start_number_rules_text'] ?? ($editClass['start_number_rules'] ?? '');
+    if ($rawOverride !== '') {
+        try {
+            $decodedOverride = json_decode($rawOverride, true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($decodedOverride)) {
+                $classRuleDesigner = start_number_rule_merge_defaults($decodedOverride);
+            }
+        } catch (\JsonException $e) {
+            $classRuleDesigner = $classRuleDefaults;
+        }
+    } elseif ($classRuleEvent) {
+        $classRuleDesigner = $classRuleEvent;
+    }
+}
+
 render_page('classes.tpl', [
     'title' => 'Prüfungen',
     'page' => 'classes',
@@ -241,5 +276,8 @@ render_page('classes.tpl', [
     'editClass' => $editClass,
     'classSimulation' => $classSimulation,
     'classSimulationError' => $classSimulationError,
-    'extraScripts' => ['public/assets/js/classes.js'],
+    'classRuleDesignerJson' => start_number_rule_safe_json($classRuleDesigner),
+    'classRuleDefaultsJson' => start_number_rule_safe_json($classRuleDefaults),
+    'classRuleEventJson' => $classRuleEvent ? start_number_rule_safe_json($classRuleEvent) : null,
+    'extraScripts' => ['public/assets/js/start-number-designer.js', 'public/assets/js/classes.js'],
 ]);
