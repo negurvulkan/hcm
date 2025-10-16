@@ -50,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    require_write_access('events');
+
     $action = $_POST['action'] ?? ($_POST['default_action'] ?? 'create');
 
     if ($action === 'simulate_rules') {

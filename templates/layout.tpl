@@ -7,6 +7,10 @@ $title = $title ?? 'Turniermanagement';
 $pageKey = $page ?? '';
 $extraScripts = $extraScripts ?? [];
 $extraStyles = $extraStyles ?? [];
+$instanceMeta = $instance ?? [];
+$readOnly = $instanceMeta['read_only'] ?? false;
+$readOnlyMessage = $instanceMeta['read_only_message'] ?? null;
+$peerInfo = $instanceMeta['peer'] ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="de" data-theme="auto">
@@ -52,6 +56,30 @@ $extraStyles = $extraStyles ?? [];
         </div>
     </div>
 </nav>
+
+<?php if (!empty($instanceMeta)): ?>
+    <div class="instance-status-bar border-bottom small py-2">
+        <div class="container-fluid d-flex flex-wrap align-items-center gap-3 px-3">
+            <span class="fw-semibold"><?= htmlspecialchars($instanceMeta['status_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+            <span class="<?= htmlspecialchars($readOnly ? 'text-warning fw-semibold' : 'text-success fw-semibold', ENT_QUOTES, 'UTF-8') ?>">
+                <?= $readOnly ? 'Read-only' : 'Schreibend' ?>
+            </span>
+            <?php if (!empty($peerInfo['configured'])): ?>
+                <span class="<?= htmlspecialchars($peerInfo['class'] ?? 'text-muted', ENT_QUOTES, 'UTF-8') ?>">
+                    <?= htmlspecialchars($peerInfo['label'] ?? 'Peer', ENT_QUOTES, 'UTF-8') ?>
+                    <?php if (!empty($peerInfo['formatted_checked_at'])): ?>
+                        · <?= htmlspecialchars($peerInfo['formatted_checked_at'], ENT_QUOTES, 'UTF-8') ?>
+                    <?php endif; ?>
+                </span>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
+<?php if ($readOnly && $readOnlyMessage): ?>
+    <div class="alert alert-warning text-center rounded-0 mb-0">
+        <?= htmlspecialchars($readOnlyMessage, ENT_QUOTES, 'UTF-8') ?>
+    </div>
+<?php endif; ?>
 
 <main class="container py-4">
     <?php foreach ($flashes as $type => $messages): ?>

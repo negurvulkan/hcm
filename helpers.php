@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: helpers.php');
         exit;
     }
+    require_write_access('helpers');
     $action = $_POST['action'] ?? '';
     if ($action === 'create') {
         $role = trim((string) ($_POST['role'] ?? ''));

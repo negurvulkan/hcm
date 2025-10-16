@@ -153,6 +153,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    require_write_access('judge');
+
     $action = $_POST['action'] ?? 'save';
 
     if ($action === 'delete_result') {

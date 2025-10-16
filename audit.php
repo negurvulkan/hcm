@@ -96,6 +96,7 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
             echo json_encode(['success' => false, 'message' => 'CSRF ungültig']);
             exit;
         }
+        require_write_access('audit', ['json' => true]);
         $logId = (int) ($_POST['log_id'] ?? 0);
         $success = $logId > 0 && audit_undo($logId);
         echo json_encode(['success' => $success]);

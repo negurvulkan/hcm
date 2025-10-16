@@ -54,6 +54,14 @@ body {
     padding: 0.75rem 1rem;
 }
 
+.instance-status-bar {
+    background: rgba(43, 114, 255, 0.08);
+}
+
+.instance-status-bar .fw-semibold {
+    letter-spacing: 0.02em;
+}
+
 .text-muted {
     color: rgba(43, 114, 255, 0.12);
 }

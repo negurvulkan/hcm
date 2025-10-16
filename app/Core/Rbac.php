@@ -30,6 +30,7 @@ class Rbac
         'print' => ['admin', 'office', 'steward'],
         'export' => ['admin', 'office'],
         'audit' => ['admin'],
+        'instance' => ['admin'],
     ];
 
     public static function allowed(string $role, string $permission): bool
@@ -56,6 +57,7 @@ class Rbac
             'helpers.php' => ['key' => 'helpers', 'label' => 'Helfer'],
             'print.php' => ['key' => 'print', 'label' => 'Druck'],
             'export.php' => ['key' => 'export', 'label' => 'Export'],
+            'instance.php' => ['key' => 'instance', 'label' => 'Instanz & Modus'],
         ];
 
         return array_filter($menu, static fn ($item) => self::allowed($role, $item['key']));

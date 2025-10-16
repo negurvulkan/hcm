@@ -61,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    require_write_access('startlist');
+
     $action = $_POST['action'] ?? '';
 
     if ($action === 'generate') {

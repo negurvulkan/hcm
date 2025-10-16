@@ -53,6 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    require_write_access('schedule');
+
     $action = $_POST['action'] ?? '';
     if ($action === 'shift') {
         $minutes = (int) ($_POST['minutes'] ?? 0);

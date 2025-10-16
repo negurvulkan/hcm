@@ -7,6 +7,7 @@ use App\Core\Auth as AuthCore;
 use App\Core\Csrf;
 use App\Core\Rbac;
 use App\Core\SmartyView;
+use App\Services\InstanceConfiguration;
 
 if (!class_exists('Csrf', false)) {
     class_alias(Csrf::class, 'Csrf');
@@ -47,6 +48,57 @@ function app_lang(?string $key = null): mixed
         return $dictionary;
     }
     return $dictionary[$key] ?? $key;
+}
+
+function instance_config(): InstanceConfiguration
+{
+    $instance = App::get('instance');
+    if (!$instance instanceof InstanceConfiguration) {
+        $instance = new InstanceConfiguration(app_pdo());
+        App::set('instance', $instance);
+    }
+    return $instance;
+}
+
+function instance_view_context(): array
+{
+    return instance_config()->viewContext();
+}
+
+function instance_refresh_view(): void
+{
+    if (App::has('view')) {
+        app_view()->share('instance', instance_view_context());
+    }
+}
+
+function instance_is_read_only(): bool
+{
+    return !instance_config()->canWrite();
+}
+
+function require_write_access(string $context = 'default', array $options = []): void
+{
+    if (!instance_is_read_only()) {
+        return;
+    }
+
+    $message = instance_config()->readOnlyMessage($context);
+
+    if (!empty($options['json'])) {
+        http_response_code(423);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => $message], JSON_THROW_ON_ERROR);
+        exit;
+    }
+
+    http_response_code(403);
+    render_page('errors/read-only.tpl', [
+        'title' => 'Schreibschutz aktiv',
+        'page' => 'read-only',
+        'message' => $message,
+    ]);
+    exit;
 }
 
 function flash(string $type, string $message): void
@@ -159,10 +211,13 @@ function render_page(string $template, array $data = []): void
     $user = auth_user();
     $menu = $user ? Rbac::menuFor($user['role']) : [];
     $flashes = flash_pull();
+    $instance = instance_view_context();
+    $lang = app_lang();
     $content = $view->render($template, array_merge($data, [
         'user' => $user,
         'menu' => $menu,
-        'lang' => app_lang(),
+        'lang' => $lang,
+        'instance' => $instance,
     ]));
 
     echo $view->render('layout.tpl', array_merge($data, [
@@ -170,7 +225,8 @@ function render_page(string $template, array $data = []): void
         'menu' => $menu,
         'content' => $content,
         'flashes' => $flashes,
-        'lang' => app_lang(),
+        'lang' => $lang,
+        'instance' => $instance,
     ]));
 }
 
@@ -222,6 +278,9 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::check($_POST['_token'] ?? null)) {
                 $errors[] = 'Sicherheitsprüfung fehlgeschlagen.';
+            }
+            if (!$errors) {
+                require_write_access('auth');
             }
             $current = (string) ($_POST['current_password'] ?? '');
             $new = (string) ($_POST['new_password'] ?? '');

@@ -14,8 +14,10 @@
                     <a href="<?= htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none">
                         <div class="card p-3 h-100">
                             <div class="small text-uppercase mb-2"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></div>
-                            <div class="display-6 fw-semibold"><?= htmlspecialchars((string) $item['value'], ENT_QUOTES, 'UTF-8') ?></div>
-                            <div class="small">Zur Übersicht</div>
+                            <div class="display-6 fw-semibold <?= htmlspecialchars($item['value_class'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) $item['value'], ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                            <div class="small text-muted"><?= htmlspecialchars($item['note'] ?? 'Zur Übersicht', ENT_QUOTES, 'UTF-8') ?></div>
                         </div>
                     </a>
                 </div>
