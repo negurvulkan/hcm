@@ -28,3 +28,8 @@ Ein schlankes Grundsystem für Reitturnier-Organisatoren. Fokus auf offlinefähi
 - Keine Vendor-Bundles ins Repository einchecken.
 - Nur kleine, klar abgegrenzte Dateien erzeugen.
 - Datenbank- und Ordnerstrukturen können projektspezifisch angepasst werden.
+
+## Internationalisierung
+- Übersetzungen liegen als PHP-Arrays in `lang/<locale>.php`. Keys sind per Punkt-Notation strukturiert (z. B. `dashboard.tiles.peer_connection.title`).
+- Neue Keys werden über `t('namespace.key', ['placeholder' => $value])` bzw. `tn('namespace.key', $count)` genutzt. Templates und Controller erhalten damit sprachabhängige Strings.
+- Zusätzliche Sprachen ergänzt man, indem ein weiteres `<locale>.php` erstellt und in der App-Konfiguration (`app/bootstrap.php`, `config/app.php`) whitelistet wird. JS greift automatisch auf die aktuelle Locale via `window.I18n` zu.

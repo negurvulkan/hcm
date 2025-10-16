@@ -17,7 +17,7 @@
                             <div class="display-6 fw-semibold <?= htmlspecialchars($item['value_class'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                                 <?= htmlspecialchars((string) $item['value'], ENT_QUOTES, 'UTF-8') ?>
                             </div>
-                            <div class="small text-muted"><?= htmlspecialchars($item['note'] ?? 'Zur Übersicht', ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars($item['note'] ?? t('dashboard.tiles.default_note'), ENT_QUOTES, 'UTF-8') ?></div>
                         </div>
                     </a>
                 </div>
@@ -30,16 +30,16 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h5 mb-3">Heutiger Zeitplan</h2>
+                <h2 class="h5 mb-3"><?= htmlspecialchars(t('dashboard.sections.today_schedule.title'), ENT_QUOTES, 'UTF-8') ?></h2>
                 <?php if (!$todaySchedule): ?>
-                    <p class="">Heute sind keine Starts geplant.</p>
+                    <p class=""><?= htmlspecialchars(t('dashboard.sections.today_schedule.empty'), ENT_QUOTES, 'UTF-8') ?></p>
                 <?php else: ?>
                     <ul class="list-group list-group-flush">
                         <?php foreach ($todaySchedule as $slot): ?>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
                                     <div class="fw-semibold"><?= htmlspecialchars($slot['label'], ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="small"><?= htmlspecialchars(date('H:i', strtotime($slot['start_time'] ?? '')), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(date('H:i', strtotime($slot['end_time'] ?? '')), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="small"><?= htmlspecialchars(format_time($slot['start_time'] ?? null), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(format_time($slot['end_time'] ?? null), ENT_QUOTES, 'UTF-8') ?></div>
                                 </div>
                             </li>
                         <?php endforeach; ?>
@@ -51,20 +51,20 @@
     <div class="col-lg-6">
         <div class="card h-100" data-ticker>
             <div class="card-body">
-                <h2 class="h5 mb-3">Live-Status</h2>
-                <p class="mb-1"><strong>Aktuell:</strong>
+                <h2 class="h5 mb-3"><?= htmlspecialchars(t('dashboard.sections.live_status.title'), ENT_QUOTES, 'UTF-8') ?></h2>
+                <p class="mb-1"><strong><?= htmlspecialchars(t('dashboard.sections.live_status.current'), ENT_QUOTES, 'UTF-8') ?>:</strong>
                     <?php if (!empty($currentStart['start_number_display'])): ?>
-                        <span class="badge bg-primary text-light me-1">Startnr. <?= htmlspecialchars($currentStart['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <span class="badge bg-primary text-light me-1"><?= htmlspecialchars(t('dashboard.sections.live_status.start_number', ['number' => $currentStart['start_number_display']]), ENT_QUOTES, 'UTF-8') ?></span>
                     <?php endif; ?>
-                    <span data-ticker-current><?= htmlspecialchars($currentStart['rider'] ?? 'Noch kein Start', ENT_QUOTES, 'UTF-8') ?></span>
+                    <span data-ticker-current><?= htmlspecialchars($currentStart['rider'] ?? t('dashboard.sections.live_status.none'), ENT_QUOTES, 'UTF-8') ?></span>
                 </p>
-                <p class="mb-1"><strong>Pferd:</strong> <?= htmlspecialchars($currentStart['horse'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
-                <p class="mb-3"><strong>Prüfung:</strong> <?= htmlspecialchars($currentStart['class_label'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
-                <h3 class="h6 text-uppercase">Nächste Starter</h3>
+                <p class="mb-1"><strong><?= htmlspecialchars(t('dashboard.sections.live_status.horse'), ENT_QUOTES, 'UTF-8') ?>:</strong> <?= htmlspecialchars($currentStart['horse'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="mb-3"><strong><?= htmlspecialchars(t('dashboard.sections.live_status.class'), ENT_QUOTES, 'UTF-8') ?>:</strong> <?= htmlspecialchars($currentStart['class_label'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
+                <h3 class="h6 text-uppercase"><?= htmlspecialchars(t('dashboard.sections.live_status.upcoming'), ENT_QUOTES, 'UTF-8') ?></h3>
                 <ul class="list-inline" data-ticker-upcoming>
                     <?php foreach ($nextStarters as $starter): ?>
                         <li class="list-inline-item badge bg-light text-dark me-2 mb-2">
-                            Nr. <?= (int) $starter['position'] ?>
+                            <?= htmlspecialchars(t('dashboard.sections.live_status.position', ['position' => (int) $starter['position']]), ENT_QUOTES, 'UTF-8') ?>
                             <?php if (!empty($starter['start_number_display'])): ?>
                                 <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($starter['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                             <?php endif; ?>
@@ -72,7 +72,7 @@
                         </li>
                     <?php endforeach; ?>
                 </ul>
-                <div class="small" data-ticker-shift>Keine Verschiebungen.</div>
+                <div class="small" data-ticker-shift><?= htmlspecialchars(t('dashboard.sections.live_status.no_shifts'), ENT_QUOTES, 'UTF-8') ?></div>
             </div>
         </div>
     </div>

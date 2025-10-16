@@ -54,13 +54,15 @@
             const dateInput = window.document.createElement('input');
             dateInput.type = 'date';
             dateInput.className = 'form-control';
-            dateInput.setAttribute('aria-label', hidden.getAttribute('aria-label') || 'Datum');
+            const dateLabel = hidden.getAttribute('aria-label') || (window.I18n ? window.I18n.t('forms.date') : 'Datum');
+            dateInput.setAttribute('aria-label', dateLabel);
 
             const timeInput = window.document.createElement('input');
             timeInput.type = 'time';
             timeInput.className = 'form-control';
             timeInput.step = hidden.getAttribute('step') || '60';
-            timeInput.setAttribute('aria-label', hidden.getAttribute('aria-label') || 'Uhrzeit');
+            const timeLabel = hidden.getAttribute('aria-label') || (window.I18n ? window.I18n.t('forms.time') : 'Uhrzeit');
+            timeInput.setAttribute('aria-label', timeLabel);
 
             group.append(dateInput);
             group.append(timeInput);

@@ -2,6 +2,8 @@
 use App\Core\App;
 use App\Core\Database;
 use App\Core\SmartyView;
+use App\I18n\LocaleManager;
+use App\I18n\Translator;
 use App\Services\InstanceConfiguration;
 
 spl_autoload_register(static function (string $class): void {
@@ -13,6 +15,8 @@ spl_autoload_register(static function (string $class): void {
         }
     }
 });
+
+require_once __DIR__ . '/helpers/i18n.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -41,8 +45,17 @@ $config = require $configFile;
 
 App::set('config', $config);
 App::set('pdo', Database::connect($config['db'] ?? []));
+$localeManager = new LocaleManager($config['app']['locales'] ?? ['de', 'en'], $config['app']['default_locale'] ?? 'de');
+$currentLocale = $localeManager->detect();
+$translator = new Translator($currentLocale, $config['app']['fallback_locale'] ?? 'de', $config['app']['lang_path'] ?? (__DIR__ . '/../lang'));
+App::set('locale_manager', $localeManager);
+App::set('locale', $currentLocale);
+App::set('translator', $translator);
 $view = new SmartyView(__DIR__ . '/../templates');
 $view->share('appName', $config['app']['name'] ?? 'Turniermanagement V2');
+$view->share('currentLocale', $currentLocale);
+$view->share('availableLocales', $localeManager->supported());
+$view->share('translations', $translator->all());
 if (App::has('pdo')) {
     $instance = new InstanceConfiguration(App::get('pdo'));
     App::set('instance', $instance);
