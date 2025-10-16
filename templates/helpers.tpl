@@ -30,11 +30,11 @@
                     <div class="row g-2">
                         <div class="col">
                             <label class="form-label">Beginn</label>
-                            <input type="datetime-local" name="start_time" class="form-control">
+                            <input type="datetime-local" name="start_time" class="form-control" step="900">
                         </div>
                         <div class="col">
                             <label class="form-label">Ende</label>
-                            <input type="datetime-local" name="end_time" class="form-control">
+                            <input type="datetime-local" name="end_time" class="form-control" step="900">
                         </div>
                     </div>
                     <button class="btn btn-accent w-100 mt-3" type="submit">Speichern</button>
@@ -62,7 +62,15 @@
                             <tr>
                                 <td><?= htmlspecialchars($shift['role'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($shift['person'] ?? 'Offen', ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($shift['start_time'] ?? '–', ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars($shift['end_time'] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                <?php
+                                $startLabel = $shift['start_time']
+                                    ? (new DateTimeImmutable($shift['start_time']))->format('d.m.Y H:i')
+                                    : '–';
+                                $endLabel = $shift['end_time']
+                                    ? (new DateTimeImmutable($shift['end_time']))->format('d.m.Y H:i')
+                                    : '–';
+                                ?>
+                                <td><?= htmlspecialchars($startLabel, ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars($endLabel, ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><code><?= htmlspecialchars($shift['token'], ENT_QUOTES, 'UTF-8') ?></code></td>
                                 <td>
                                     <?php if ($shift['checked_in_at']): ?>
