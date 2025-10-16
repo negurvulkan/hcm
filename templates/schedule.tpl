@@ -42,6 +42,7 @@
                 <thead class="table-light">
                 <tr>
                     <th>#</th>
+                    <th>Startnr.</th>
                     <th>Reiter</th>
                     <th>Pferd</th>
                     <th>Geplanter Start</th>
@@ -52,6 +53,13 @@
                 <?php foreach ($items as $item): ?>
                     <tr>
                         <td><?= (int) $item['position'] ?></td>
+                        <td>
+                            <?php if (!empty($item['start_number_display'])): ?>
+                                <span class="badge bg-primary text-light"><?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php else: ?>
+                                <span class="text-muted">–</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td>

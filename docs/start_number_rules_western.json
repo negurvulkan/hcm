@@ -1,0 +1,52 @@
+{
+  "mode": "western",
+  "scope": "arena",
+  "sequence": {
+    "start": 50,
+    "step": 5,
+    "range": [50, 500],
+    "reset": "per_class"
+  },
+  "format": {
+    "prefix": "W",
+    "width": 2,
+    "suffix": "",
+    "separator": "-"
+  },
+  "allocation": {
+    "entity": "pair",
+    "time": "on_entry",
+    "reuse": "session",
+    "lock_after": "sign_off"
+  },
+  "constraints": {
+    "unique_per": "arena",
+    "blocklists": ["100"],
+    "club_spacing": 0,
+    "horse_cooldown_min": 30
+  },
+  "overrides": [
+    {
+      "if": {"arena": "Trail"},
+      "sequence": {
+        "start": 300,
+        "step": 5,
+        "range": [300, 450]
+      },
+      "format": {
+        "prefix": "TR"
+      }
+    },
+    {
+      "if": {"division": "Youth"},
+      "sequence": {
+        "start": 800,
+        "step": 2,
+        "range": [800, 899]
+      },
+      "allocation": {
+        "reuse": "after_scratch"
+      }
+    }
+  ]
+}

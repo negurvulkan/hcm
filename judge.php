@@ -50,7 +50,15 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     }
 }
 
-$starts = db_all('SELECT si.id, si.position, si.state, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$startNumberContext = [
+    'eventId' => (int) $selectedClass['event_id'],
+    'classId' => $classId,
+    'date' => $selectedClass['start_time'] ? substr($selectedClass['start_time'], 0, 10) : null,
+    'user' => $user,
+];
+$startNumberRule = getStartNumberRule($startNumberContext);
+
+$starts = db_all('SELECT si.id, si.position, si.state, si.start_number_display, si.start_number_assignment_id, e.id AS entry_id, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 if (!$starts) {
     render_page('judge.tpl', [
         'title' => 'Richten',
@@ -91,6 +99,16 @@ if ($start && $start['state'] !== 'running' && $start['state'] !== 'withdrawn') 
         'id' => $startId,
     ]);
     audit_log('startlist_items', $startId, 'state_change', $before, ['state' => 'running']);
+    if (($startNumberRule['allocation']['time'] ?? 'on_startlist') === 'on_gate') {
+        assignStartNumber($startNumberContext, [
+            'entry_id' => (int) $start['entry_id'],
+            'startlist_id' => $startId,
+        ]);
+    }
+    $assignmentIdRow = db_first('SELECT start_number_assignment_id FROM startlist_items WHERE id = :id', ['id' => $startId]);
+    if (!empty($assignmentIdRow['start_number_assignment_id']) && ($startNumberRule['allocation']['lock_after'] ?? 'start_called') === 'start_called') {
+        lockStartNumber((int) $assignmentIdRow['start_number_assignment_id'], 'start_called');
+    }
     $upcoming = db_all('SELECT si.position, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.class_id = :class AND si.state = "scheduled" ORDER BY si.planned_start ASC, si.position ASC LIMIT 5', ['class' => $classId]);
     db_execute('INSERT INTO notifications (type, payload, created_at) VALUES (:type, :payload, :created)', [
         'type' => 'next_starter',
@@ -173,6 +191,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'updated' => (new \DateTimeImmutable())->format('c'),
         'id' => $startId,
     ]);
+    if ($status === 'signed') {
+        $assignmentIdRow = db_first('SELECT start_number_assignment_id FROM startlist_items WHERE id = :id', ['id' => $startId]);
+        if (!empty($assignmentIdRow['start_number_assignment_id'])) {
+            lockStartNumber((int) $assignmentIdRow['start_number_assignment_id'], 'sign_off');
+        }
+    }
 
     flash('success', 'Wertung gespeichert.');
     header('Location: judge.php?class_id=' . $classId . '&start_id=' . $startId);
@@ -189,6 +213,7 @@ render_page('judge.tpl', [
     'scores' => $scores,
     'rule' => $rule,
     'result' => $result,
+    'startNumberRule' => $startNumberRule,
 ]);
 
 function buildScores(array $rule, array $payload): array

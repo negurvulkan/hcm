@@ -32,7 +32,7 @@ if (isset($_GET['download'])) {
 
     switch ($type) {
         case 'startlist':
-            $data = db_all('SELECT si.position, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+            $data = db_all('SELECT si.position, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
             $html = $view->render('print/startlist.tpl', ['items' => $data]);
             $filename = 'startliste.pdf';
             break;
@@ -42,7 +42,7 @@ if (isset($_GET['download'])) {
             $filename = 'richterbogen.pdf';
             break;
         case 'results':
-            $data = db_all('SELECT r.total, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.total DESC', ['class_id' => $classId]);
+            $data = db_all('SELECT r.total, p.name AS rider, h.name AS horse, si.start_number_display, si.start_number_raw FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.total DESC', ['class_id' => $classId]);
             $html = $view->render('print/results.tpl', ['items' => $data]);
             $filename = 'ergebnisliste.pdf';
             break;

@@ -43,6 +43,7 @@
                 <thead class="table-light">
                 <tr>
                     <th>#</th>
+                    <th>Startnr.</th>
                     <th>Reiter</th>
                     <th>Pferd</th>
                     <th>Geplanter Start &amp; Notiz</th>
@@ -54,6 +55,13 @@
                 <?php foreach ($startlist as $item): ?>
                     <tr class="<?= $item['state'] === 'withdrawn' ? 'table-secondary' : '' ?>">
                         <td><?= (int) $item['position'] ?></td>
+                        <td>
+                            <?php if (!empty($item['start_number_display'])): ?>
+                                <span class="badge bg-primary text-light"><?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php else: ?>
+                                <span class="text-muted">–</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
@@ -95,6 +103,12 @@
                                 <button class="btn btn-sm <?= $item['state'] === 'withdrawn' ? 'btn-outline-success' : 'btn-outline-warning' ?>" type="submit">
                                     <?= $item['state'] === 'withdrawn' ? 'Reaktivieren' : 'Abmelden' ?>
                                 </button>
+                            </form>
+                            <form method="post" class="d-inline">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="reassign_number">
+                                <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                <button class="btn btn-sm btn-outline-primary" type="submit" <?= !empty($item['start_number_locked_at']) ? 'disabled' : '' ?>>Neu zuweisen</button>
                             </form>
                             <form method="post" class="d-inline" onsubmit="return confirm('Start endgültig entfernen?')">
                                 <?= csrf_field() ?>

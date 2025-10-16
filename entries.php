@@ -55,6 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created' => (new \DateTimeImmutable())->format('c'),
                     ]
                 );
+                $entryId = (int) app_pdo()->lastInsertId();
+                $context = [
+                    'eventId' => (int) $class['event_id'],
+                    'classId' => $classId,
+                    'user' => $user,
+                ];
+                $rule = getStartNumberRule($context);
+                if (($rule['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
+                    assignStartNumber($context, ['entry_id' => $entryId]);
+                }
                 flash('success', 'Nennung gespeichert.');
             }
         }
@@ -73,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$entryId || !$personId || !$horseId || !$classId) {
             flash('error', 'Bitte alle Felder ausfüllen.');
         } else {
+            $existing = db_first('SELECT * FROM entries WHERE id = :id', ['id' => $entryId]);
             $class = db_first('SELECT id, event_id FROM classes WHERE id = :id', ['id' => $classId]);
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
                 flash('error', 'Prüfung nicht gefunden oder nicht freigegeben.');
@@ -89,6 +100,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'id' => $entryId,
                     ]
                 );
+                if ($existing && (int) $existing['class_id'] !== $classId && !empty($existing['start_number_assignment_id'])) {
+                    releaseStartNumber([
+                        'id' => (int) $existing['start_number_assignment_id'],
+                        'entry_id' => $entryId,
+                    ], 'reclass');
+                }
+                $context = [
+                    'eventId' => (int) $class['event_id'],
+                    'classId' => $classId,
+                    'user' => $user,
+                ];
+                $rule = getStartNumberRule($context);
+                if (($rule['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
+                    assignStartNumber($context, ['entry_id' => $entryId]);
+                }
                 flash('success', 'Nennung aktualisiert.');
             }
         }
@@ -100,10 +126,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         if ($entryId) {
-            $entry = db_first('SELECT event_id FROM entries WHERE id = :id', ['id' => $entryId]);
+        $entry = db_first('SELECT event_id, start_number_assignment_id FROM entries WHERE id = :id', ['id' => $entryId]);
             if (!$entry || !event_accessible($user, (int) $entry['event_id'])) {
                 flash('error', 'Keine Berechtigung für dieses Turnier.');
             } else {
+                if (!empty($entry['start_number_assignment_id'])) {
+                    releaseStartNumber([
+                        'id' => (int) $entry['start_number_assignment_id'],
+                        'entry_id' => $entryId,
+                    ], 'withdraw');
+                }
                 db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE entry_id = :id)', ['id' => $entryId]);
                 db_execute('DELETE FROM startlist_items WHERE entry_id = :id', ['id' => $entryId]);
                 db_execute('DELETE FROM entries WHERE id = :id', ['id' => $entryId]);
@@ -165,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $header = array_shift($rows);
         $created = 0;
+        $ruleCache = [];
         foreach ($rows as $row) {
             $data = array_combine(range(0, count($row) - 1), $row);
             $personName = $data[(int) ($mapping['person'] ?? -1)] ?? null;
@@ -197,6 +230,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'created' => (new \DateTimeImmutable())->format('c'),
                 ]
             );
+            $entryId = (int) app_pdo()->lastInsertId();
+            $cacheKey = (int) $class['id'];
+            if (!isset($ruleCache[$cacheKey])) {
+                $context = [
+                    'eventId' => (int) $class['event_id'],
+                    'classId' => (int) $class['id'],
+                    'user' => $user,
+                ];
+                $ruleCache[$cacheKey] = [
+                    'context' => $context,
+                    'rule' => getStartNumberRule($context),
+                ];
+            }
+            if ($entryId > 0 && ($ruleCache[$cacheKey]['rule']['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
+                assignStartNumber($ruleCache[$cacheKey]['context'], ['entry_id' => $entryId]);
+            }
             $created++;
         }
 
