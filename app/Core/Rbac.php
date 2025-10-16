@@ -31,6 +31,7 @@ class Rbac
         'export' => ['admin', 'office'],
         'audit' => ['admin'],
         'instance' => ['admin'],
+        'sync' => ['admin'],
     ];
 
     public static function allowed(string $role, string $permission): bool
@@ -58,6 +59,7 @@ class Rbac
             'print.php' => ['key' => 'print', 'label' => 'Druck'],
             'export.php' => ['key' => 'export', 'label' => 'Export'],
             'instance.php' => ['key' => 'instance', 'label' => 'Instanz & Modus'],
+            'sync_admin.php' => ['key' => 'sync', 'label' => 'Sync'],
         ];
 
         return array_filter($menu, static fn ($item) => self::allowed($role, $item['key']));
