@@ -17,13 +17,15 @@ if (!is_file(__DIR__ . '/config/app.php')) {
     exit;
 }
 
-function app_pdo(): \PDO
-{
-    $pdo = App::get('pdo');
-    if (!$pdo instanceof \PDO) {
-        throw new \RuntimeException('Keine aktive Datenbankverbindung.');
+if (!function_exists('app_pdo')) {
+    function app_pdo(): \PDO
+    {
+        $pdo = App::get('pdo');
+        if (!$pdo instanceof \PDO) {
+            throw new \RuntimeException('Keine aktive Datenbankverbindung.');
+        }
+        return $pdo;
     }
-    return $pdo;
 }
 
 function app_view(): SmartyView
@@ -178,25 +180,31 @@ function render_auth(string $template, array $data = []): void
     echo $view->render('auth/' . $template, $data);
 }
 
-function db_all(string $sql, array $params = []): array
-{
-    $stmt = app_pdo()->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+if (!function_exists('db_all')) {
+    function db_all(string $sql, array $params = []): array
+    {
+        $stmt = app_pdo()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 
-function db_first(string $sql, array $params = []): ?array
-{
-    $stmt = app_pdo()->prepare($sql);
-    $stmt->execute($params);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $row ?: null;
+if (!function_exists('db_first')) {
+    function db_first(string $sql, array $params = []): ?array
+    {
+        $stmt = app_pdo()->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
 }
 
-function db_execute(string $sql, array $params = []): bool
-{
-    $stmt = app_pdo()->prepare($sql);
-    return $stmt->execute($params);
+if (!function_exists('db_execute')) {
+    function db_execute(string $sql, array $params = []): bool
+    {
+        $stmt = app_pdo()->prepare($sql);
+        return $stmt->execute($params);
+    }
 }
 
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
