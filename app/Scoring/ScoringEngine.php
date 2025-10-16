@@ -13,18 +13,27 @@ class ScoringEngine
     {
         $rule = RuleManager::mergeDefaults($rule);
         $validation = $this->validateInput($rule, $input);
+        $warnings = [];
         if ($validation !== true) {
-            throw new RuntimeException('Ungültige Eingabe: ' . implode(', ', $validation));
+            $nonBlocking = array_values(array_diff($validation, ['Zu wenige Richter']));
+            if ($nonBlocking) {
+                throw new RuntimeException('Ungültige Eingabe: ' . implode(', ', $nonBlocking));
+            }
+            $warnings = $validation;
         }
         $perJudge = $this->evaluatePerJudge($input, $rule);
         $aggregate = $this->aggregateJudges($perJudge, $rule);
         $totals = $this->applyPenaltiesAndTime($aggregate, $input, $rule, $perJudge);
+        if ($warnings) {
+            $totals['warnings'] = $warnings;
+        }
         $totals['rule_snapshot'] = $this->snapshotRule($rule);
         $totals['engine_version'] = self::ENGINE_VERSION;
         return [
             'per_judge' => $perJudge,
             'aggregate' => $aggregate,
             'totals' => $totals,
+            'warnings' => $warnings,
         ];
     }
 
