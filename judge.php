@@ -84,6 +84,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $action = $_POST['action'] ?? 'save';
+
+    if ($action === 'delete_result') {
+        if ($result) {
+            db_execute('DELETE FROM results WHERE id = :id', ['id' => $result['id']]);
+            audit_log('results', (int) $result['id'], 'delete', $result, null);
+            db_execute('UPDATE startlist_items SET state = :state, updated_at = :updated WHERE id = :id', [
+                'state' => 'scheduled',
+                'updated' => (new \DateTimeImmutable())->format('c'),
+                'id' => $startId,
+            ]);
+            flash('success', 'Wertung entfernt.');
+        }
+        header('Location: judge.php?class_id=' . $classId . '&start_id=' . $startId);
+        exit;
+    }
+
     $payload = $_POST['score'] ?? [];
     $scores = buildScores($rule, $payload);
     $total = calculateTotal($rule, $scores, $_POST);

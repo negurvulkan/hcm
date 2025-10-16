@@ -71,9 +71,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: schedule.php?class_id=' . $classId);
         exit;
     }
+
+    if ($action === 'update_item') {
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $time = trim((string) ($_POST['planned_start'] ?? ''));
+        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        if ($item) {
+            $before = $item;
+            db_execute('UPDATE startlist_items SET planned_start = :start, updated_at = :updated WHERE id = :id', [
+                'start' => $time ?: null,
+                'updated' => (new \DateTimeImmutable())->format('c'),
+                'id' => $itemId,
+            ]);
+            $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+            audit_log('startlist_items', $itemId, 'time_update', $before, $after);
+            flash('success', 'Slot aktualisiert.');
+        }
+        header('Location: schedule.php?class_id=' . $classId);
+        exit;
+    }
+
+    if ($action === 'delete_item') {
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        if ($item) {
+            db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
+            db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+            audit_log('startlist_items', $itemId, 'delete', $item, null);
+            flash('success', 'Slot entfernt.');
+        }
+        header('Location: schedule.php?class_id=' . $classId);
+        exit;
+    }
 }
 
-$items = db_all('SELECT si.position, si.planned_start, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$items = db_all('SELECT si.id, si.position, si.planned_start, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 $shifts = db_all('SELECT shift_minutes, created_at FROM schedule_shifts WHERE class_id = :class_id ORDER BY id DESC LIMIT 10', ['class_id' => $classId]);
 
 render_page('schedule.tpl', [

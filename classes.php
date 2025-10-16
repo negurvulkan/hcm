@@ -11,9 +11,38 @@ $presets = [
     'western' => Installer::westernPreset(),
 ];
 
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editClass = null;
+if ($editId) {
+    $editClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $editId]);
+    if ($editClass) {
+        $editClass['judges'] = $editClass['judge_assignments'] ? implode(', ', json_decode($editClass['judge_assignments'], true, 512, JSON_THROW_ON_ERROR) ?: []) : '';
+        $editClass['rules_text'] = $editClass['rules_json'] ? json_encode(json_decode($editClass['rules_json'], true, 512, JSON_THROW_ON_ERROR), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : '';
+        $editClass['tiebreakers_list'] = $editClass['tiebreaker_json'] ? implode(', ', json_decode($editClass['tiebreaker_json'], true, 512, JSON_THROW_ON_ERROR) ?: []) : '';
+        $editClass['start_formatted'] = $editClass['start_time'] ? date('Y-m-d\TH:i', strtotime($editClass['start_time'])) : '';
+        $editClass['end_formatted'] = $editClass['end_time'] ? date('Y-m-d\TH:i', strtotime($editClass['end_time'])) : '';
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', 'CSRF ungültig.');
+        header('Location: classes.php');
+        exit;
+    }
+
+    $action = $_POST['action'] ?? 'create';
+
+    if ($action === 'delete') {
+        $classId = (int) ($_POST['class_id'] ?? 0);
+        if ($classId) {
+            db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE class_id = :id)', ['id' => $classId]);
+            db_execute('DELETE FROM startlist_items WHERE class_id = :id', ['id' => $classId]);
+            db_execute('DELETE FROM entries WHERE class_id = :id', ['id' => $classId]);
+            db_execute('DELETE FROM schedule_shifts WHERE class_id = :id', ['id' => $classId]);
+            db_execute('DELETE FROM classes WHERE id = :id', ['id' => $classId]);
+            flash('success', 'Prüfung gelöscht.');
+        }
         header('Location: classes.php');
         exit;
     }
@@ -58,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'tiebreaker_json' => $tiebreakers ? json_encode(array_values($tiebreakers), JSON_THROW_ON_ERROR) : null,
     ];
 
-    if ($classId > 0) {
+    if ($action === 'update' && $classId > 0) {
         db_execute(
             'UPDATE classes SET event_id = :event_id, label = :label, arena = :arena, start_time = :start_time, end_time = :end_time, max_starters = :max_starters, judge_assignments = :judge_assignments, rules_json = :rules_json, tiebreaker_json = :tiebreaker_json WHERE id = :id',
             $data + ['id' => $classId]
@@ -91,5 +120,6 @@ render_page('classes.tpl', [
     'events' => $events,
     'classes' => $classes,
     'presets' => $presets,
+    'editClass' => $editClass,
     'extraScripts' => ['public/assets/js/classes.js'],
 ]);

@@ -4,6 +4,9 @@ require __DIR__ . '/auth.php';
 $user = auth_require('horses');
 $owners = db_all('SELECT id, name FROM persons ORDER BY name');
 
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editHorse = $editId ? db_first('SELECT * FROM horses WHERE id = :id', ['id' => $editId]) : null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', 'CSRF ungültig.');
@@ -11,6 +14,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $action = $_POST['action'] ?? 'create';
+
+    if ($action === 'delete') {
+        $horseId = (int) ($_POST['horse_id'] ?? 0);
+        if ($horseId) {
+            db_execute('DELETE FROM horses WHERE id = :id', ['id' => $horseId]);
+            flash('success', 'Pferd gelöscht.');
+        }
+        header('Location: horses.php');
+        exit;
+    }
+
+    $horseId = (int) ($_POST['horse_id'] ?? 0);
     $name = trim((string) ($_POST['name'] ?? ''));
     $ownerId = (int) ($_POST['owner_id'] ?? 0) ?: null;
     $documentsOk = isset($_POST['documents_ok']) ? 1 : 0;
@@ -19,16 +35,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '') {
         flash('error', 'Name erforderlich.');
     } else {
-        db_execute(
-            'INSERT INTO horses (name, owner_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
-            [
-                'name' => $name,
-                'owner' => $ownerId,
-                'ok' => $documentsOk,
-                'notes' => $notes ?: null,
-            ]
-        );
-        flash('success', 'Pferd gespeichert.');
+        if ($action === 'update' && $horseId > 0) {
+            db_execute(
+                'UPDATE horses SET name = :name, owner_id = :owner, documents_ok = :ok, notes = :notes WHERE id = :id',
+                [
+                    'name' => $name,
+                    'owner' => $ownerId,
+                    'ok' => $documentsOk,
+                    'notes' => $notes ?: null,
+                    'id' => $horseId,
+                ]
+            );
+            flash('success', 'Pferd aktualisiert.');
+        } else {
+            db_execute(
+                'INSERT INTO horses (name, owner_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
+                [
+                    'name' => $name,
+                    'owner' => $ownerId,
+                    'ok' => $documentsOk,
+                    'notes' => $notes ?: null,
+                ]
+            );
+            flash('success', 'Pferd gespeichert.');
+        }
     }
 
     header('Location: horses.php');
@@ -59,4 +89,5 @@ render_page('horses.tpl', [
     'owners' => $owners,
     'filterName' => $filterName,
     'filterOwner' => $filterOwner,
+    'editHorse' => $editHorse,
 ]);

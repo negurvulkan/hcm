@@ -45,6 +45,7 @@
                     <th>Reiter</th>
                     <th>Pferd</th>
                     <th>Geplanter Start</th>
+                    <th class="text-end">Aktionen</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -53,7 +54,23 @@
                         <td><?= (int) $item['position'] ?></td>
                         <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($item['planned_start'] ? date('H:i', strtotime($item['planned_start'])) : '–', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <form method="post" class="d-flex gap-2">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="update_item">
+                                <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                <input type="datetime-local" name="planned_start" class="form-control form-control-sm" value="<?= htmlspecialchars($item['planned_start'] ? date('Y-m-d\TH:i', strtotime($item['planned_start'])) : '', ENT_QUOTES, 'UTF-8') ?>">
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">Speichern</button>
+                            </form>
+                        </td>
+                        <td class="text-end">
+                            <form method="post" class="d-inline" onsubmit="return confirm('Slot wirklich entfernen?')">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="delete_item">
+                                <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Löschen</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

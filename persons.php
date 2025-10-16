@@ -8,6 +8,15 @@ $user = auth_require('persons');
 $roles = Rbac::ROLES;
 $clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
 
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editPerson = null;
+if ($editId) {
+    $editPerson = db_first('SELECT * FROM persons WHERE id = :id', ['id' => $editId]);
+    if ($editPerson) {
+        $editPerson['role_list'] = $editPerson['roles'] ? json_decode($editPerson['roles'], true, 512, JSON_THROW_ON_ERROR) : [];
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', 'CSRF ungültig.');
@@ -15,6 +24,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $action = $_POST['action'] ?? 'create';
+
+    if ($action === 'delete') {
+        $personId = (int) ($_POST['person_id'] ?? 0);
+        if ($personId) {
+            db_execute('DELETE FROM persons WHERE id = :id', ['id' => $personId]);
+            flash('success', 'Person gelöscht.');
+        }
+        header('Location: persons.php');
+        exit;
+    }
+
+    $personId = (int) ($_POST['person_id'] ?? 0);
     $name = trim((string) ($_POST['name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $phone = trim((string) ($_POST['phone'] ?? ''));
@@ -24,18 +46,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '' || !$selectedRoles) {
         flash('error', 'Name und mindestens eine Rolle angeben.');
     } else {
-        db_execute(
-            'INSERT INTO persons (name, email, phone, roles, club_id, created_at) VALUES (:name, :email, :phone, :roles, :club_id, :created_at)',
-            [
-                'name' => $name,
-                'email' => $email ?: null,
-                'phone' => $phone ?: null,
-                'roles' => json_encode(array_values($selectedRoles), JSON_THROW_ON_ERROR),
-                'club_id' => $clubId,
-                'created_at' => (new DateTimeImmutable())->format('c'),
-            ]
-        );
-        flash('success', 'Person angelegt.');
+        if ($action === 'update' && $personId > 0) {
+            db_execute(
+                'UPDATE persons SET name = :name, email = :email, phone = :phone, roles = :roles, club_id = :club_id WHERE id = :id',
+                [
+                    'name' => $name,
+                    'email' => $email ?: null,
+                    'phone' => $phone ?: null,
+                    'roles' => json_encode(array_values($selectedRoles), JSON_THROW_ON_ERROR),
+                    'club_id' => $clubId,
+                    'id' => $personId,
+                ]
+            );
+            flash('success', 'Person aktualisiert.');
+        } else {
+            db_execute(
+                'INSERT INTO persons (name, email, phone, roles, club_id, created_at) VALUES (:name, :email, :phone, :roles, :club_id, :created_at)',
+                [
+                    'name' => $name,
+                    'email' => $email ?: null,
+                    'phone' => $phone ?: null,
+                    'roles' => json_encode(array_values($selectedRoles), JSON_THROW_ON_ERROR),
+                    'club_id' => $clubId,
+                    'created_at' => (new DateTimeImmutable())->format('c'),
+                ]
+            );
+            flash('success', 'Person angelegt.');
+        }
     }
 
     header('Location: persons.php');
@@ -71,4 +108,5 @@ render_page('persons.tpl', [
     'clubs' => $clubs,
     'filterName' => $filterName,
     'filterRole' => $filterRole,
+    'editPerson' => $editPerson,
 ]);

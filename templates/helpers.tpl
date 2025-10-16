@@ -6,24 +6,25 @@
     <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h5 mb-3">Schicht anlegen</h2>
+                <h2 class="h5 mb-3"><?= $editShift ? 'Schicht bearbeiten' : 'Schicht anlegen' ?></h2>
                 <form method="post">
                     <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="create">
+                    <input type="hidden" name="action" value="<?= $editShift ? 'update' : 'create' ?>">
+                    <input type="hidden" name="shift_id" value="<?= $editShift ? (int) $editShift['id'] : '' ?>">
                     <div class="mb-3">
                         <label class="form-label">Rolle</label>
-                        <input type="text" name="role" class="form-control" required>
+                        <input type="text" name="role" class="form-control" value="<?= htmlspecialchars($editShift['role'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Station</label>
-                        <input type="text" name="station" class="form-control">
+                        <input type="text" name="station" class="form-control" value="<?= htmlspecialchars($editShift['station'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Person</label>
                         <select name="person_id" class="form-select">
                             <option value="">Noch offen</option>
                             <?php foreach ($persons as $person): ?>
-                                <option value="<?= (int) $person['id'] ?>"><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $person['id'] ?>" <?= $editShift && (int) ($editShift['person_id'] ?? 0) === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -31,17 +32,22 @@
                         <div class="col">
                             <label class="form-label">Beginn</label>
                             <div data-datetime-picker>
-                                <input type="datetime-local" name="start_time" class="form-control">
+                                <input type="datetime-local" name="start_time" class="form-control" value="<?= htmlspecialchars(isset($editShift['start_time']) && $editShift['start_time'] ? date('Y-m-d\TH:i', strtotime($editShift['start_time'])) : '', ENT_QUOTES, 'UTF-8') ?>">
                             </div>
                         </div>
                         <div class="col">
                             <label class="form-label">Ende</label>
                             <div data-datetime-picker>
-                                <input type="datetime-local" name="end_time" class="form-control">
+                                <input type="datetime-local" name="end_time" class="form-control" value="<?= htmlspecialchars(isset($editShift['end_time']) && $editShift['end_time'] ? date('Y-m-d\TH:i', strtotime($editShift['end_time'])) : '', ENT_QUOTES, 'UTF-8') ?>">
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-accent w-100 mt-3" type="submit">Speichern</button>
+                    <div class="d-grid gap-2 mt-3">
+                        <button class="btn btn-accent" type="submit">Speichern</button>
+                        <?php if ($editShift): ?>
+                            <a href="helpers.php" class="btn btn-outline-secondary">Abbrechen</a>
+                        <?php endif; ?>
+                    </div>
                 </form>
             </div>
         </div>
@@ -59,6 +65,7 @@
                             <th>Zeitraum</th>
                             <th>Token</th>
                             <th>Check-in</th>
+                            <th class="text-end">Aktionen</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -80,10 +87,21 @@
                                         </form>
                                     <?php endif; ?>
                                 </td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a class="btn btn-sm btn-outline-secondary" href="helpers.php?edit=<?= (int) $shift['id'] ?>">Bearbeiten</a>
+                                        <form method="post" onsubmit="return confirm('Schicht löschen?')">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="shift_id" value="<?= (int) $shift['id'] ?>">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Löschen</button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!$shifts): ?>
-                            <tr><td colspan="5" class="text-muted">Noch keine Schichten.</td></tr>
+                            <tr><td colspan="6" class="text-muted">Noch keine Schichten.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>

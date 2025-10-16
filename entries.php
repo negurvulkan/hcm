@@ -46,6 +46,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'update') {
+        $entryId = (int) ($_POST['entry_id'] ?? 0);
+        $personId = (int) ($_POST['person_id'] ?? 0);
+        $horseId = (int) ($_POST['horse_id'] ?? 0);
+        $classId = (int) ($_POST['class_id'] ?? 0);
+        $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
+
+        if (!$entryId || !$personId || !$horseId || !$classId) {
+            flash('error', 'Bitte alle Felder ausfüllen.');
+        } else {
+            $class = db_first('SELECT id, event_id FROM classes WHERE id = :id', ['id' => $classId]);
+            if (!$class) {
+                flash('error', 'Prüfung nicht gefunden.');
+            } else {
+                db_execute(
+                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, person_id = :person_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
+                    [
+                        'event_id' => $class['event_id'],
+                        'class_id' => $classId,
+                        'person_id' => $personId,
+                        'horse_id' => $horseId,
+                        'status' => $status,
+                        'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
+                        'id' => $entryId,
+                    ]
+                );
+                flash('success', 'Nennung aktualisiert.');
+            }
+        }
+
+        header('Location: entries.php');
+        exit;
+    }
+
+    if ($action === 'delete') {
+        $entryId = (int) ($_POST['entry_id'] ?? 0);
+        if ($entryId) {
+            db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE entry_id = :id)', ['id' => $entryId]);
+            db_execute('DELETE FROM startlist_items WHERE entry_id = :id', ['id' => $entryId]);
+            db_execute('DELETE FROM entries WHERE id = :id', ['id' => $entryId]);
+            flash('success', 'Nennung gelöscht.');
+        }
+        header('Location: entries.php');
+        exit;
+    }
+
     if ($action === 'update_status') {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
@@ -134,7 +180,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$entries = db_all('SELECT e.id, e.status, p.name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id ORDER BY e.created_at DESC LIMIT 100');
+$entries = db_all('SELECT e.id, e.status, e.person_id, e.horse_id, e.class_id, p.name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id ORDER BY e.created_at DESC LIMIT 100');
+$editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
+$editEntry = null;
+if ($editId) {
+    foreach ($entries as $entry) {
+        if ((int) $entry['id'] === $editId) {
+            $editEntry = $entry;
+            break;
+        }
+    }
+}
 $importToken = $_GET['import'] ?? '';
 $importRows = $importToken && isset($_SESSION['entries_import'][$importToken]) ? $_SESSION['entries_import'][$importToken] : null;
 $importHeader = $importRows ? $importRows[0] : [];
@@ -148,4 +204,5 @@ render_page('entries.tpl', [
     'entries' => $entries,
     'importToken' => $importToken,
     'importHeader' => $importHeader,
+    'editEntry' => $editEntry,
 ]);
