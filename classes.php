@@ -17,6 +17,11 @@ if (!$isAdmin) {
 $eventsQuery .= ' ORDER BY title';
 $events = db_all($eventsQuery);
 $presets = scoring_rule_presets();
+$scoringDesignerDefault = RuleManager::mergeDefaults([]);
+$scoringDesignerPresets = [];
+foreach ($presets as $key => $preset) {
+    $scoringDesignerPresets[$key] = RuleManager::mergeDefaults($preset);
+}
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editClass = null;
@@ -353,5 +358,7 @@ render_page('classes.tpl', [
     'classRuleDesignerJson' => start_number_rule_safe_json($classRuleDesigner),
     'classRuleDefaultsJson' => start_number_rule_safe_json($classRuleDefaults),
     'classRuleEventJson' => $classRuleEvent ? start_number_rule_safe_json($classRuleEvent) : null,
-    'extraScripts' => ['public/assets/js/start-number-designer.js', 'public/assets/js/classes.js'],
+    'scoringDesignerDefaultJson' => scoring_rule_safe_json($scoringDesignerDefault),
+    'scoringDesignerPresetsJson' => scoring_rule_safe_json($scoringDesignerPresets),
+    'extraScripts' => ['public/assets/js/scoring-designer.js', 'public/assets/js/start-number-designer.js', 'public/assets/js/classes.js'],
 ]);

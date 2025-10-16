@@ -20,6 +20,13 @@ if ($editEvent && !empty($editEvent['scoring_rule_json'])) {
     $editEvent['scoring_rule_text'] = json_encode(scoring_rule_decode($editEvent['scoring_rule_json']) ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }
 
+$scoringPresets = RuleManager::presets();
+$scoringDesignerDefault = RuleManager::mergeDefaults([]);
+$scoringDesignerPresets = [];
+foreach ($scoringPresets as $key => $preset) {
+    $scoringDesignerPresets[$key] = RuleManager::mergeDefaults($preset);
+}
+
 $ruleDefaults = start_number_rule_defaults();
 $designerRule = $ruleDefaults;
 if ($editEvent && !empty($editEvent['start_number_rules'])) {
@@ -204,7 +211,9 @@ render_page('events.tpl', [
     'simulationError' => $simulationError,
     'ruleDesignerJson' => start_number_rule_safe_json($designerRule),
     'ruleDesignerDefaultsJson' => start_number_rule_safe_json($ruleDefaults),
-    'extraScripts' => ['public/assets/js/start-number-designer.js'],
+    'scoringDesignerDefaultJson' => scoring_rule_safe_json($scoringDesignerDefault),
+    'scoringDesignerPresetsJson' => scoring_rule_safe_json($scoringDesignerPresets),
+    'extraScripts' => ['public/assets/js/scoring-designer.js', 'public/assets/js/start-number-designer.js'],
 ]);
 
 function events_simulate_numbers(array $rule, int $count): array
