@@ -14,7 +14,7 @@ $extraStyles = $extraStyles ?? [];
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="public/assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="public/assets/vendor/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="public/assets/css/styles.css">
     <?php foreach ($extraStyles as $href): ?>
         <link rel="stylesheet" href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>">
@@ -67,7 +67,7 @@ $extraStyles = $extraStyles ?? [];
 </footer>
 
 <script src="public/assets/vendor/jquery.min.js"></script>
-<script src="public/assets/vendor/bootstrap.bundle.min.js"></script>
+<script src="public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="public/assets/js/helpers.js"></script>
 <script src="public/assets/js/ticker.js"></script>
 <?php foreach ($extraScripts as $script): ?>
