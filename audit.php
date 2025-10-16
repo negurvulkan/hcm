@@ -1,7 +1,5 @@
 <?php
-require __DIR__ . '/auth.php';
-
-use DateTimeImmutable;
+require_once __DIR__ . '/auth.php';
 
 function audit_log(string $entity, int $entityId, string $action, ?array $before = null, ?array $after = null): void
 {
@@ -15,7 +13,7 @@ function audit_log(string $entity, int $entityId, string $action, ?array $before
             'user_id' => $user['id'] ?? null,
             'before_state' => $before ? json_encode($before, JSON_THROW_ON_ERROR) : null,
             'after_state' => $after ? json_encode($after, JSON_THROW_ON_ERROR) : null,
-            'created_at' => (new DateTimeImmutable())->format('c'),
+            'created_at' => (new \DateTimeImmutable())->format('c'),
         ]
     );
 }
@@ -50,7 +48,7 @@ function audit_undo(int $logId): bool
                     'planned_start' => $before['planned_start'] ?? null,
                     'state' => $before['state'] ?? 'scheduled',
                     'note' => $before['note'] ?? null,
-                    'updated' => (new DateTimeImmutable())->format('c'),
+                    'updated' => (new \DateTimeImmutable())->format('c'),
                     'id' => $log['entity_id'],
                 ]
             );
