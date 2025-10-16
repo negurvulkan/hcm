@@ -13,9 +13,9 @@
                 <div class="col-sm-6 col-xl-3">
                     <a href="<?= htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none">
                         <div class="card p-3 h-100">
-                            <div class="text-muted small text-uppercase mb-2"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="small text-uppercase mb-2"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></div>
                             <div class="display-6 fw-semibold"><?= htmlspecialchars((string) $item['value'], ENT_QUOTES, 'UTF-8') ?></div>
-                            <div class="text-muted small">Zur Übersicht</div>
+                            <div class="small">Zur Übersicht</div>
                         </div>
                     </a>
                 </div>
@@ -30,14 +30,14 @@
             <div class="card-body">
                 <h2 class="h5 mb-3">Heutiger Zeitplan</h2>
                 <?php if (!$todaySchedule): ?>
-                    <p class="text-muted">Heute sind keine Starts geplant.</p>
+                    <p class="">Heute sind keine Starts geplant.</p>
                 <?php else: ?>
                     <ul class="list-group list-group-flush">
                         <?php foreach ($todaySchedule as $slot): ?>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
                                     <div class="fw-semibold"><?= htmlspecialchars($slot['label'], ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="text-muted small"><?= htmlspecialchars(date('H:i', strtotime($slot['start_time'] ?? '')), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(date('H:i', strtotime($slot['end_time'] ?? '')), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="small"><?= htmlspecialchars(date('H:i', strtotime($slot['start_time'] ?? '')), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(date('H:i', strtotime($slot['end_time'] ?? '')), ENT_QUOTES, 'UTF-8') ?></div>
                                 </div>
                             </li>
                         <?php endforeach; ?>
@@ -58,7 +58,7 @@
                 </p>
                 <p class="mb-1"><strong>Pferd:</strong> <?= htmlspecialchars($currentStart['horse'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
                 <p class="mb-3"><strong>Prüfung:</strong> <?= htmlspecialchars($currentStart['class_label'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
-                <h3 class="h6 text-muted text-uppercase">Nächste Starter</h3>
+                <h3 class="h6 text-uppercase">Nächste Starter</h3>
                 <ul class="list-inline" data-ticker-upcoming>
                     <?php foreach ($nextStarters as $starter): ?>
                         <li class="list-inline-item badge bg-light text-dark me-2 mb-2">
@@ -70,7 +70,7 @@
                         </li>
                     <?php endforeach; ?>
                 </ul>
-                <div class="small text-muted" data-ticker-shift>Keine Verschiebungen.</div>
+                <div class="small" data-ticker-shift>Keine Verschiebungen.</div>
             </div>
         </div>
     </div>
