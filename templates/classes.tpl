@@ -350,7 +350,6 @@
                 </form>
             </div>
         </div>
-    </div>
     <div class="col-lg-7">
         <div class="card">
             <div class="card-body">
