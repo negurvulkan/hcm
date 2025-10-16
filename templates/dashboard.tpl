@@ -50,13 +50,24 @@
         <div class="card h-100" data-ticker>
             <div class="card-body">
                 <h2 class="h5 mb-3">Live-Status</h2>
-                <p class="mb-1"><strong>Aktuell:</strong> <span data-ticker-current><?= htmlspecialchars($currentStart['rider'] ?? 'Noch kein Start', ENT_QUOTES, 'UTF-8') ?></span></p>
+                <p class="mb-1"><strong>Aktuell:</strong>
+                    <?php if (!empty($currentStart['start_number_display'])): ?>
+                        <span class="badge bg-primary text-light me-1">Startnr. <?= htmlspecialchars($currentStart['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                    <span data-ticker-current><?= htmlspecialchars($currentStart['rider'] ?? 'Noch kein Start', ENT_QUOTES, 'UTF-8') ?></span>
+                </p>
                 <p class="mb-1"><strong>Pferd:</strong> <?= htmlspecialchars($currentStart['horse'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
                 <p class="mb-3"><strong>Prüfung:</strong> <?= htmlspecialchars($currentStart['class_label'] ?? '-', ENT_QUOTES, 'UTF-8') ?></p>
                 <h3 class="h6 text-muted text-uppercase">Nächste Starter</h3>
                 <ul class="list-inline" data-ticker-upcoming>
                     <?php foreach ($nextStarters as $starter): ?>
-                        <li class="list-inline-item badge bg-light text-dark me-2 mb-2">Nr. <?= (int) $starter['position'] ?> · <?= htmlspecialchars($starter['rider'], ENT_QUOTES, 'UTF-8') ?></li>
+                        <li class="list-inline-item badge bg-light text-dark me-2 mb-2">
+                            Nr. <?= (int) $starter['position'] ?>
+                            <?php if (!empty($starter['start_number_display'])): ?>
+                                <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($starter['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php endif; ?>
+                            · <?= htmlspecialchars($starter['rider'], ENT_QUOTES, 'UTF-8') ?>
+                        </li>
                     <?php endforeach; ?>
                 </ul>
                 <div class="small text-muted" data-ticker-shift>Keine Verschiebungen.</div>
