@@ -7,6 +7,8 @@ use App\Core\Auth as AuthCore;
 use App\Core\Csrf;
 use App\Core\Rbac;
 use App\Core\SmartyView;
+use App\I18n\LocaleManager;
+use App\I18n\Translator;
 use App\Services\InstanceConfiguration;
 
 if (!class_exists('Csrf', false)) {
@@ -38,16 +40,41 @@ function app_view(): SmartyView
     return $view;
 }
 
-function app_lang(?string $key = null): mixed
+function locale_manager(): ?LocaleManager
 {
-    static $dictionary;
-    if ($dictionary === null) {
-        $dictionary = require __DIR__ . '/lang.php';
+    $manager = App::get('locale_manager');
+    return $manager instanceof LocaleManager ? $manager : null;
+}
+
+function available_locales(): array
+{
+    $manager = locale_manager();
+    return $manager ? $manager->supported() : ['de', 'en'];
+}
+
+function translator(): ?Translator
+{
+    $translator = App::get('translator');
+    return $translator instanceof Translator ? $translator : null;
+}
+
+function locale_switch_url(string $locale): string
+{
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    if ($uri === '') {
+        $uri = '/';
     }
-    if ($key === null) {
-        return $dictionary;
+
+    $parts = parse_url($uri);
+    $path = $parts['path'] ?? '/';
+    $query = [];
+    if (!empty($parts['query'])) {
+        parse_str($parts['query'], $query);
     }
-    return $dictionary[$key] ?? $key;
+    $query['lang'] = $locale;
+    $queryString = http_build_query($query);
+
+    return $path . ($queryString ? '?' . $queryString : '');
 }
 
 function instance_config(): InstanceConfiguration
@@ -212,12 +239,12 @@ function render_page(string $template, array $data = []): void
     $menu = $user ? Rbac::menuFor($user['role']) : [];
     $flashes = flash_pull();
     $instance = instance_view_context();
-    $lang = app_lang();
+    $translations = translator()?->all() ?? [];
     $content = $view->render($template, array_merge($data, [
         'user' => $user,
         'menu' => $menu,
-        'lang' => $lang,
         'instance' => $instance,
+        'translations' => $translations,
     ]));
 
     echo $view->render('layout.tpl', array_merge($data, [
@@ -225,15 +252,22 @@ function render_page(string $template, array $data = []): void
         'menu' => $menu,
         'content' => $content,
         'flashes' => $flashes,
-        'lang' => $lang,
         'instance' => $instance,
+        'availableLocales' => available_locales(),
+        'currentLocale' => current_locale(),
+        'translations' => $translations,
     ]));
 }
 
 function render_auth(string $template, array $data = []): void
 {
     $view = app_view();
-    echo $view->render('auth/' . $template, $data);
+    $translations = translator()?->all() ?? [];
+    echo $view->render('auth/' . $template, array_merge([
+        'currentLocale' => current_locale(),
+        'availableLocales' => available_locales(),
+        'translations' => $translations,
+    ], $data));
 }
 
 if (!function_exists('db_all')) {

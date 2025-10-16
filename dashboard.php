@@ -15,25 +15,32 @@ $lastDryRun = $instanceConfig->lastDryRun();
 $localCounts = $instanceConfig->collectLocalCounts();
 $localEntriesCount = $localCounts['counts']['entries'] ?? 0;
 $remoteEntriesCount = $lastDryRun['remote']['entries'] ?? 0;
-$lastSyncNote = sprintf('Lokal %d · Peer %d', $localEntriesCount, $remoteEntriesCount);
+$lastSyncNote = t('dashboard.tiles.sync.note', [
+    'local' => $localEntriesCount,
+    'remote' => $remoteEntriesCount,
+]);
 $adminTiles = [
     [
-        'title' => 'Peer-Verbindung',
-        'value' => $peerInfo['status'] === 'ok' ? '● Verbunden' : ($peerInfo['status'] === 'error' ? '● Fehler' : '● Offen'),
+        'title' => t('dashboard.tiles.peer_connection.title'),
+        'value' => $peerInfo['status'] === 'ok'
+            ? t('dashboard.tiles.peer_connection.connected')
+            : ($peerInfo['status'] === 'error'
+                ? t('dashboard.tiles.peer_connection.error')
+                : t('dashboard.tiles.peer_connection.pending')),
         'value_class' => $peerInfo['status'] === 'ok' ? 'text-success' : ($peerInfo['status'] === 'error' ? 'text-danger' : 'text-muted'),
-        'note' => $peerInfo['formatted_checked_at'] ?? ($peerInfo['message'] ?? 'Noch nicht geprüft'),
+        'note' => $peerInfo['formatted_checked_at'] ?? ($peerInfo['message'] ?? t('dashboard.tiles.peer_connection.note_missing')),
         'href' => 'instance.php',
     ],
     [
-        'title' => 'Schreibstatus',
-        'value' => $instanceMeta['read_only'] ? 'Read-only' : 'Schreibend',
+        'title' => t('dashboard.tiles.write_state.title'),
+        'value' => $instanceMeta['read_only'] ? t('layout.read_only') : t('layout.writeable'),
         'value_class' => $instanceMeta['read_only'] ? 'text-warning' : 'text-success',
         'note' => $instanceMeta['mode_label'] ?? '-',
         'href' => 'instance.php',
     ],
     [
-        'title' => 'Letzter Sync',
-        'value' => $lastDryRun['formatted_timestamp'] ?? 'Keine Daten',
+        'title' => t('dashboard.tiles.sync.title'),
+        'value' => $lastDryRun['formatted_timestamp'] ?? t('dashboard.tiles.sync.empty'),
         'value_class' => !empty($lastDryRun['timestamp']) ? 'text-primary' : 'text-muted',
         'note' => $lastSyncNote,
         'href' => 'instance.php',
@@ -75,23 +82,23 @@ if ($isAdmin) {
 $tiles = [
     'admin' => $adminTiles,
     'office' => [
-        ['title' => 'Offene Nennungen', 'value' => $openEntries, 'href' => 'entries.php'],
-        ['title' => 'Bezahlte Nennungen', 'value' => $paidEntries, 'href' => 'entries.php'],
+        ['title' => t('dashboard.tiles.office.open_entries'), 'value' => $openEntries, 'href' => 'entries.php'],
+        ['title' => t('dashboard.tiles.office.paid_entries'), 'value' => $paidEntries, 'href' => 'entries.php'],
     ],
     'steward' => [
-        ['title' => 'Heutiger Ablauf', 'value' => count($todaySchedule), 'href' => 'schedule.php'],
-        ['title' => 'Live-Starter', 'value' => $currentStart['position'] ?? '-', 'href' => 'startlist.php'],
+        ['title' => t('dashboard.tiles.steward.today_schedule'), 'value' => count($todaySchedule), 'href' => 'schedule.php'],
+        ['title' => t('dashboard.tiles.steward.live_position'), 'value' => $currentStart['position'] ?? '-', 'href' => 'startlist.php'],
     ],
     'helpers' => [
-        ['title' => 'Check-ins', 'value' => $helperCheckins, 'href' => 'helpers.php'],
+        ['title' => t('dashboard.tiles.helpers.checkins'), 'value' => $helperCheckins, 'href' => 'helpers.php'],
     ],
     'judge' => [
-        ['title' => 'Starters in Queue', 'value' => count($nextStarters), 'href' => 'judge.php'],
+        ['title' => t('dashboard.tiles.judge.queue'), 'value' => count($nextStarters), 'href' => 'judge.php'],
     ],
 ];
 
 render_page('dashboard.tpl', [
-    'title' => 'Dashboard',
+    'titleKey' => 'dashboard.title',
     'page' => 'dashboard',
     'user' => $user,
     'tiles' => $tiles,
