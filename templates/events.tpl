@@ -49,6 +49,7 @@
                             <th>Titel</th>
                             <th>Zeitraum</th>
                             <th>Orte</th>
+                            <th>Status</th>
                             <th class="text-end">Aktionen</th>
                         </tr>
                         </thead>
@@ -62,8 +63,32 @@
                                         <span class="badge bg-light text-dark me-1 mb-1"><?= htmlspecialchars($venue, ENT_QUOTES, 'UTF-8') ?></span>
                                     <?php endforeach; ?>
                                 </td>
+                                <td>
+                                    <?php if ((int) ($event['is_active'] ?? 0) === 1): ?>
+                                        <span class="badge bg-success">Aktiv</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary">Inaktiv</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-2">
+                                        <?php if (!empty($isAdmin)): ?>
+                                            <?php if ((int) ($event['is_active'] ?? 0) === 1): ?>
+                                                <form method="post">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="action" value="deactivate">
+                                                    <input type="hidden" name="event_id" value="<?= (int) $event['id'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-warning">Deaktivieren</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <form method="post">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="action" value="set_active">
+                                                    <input type="hidden" name="event_id" value="<?= (int) $event['id'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">Aktiv setzen</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                         <a class="btn btn-sm btn-outline-secondary" href="events.php?edit=<?= (int) $event['id'] ?>">Bearbeiten</a>
                                         <form method="post" onsubmit="return confirm('Turnier wirklich löschen? Dies kann nicht rückgängig gemacht werden.');">
                                             <?= csrf_field() ?>

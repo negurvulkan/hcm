@@ -3,7 +3,18 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
 
 $user = auth_require('judge');
-$classes = db_all('SELECT c.id, c.label, e.title FROM classes c JOIN events e ON e.id = c.event_id ORDER BY e.title, c.label');
+$isAdmin = auth_is_admin($user);
+$activeEvent = event_active();
+$classesSql = 'SELECT c.id, c.label, c.event_id, e.title FROM classes c JOIN events e ON e.id = c.event_id';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $classes = [];
+    } else {
+        $classes = db_all($classesSql . ' WHERE e.id = :event_id ORDER BY e.title, c.label', ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $classes = db_all($classesSql . ' ORDER BY e.title, c.label');
+}
 if (!$classes) {
     render_page('judge.tpl', [
         'title' => 'Richten',
@@ -19,10 +30,24 @@ if (!$classes) {
 }
 
 $classId = (int) ($_GET['class_id'] ?? $classes[0]['id']);
-$selectedClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
-if (!$selectedClass) {
-    $selectedClass = $classes[0];
-    $classId = (int) $selectedClass['id'];
+$selectedClass = $classId ? db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]) : null;
+if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
+    $classId = (int) $classes[0]['id'];
+    $selectedClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
+    if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
+        flash('error', 'Keine Berechtigung für dieses Turnier.');
+        render_page('judge.tpl', [
+            'title' => 'Richten',
+            'page' => 'judge',
+            'classes' => [],
+            'selectedClass' => null,
+            'start' => null,
+            'scores' => [],
+            'rule' => [],
+            'result' => null,
+        ]);
+        exit;
+    }
 }
 
 $starts = db_all('SELECT si.id, si.position, si.state, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);

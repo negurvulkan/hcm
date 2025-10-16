@@ -72,9 +72,41 @@ function auth_user(): ?array
     return auth_instance()->user();
 }
 
+function auth_is_admin(array $user): bool
+{
+    return ($user['role'] ?? '') === 'admin';
+}
+
 function auth_check(): bool
 {
     return auth_instance()->check();
+}
+
+function event_active(bool $refresh = false): ?array
+{
+    static $active;
+    if ($refresh) {
+        $active = null;
+    }
+    if ($active === null) {
+        $active = db_first('SELECT * FROM events WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
+    }
+    return $active ?: null;
+}
+
+function event_active_id(bool $refresh = false): ?int
+{
+    $event = event_active($refresh);
+    return $event ? (int) $event['id'] : null;
+}
+
+function event_accessible(array $user, int $eventId): bool
+{
+    if (auth_is_admin($user)) {
+        return true;
+    }
+    $activeId = event_active_id();
+    return $activeId !== null && $activeId === (int) $eventId;
 }
 
 function auth_require(string $permission = 'dashboard'): array

@@ -1,7 +1,9 @@
 <?php
 require __DIR__ . '/auth.php';
 
-auth_require('export');
+$user = auth_require('export');
+$isAdmin = auth_is_admin($user);
+$activeEvent = event_active();
 
 $type = $_GET['type'] ?? null;
 $classId = (int) ($_GET['class_id'] ?? 0);
@@ -9,12 +11,27 @@ $classId = (int) ($_GET['class_id'] ?? 0);
 if ($type) {
     switch ($type) {
         case 'entries':
-            $rows = db_all('SELECT e.id, p.name AS rider, h.name AS horse, c.label AS class_label, e.status FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id ORDER BY e.created_at DESC');
+            $entriesSql = 'SELECT e.id, p.name AS rider, h.name AS horse, c.label AS class_label, e.status FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
+            if (!$isAdmin) {
+                if (!$activeEvent) {
+                    $rows = [];
+                } else {
+                    $rows = db_all($entriesSql . ' WHERE e.event_id = :event_id ORDER BY e.created_at DESC', ['event_id' => (int) $activeEvent['id']]);
+                }
+            } else {
+                $rows = db_all($entriesSql . ' ORDER BY e.created_at DESC');
+            }
             outputCsv('entries.csv', ['ID', 'Reiter', 'Pferd', 'Prüfung', 'Status'], $rows);
             break;
         case 'starters':
             if (!$classId) {
                 flash('error', 'Klasse wählen.');
+                header('Location: export.php');
+                exit;
+            }
+            $class = db_first('SELECT event_id FROM classes WHERE id = :id', ['id' => $classId]);
+            if (!$class || !event_accessible($user, (int) $class['event_id'])) {
+                flash('error', 'Keine Berechtigung für dieses Turnier.');
                 header('Location: export.php');
                 exit;
             }
@@ -27,6 +44,12 @@ if ($type) {
                 header('Location: export.php');
                 exit;
             }
+            $class = db_first('SELECT event_id FROM classes WHERE id = :id', ['id' => $classId]);
+            if (!$class || !event_accessible($user, (int) $class['event_id'])) {
+                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                header('Location: export.php');
+                exit;
+            }
             $rows = db_all('SELECT r.total, r.status, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id', ['class_id' => $classId]);
             header('Content-Type: application/json');
             header('Content-Disposition: attachment; filename="results.json"');
@@ -35,7 +58,16 @@ if ($type) {
     }
 }
 
-$classes = db_all('SELECT id, label FROM classes ORDER BY label');
+$classesSql = 'SELECT id, label FROM classes';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $classes = [];
+    } else {
+        $classes = db_all($classesSql . ' WHERE event_id = :event_id ORDER BY label', ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $classes = db_all($classesSql . ' ORDER BY label');
+}
 
 render_page('export.tpl', [
     'title' => 'Export',

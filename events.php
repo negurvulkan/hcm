@@ -1,9 +1,8 @@
 <?php
 require __DIR__ . '/auth.php';
 
-use DateTimeImmutable;
-
 $user = auth_require('events');
+$isAdmin = auth_is_admin($user);
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editEvent = $editId ? db_first('SELECT * FROM events WHERE id = :id', ['id' => $editId]) : null;
@@ -20,6 +19,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $action = $_POST['action'] ?? 'create';
 
+    if (in_array($action, ['set_active', 'deactivate'], true)) {
+        if (!$isAdmin) {
+            flash('error', 'Nur Administratoren können Turniere aktivieren oder deaktivieren.');
+            header('Location: events.php');
+            exit;
+        }
+
+        $eventId = (int) ($_POST['event_id'] ?? 0);
+        if ($eventId) {
+            if ($action === 'set_active') {
+                db_execute('UPDATE events SET is_active = 0 WHERE is_active = 1');
+                db_execute('UPDATE events SET is_active = 1 WHERE id = :id', ['id' => $eventId]);
+                event_active(true);
+                flash('success', 'Aktives Turnier aktualisiert.');
+            } else {
+                db_execute('UPDATE events SET is_active = 0 WHERE id = :id', ['id' => $eventId]);
+                event_active(true);
+                flash('success', 'Turnier deaktiviert.');
+            }
+        }
+        header('Location: events.php');
+        exit;
+    }
+
     if ($action === 'delete') {
         $eventId = (int) ($_POST['event_id'] ?? 0);
         if ($eventId) {
@@ -28,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('error', 'Turnier besitzt Prüfungen und kann nicht gelöscht werden.');
             } else {
                 db_execute('DELETE FROM events WHERE id = :id', ['id' => $eventId]);
+                event_active(true);
                 flash('success', 'Turnier gelöscht.');
             }
         }
@@ -70,7 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$events = db_all('SELECT * FROM events ORDER BY start_date DESC, id DESC');
+$eventsQuery = 'SELECT * FROM events';
+$params = [];
+if (!$isAdmin) {
+    $eventsQuery .= ' WHERE is_active = 1';
+}
+$eventsQuery .= ' ORDER BY start_date DESC, id DESC';
+$events = db_all($eventsQuery, $params);
 foreach ($events as &$event) {
     $event['venues_list'] = $event['venues'] ? json_decode($event['venues'], true, 512, JSON_THROW_ON_ERROR) : [];
 }
@@ -81,4 +111,5 @@ render_page('events.tpl', [
     'page' => 'events',
     'events' => $events,
     'editEvent' => $editEvent,
+    'isAdmin' => $isAdmin,
 ]);

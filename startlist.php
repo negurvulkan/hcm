@@ -3,7 +3,18 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
 
 $user = auth_require('startlist');
-$classes = db_all('SELECT c.id, c.label, e.title, c.start_time FROM classes c JOIN events e ON e.id = c.event_id ORDER BY e.title, c.label');
+$isAdmin = auth_is_admin($user);
+$activeEvent = event_active();
+$classesSql = 'SELECT c.id, c.label, c.event_id, e.title, c.start_time FROM classes c JOIN events e ON e.id = c.event_id';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $classes = [];
+    } else {
+        $classes = db_all($classesSql . ' WHERE e.id = :event_id ORDER BY e.title, c.label', ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $classes = db_all($classesSql . ' ORDER BY e.title, c.label');
+}
 if (!$classes) {
     render_page('startlist.tpl', [
         'title' => 'Startlisten',
@@ -17,10 +28,22 @@ if (!$classes) {
 }
 
 $classId = (int) ($_GET['class_id'] ?? $classes[0]['id']);
-$selectedClass = db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]);
-if (!$selectedClass) {
-    $selectedClass = $classes[0];
-    $classId = (int) $selectedClass['id'];
+$selectedClass = $classId ? db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]) : null;
+if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
+    $classId = (int) $classes[0]['id'];
+    $selectedClass = db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]);
+    if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
+        flash('error', 'Keine Berechtigung für dieses Turnier.');
+        render_page('startlist.tpl', [
+            'title' => 'Startlisten',
+            'page' => 'startlist',
+            'classes' => [],
+            'selectedClass' => null,
+            'startlist' => [],
+            'conflicts' => [],
+        ]);
+        exit;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

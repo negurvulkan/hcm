@@ -1,7 +1,9 @@
 <?php
 require __DIR__ . '/auth.php';
 
-auth_require('print');
+$user = auth_require('print');
+$isAdmin = auth_is_admin($user);
+$activeEvent = event_active();
 
 if (isset($_GET['download'])) {
     if (!class_exists('Dompdf\\Dompdf') && is_file(__DIR__ . '/vendor/autoload.php')) {
@@ -13,6 +15,21 @@ if (isset($_GET['download'])) {
     $html = '';
     $filename = $type . '.pdf';
 
+    $class = null;
+    if (in_array($type, ['startlist', 'judge', 'results', 'certificate'], true)) {
+        if ($classId <= 0) {
+            flash('error', 'Prüfung auswählen.');
+            header('Location: print.php');
+            exit;
+        }
+        $class = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
+        if (!$class || !event_accessible($user, (int) $class['event_id'])) {
+            flash('error', 'Keine Berechtigung für dieses Turnier.');
+            header('Location: print.php');
+            exit;
+        }
+    }
+
     switch ($type) {
         case 'startlist':
             $data = db_all('SELECT si.position, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
@@ -20,7 +37,6 @@ if (isset($_GET['download'])) {
             $filename = 'startliste.pdf';
             break;
         case 'judge':
-            $class = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
             $rule = $class['rules_json'] ? json_decode($class['rules_json'], true, 512, JSON_THROW_ON_ERROR) : [];
             $html = $view->render('print/judge.tpl', ['class' => $class, 'rule' => $rule]);
             $filename = 'richterbogen.pdf';
@@ -56,7 +72,16 @@ if (isset($_GET['download'])) {
     exit;
 }
 
-$classes = db_all('SELECT id, label FROM classes ORDER BY label');
+$classesSql = 'SELECT id, label FROM classes';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $classes = [];
+    } else {
+        $classes = db_all($classesSql . ' WHERE event_id = :event_id ORDER BY label', ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $classes = db_all($classesSql . ' ORDER BY label');
+}
 
 render_page('print.tpl', [
     'title' => 'Druck',

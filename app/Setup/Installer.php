@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS events (
     title VARCHAR(190) NOT NULL,
     start_date DATE,
     end_date DATE,
-    venues TEXT
+    venues TEXT,
+    is_active {$boolean} NOT NULL DEFAULT 0
 )
 SQL,
             <<<SQL
@@ -197,6 +198,28 @@ SQL,
         foreach ($queries as $query) {
             $pdo->exec($query);
         }
+
+        self::ensureEventActiveColumn($pdo, $driver, $boolean);
+    }
+
+    private static function ensureEventActiveColumn(PDO $pdo, string $driver, string $boolean): void
+    {
+        if ($driver === 'mysql') {
+            $stmt = $pdo->query("SHOW COLUMNS FROM events LIKE 'is_active'");
+            if ($stmt && $stmt->fetch() === false) {
+                $pdo->exec('ALTER TABLE events ADD COLUMN is_active ' . $boolean . ' NOT NULL DEFAULT 0');
+            }
+            return;
+        }
+
+        $columns = $pdo->query('PRAGMA table_info(events)')->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($columns as $column) {
+            if (($column['name'] ?? '') === 'is_active') {
+                return;
+            }
+        }
+
+        $pdo->exec('ALTER TABLE events ADD COLUMN is_active ' . $boolean . ' NOT NULL DEFAULT 0');
     }
     private static function ensureAdmin(PDO $pdo, array $admin): void
     {
@@ -276,6 +299,10 @@ SQL,
             'venues' => json_encode(['Hauptplatz', 'Abreitehalle'], JSON_THROW_ON_ERROR),
         ]);
         $eventId = (int) $pdo->lastInsertId();
+
+        $pdo->exec('UPDATE events SET is_active = 0');
+        $setActive = $pdo->prepare('UPDATE events SET is_active = 1 WHERE id = :id');
+        $setActive->execute(['id' => $eventId]);
 
         $classStmt = $pdo->prepare('INSERT INTO classes (event_id, label, arena, start_time, end_time, max_starters, judge_assignments, rules_json, tiebreaker_json) VALUES (:event, :label, :arena, :start, :end, :max, :judges, :rules, :tiebreaker)');
         $classStmt->execute([

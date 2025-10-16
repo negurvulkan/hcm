@@ -4,7 +4,15 @@ require __DIR__ . '/auth.php';
 use App\Setup\Installer;
 
 $user = auth_require('classes');
-$events = db_all('SELECT id, title FROM events ORDER BY title');
+$isAdmin = auth_is_admin($user);
+$activeEvent = event_active();
+
+$eventsQuery = 'SELECT id, title, is_active FROM events';
+if (!$isAdmin) {
+    $eventsQuery .= ' WHERE is_active = 1';
+}
+$eventsQuery .= ' ORDER BY title';
+$events = db_all($eventsQuery);
 $presets = [
     'dressage' => Installer::dressagePreset(),
     'jumping' => Installer::jumpingPreset(),
@@ -15,6 +23,11 @@ $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editClass = null;
 if ($editId) {
     $editClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $editId]);
+    if ($editClass && !event_accessible($user, (int) $editClass['event_id'])) {
+        flash('error', 'Kein Zugriff auf dieses Turnier.');
+        header('Location: classes.php');
+        exit;
+    }
     if ($editClass) {
         $editClass['judges'] = $editClass['judge_assignments'] ? implode(', ', json_decode($editClass['judge_assignments'], true, 512, JSON_THROW_ON_ERROR) ?: []) : '';
         $editClass['rules_text'] = $editClass['rules_json'] ? json_encode(json_decode($editClass['rules_json'], true, 512, JSON_THROW_ON_ERROR), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : '';
@@ -36,6 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $classId = (int) ($_POST['class_id'] ?? 0);
         if ($classId) {
+            $class = db_first('SELECT event_id FROM classes WHERE id = :id', ['id' => $classId]);
+            if (!$class || !event_accessible($user, (int) $class['event_id'])) {
+                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                header('Location: classes.php');
+                exit;
+            }
             db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE class_id = :id)', ['id' => $classId]);
             db_execute('DELETE FROM startlist_items WHERE class_id = :id', ['id' => $classId]);
             db_execute('DELETE FROM entries WHERE class_id = :id', ['id' => $classId]);
@@ -60,6 +79,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$eventId || $label === '') {
         flash('error', 'Event und Bezeichnung angeben.');
+        header('Location: classes.php');
+        exit;
+    }
+
+    if (!event_accessible($user, $eventId)) {
+        flash('error', 'Keine Berechtigung für dieses Turnier.');
         header('Location: classes.php');
         exit;
     }
@@ -105,8 +130,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$sql = 'SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id ORDER BY e.start_date DESC, c.start_time ASC';
-$classes = db_all($sql);
+$sql = 'SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id';
+$order = ' ORDER BY e.start_date DESC, c.start_time ASC';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $classes = [];
+    } else {
+        $classes = db_all($sql . ' WHERE e.id = :event_id' . $order, ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $classes = db_all($sql . $order);
+}
 foreach ($classes as &$class) {
     $class['judges'] = $class['judge_assignments'] ? json_decode($class['judge_assignments'], true, 512, JSON_THROW_ON_ERROR) : [];
     $class['rules'] = $class['rules_json'] ? json_decode($class['rules_json'], true, 512, JSON_THROW_ON_ERROR) : [];

@@ -2,9 +2,20 @@
 require __DIR__ . '/auth.php';
 
 $user = auth_require('entries');
+$isAdmin = auth_is_admin($user);
+$activeEvent = event_active();
 $persons = db_all('SELECT id, name FROM persons ORDER BY name');
 $horses = db_all('SELECT id, name FROM horses ORDER BY name');
-$classesList = db_all('SELECT c.id, c.label, e.title FROM classes c JOIN events e ON e.id = c.event_id ORDER BY e.title, c.label');
+$classesSql = 'SELECT c.id, c.label, e.title FROM classes c JOIN events e ON e.id = c.event_id';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $classesList = [];
+    } else {
+        $classesList = db_all($classesSql . ' WHERE e.id = :event_id ORDER BY e.title, c.label', ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $classesList = db_all($classesSql . ' ORDER BY e.title, c.label');
+}
 
 if (!isset($_SESSION['entries_import'])) {
     $_SESSION['entries_import'] = [];
@@ -28,18 +39,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$personId || !$horseId || !$classId) {
             flash('error', 'Bitte Reiter, Pferd und Prüfung wählen.');
         } else {
-            db_execute(
-                'INSERT INTO entries (event_id, class_id, person_id, horse_id, status, fee_paid_at, created_at) VALUES ((SELECT event_id FROM classes WHERE id = :class_id), :class_id, :person_id, :horse_id, :status, :paid_at, :created)',
-                [
-                    'class_id' => $classId,
-                    'person_id' => $personId,
-                    'horse_id' => $horseId,
-                    'status' => $status,
-                    'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
-                    'created' => (new \DateTimeImmutable())->format('c'),
-                ]
-            );
-            flash('success', 'Nennung gespeichert.');
+            $class = db_first('SELECT id, event_id FROM classes WHERE id = :id', ['id' => $classId]);
+            if (!$class || !event_accessible($user, (int) $class['event_id'])) {
+                flash('error', 'Keine Berechtigung für dieses Turnier.');
+            } else {
+                db_execute(
+                    'INSERT INTO entries (event_id, class_id, person_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :person_id, :horse_id, :status, :paid_at, :created)',
+                    [
+                        'event_id' => (int) $class['event_id'],
+                        'class_id' => $classId,
+                        'person_id' => $personId,
+                        'horse_id' => $horseId,
+                        'status' => $status,
+                        'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
+                        'created' => (new \DateTimeImmutable())->format('c'),
+                    ]
+                );
+                flash('success', 'Nennung gespeichert.');
+            }
         }
 
         header('Location: entries.php');
@@ -57,8 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', 'Bitte alle Felder ausfüllen.');
         } else {
             $class = db_first('SELECT id, event_id FROM classes WHERE id = :id', ['id' => $classId]);
-            if (!$class) {
-                flash('error', 'Prüfung nicht gefunden.');
+            if (!$class || !event_accessible($user, (int) $class['event_id'])) {
+                flash('error', 'Prüfung nicht gefunden oder nicht freigegeben.');
             } else {
                 db_execute(
                     'UPDATE entries SET event_id = :event_id, class_id = :class_id, person_id = :person_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
@@ -83,10 +100,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         if ($entryId) {
-            db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE entry_id = :id)', ['id' => $entryId]);
-            db_execute('DELETE FROM startlist_items WHERE entry_id = :id', ['id' => $entryId]);
-            db_execute('DELETE FROM entries WHERE id = :id', ['id' => $entryId]);
-            flash('success', 'Nennung gelöscht.');
+            $entry = db_first('SELECT event_id FROM entries WHERE id = :id', ['id' => $entryId]);
+            if (!$entry || !event_accessible($user, (int) $entry['event_id'])) {
+                flash('error', 'Keine Berechtigung für dieses Turnier.');
+            } else {
+                db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE entry_id = :id)', ['id' => $entryId]);
+                db_execute('DELETE FROM startlist_items WHERE entry_id = :id', ['id' => $entryId]);
+                db_execute('DELETE FROM entries WHERE id = :id', ['id' => $entryId]);
+                flash('success', 'Nennung gelöscht.');
+            }
         }
         header('Location: entries.php');
         exit;
@@ -96,12 +118,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
         if ($entryId) {
-            db_execute('UPDATE entries SET status = :status, fee_paid_at = :paid_at WHERE id = :id', [
-                'status' => $status,
-                'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
-                'id' => $entryId,
-            ]);
-            flash('success', 'Status aktualisiert.');
+            $entry = db_first('SELECT event_id FROM entries WHERE id = :id', ['id' => $entryId]);
+            if (!$entry || !event_accessible($user, (int) $entry['event_id'])) {
+                flash('error', 'Keine Berechtigung für dieses Turnier.');
+            } else {
+                db_execute('UPDATE entries SET status = :status, fee_paid_at = :paid_at WHERE id = :id', [
+                    'status' => $status,
+                    'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
+                    'id' => $entryId,
+                ]);
+                flash('success', 'Status aktualisiert.');
+            }
         }
         header('Location: entries.php');
         exit;
@@ -154,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $horse = db_first('SELECT id FROM horses WHERE name = :name', ['name' => $horseName]);
             $class = db_first('SELECT id, event_id FROM classes WHERE label = :label', ['label' => $classLabel]);
 
-            if (!$person || !$horse || !$class) {
+            if (!$person || !$horse || !$class || !event_accessible($user, (int) $class['event_id'])) {
                 continue;
             }
 
@@ -180,7 +207,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$entries = db_all('SELECT e.id, e.status, e.person_id, e.horse_id, e.class_id, p.name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id ORDER BY e.created_at DESC LIMIT 100');
+$entriesSql = 'SELECT e.id, e.status, e.person_id, e.horse_id, e.class_id, p.name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
+$entriesOrder = ' ORDER BY e.created_at DESC LIMIT 100';
+if (!$isAdmin) {
+    if (!$activeEvent) {
+        $entries = [];
+    } else {
+        $entries = db_all($entriesSql . ' WHERE e.event_id = :event_id' . $entriesOrder, ['event_id' => (int) $activeEvent['id']]);
+    }
+} else {
+    $entries = db_all($entriesSql . $entriesOrder);
+}
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editEntry = null;
 if ($editId) {
