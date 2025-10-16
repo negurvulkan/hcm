@@ -3,16 +3,40 @@ require __DIR__ . '/app/bootstrap.php';
 
 use App\Core\App;
 use App\Setup\Installer;
+use RuntimeException;
 
 $configFile = __DIR__ . '/config/app.php';
+$installed = is_file($configFile) && App::has('pdo');
+$errors = [];
+$success = false;
 
-$alreadyInstalled = is_file($configFile) && App::has('pdo');
+$defaults = [
+    'app_name' => $_ENV['APP_NAME'] ?? 'Turniermanagement V2',
+    'db_driver' => $_ENV['DB_DRIVER'] ?? 'sqlite',
+    'db_host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+    'db_port' => $_ENV['DB_PORT'] ?? '3306',
+    'db_database' => $_ENV['DB_DATABASE'] ?? '',
+    'db_username' => $_ENV['DB_USERNAME'] ?? '',
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $driver = $_POST['driver'] ?? 'sqlite';
-    $errors = [];
+    $driver = $_POST['db_driver'] ?? 'sqlite';
+    $appName = trim($_POST['app_name'] ?? 'Turniermanagement V2');
+    $admin = [
+        'name' => trim($_POST['admin_name'] ?? 'Administrator'),
+        'email' => trim($_POST['admin_email'] ?? ''),
+        'password' => (string) ($_POST['admin_password'] ?? ''),
+    ];
 
     try {
+        if ($admin['email'] === '' || $admin['password'] === '') {
+            throw new RuntimeException('Admin-E-Mail und Passwort sind Pflichtfelder.');
+        }
+
+        if (!filter_var($admin['email'], FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('Bitte eine gültige Admin-E-Mail angeben.');
+        }
+
         if ($driver === 'sqlite') {
             $dbPath = __DIR__ . '/storage/database.sqlite';
             $dbConfig = [
@@ -22,110 +46,133 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $dbConfig = [
                 'driver' => 'mysql',
-                'host' => trim($_POST['host'] ?? '127.0.0.1'),
-                'port' => trim($_POST['port'] ?? '3306'),
-                'database' => trim($_POST['database'] ?? ''),
-                'username' => trim($_POST['username'] ?? ''),
-                'password' => trim($_POST['password'] ?? ''),
+                'host' => trim($_POST['db_host'] ?? '127.0.0.1'),
+                'port' => trim($_POST['db_port'] ?? '3306'),
+                'database' => trim($_POST['db_database'] ?? ''),
+                'username' => trim($_POST['db_username'] ?? ''),
+                'password' => (string) ($_POST['db_password'] ?? ''),
                 'charset' => 'utf8mb4',
             ];
         }
 
-        Installer::run($dbConfig);
+        Installer::run($dbConfig, [
+            'admin' => $admin,
+            'seed_demo' => isset($_POST['seed_demo']),
+        ]);
 
-        $config = [
-            'app' => [
-                'name' => 'Turnier-App',
-            ],
-            'db' => $dbConfig,
-        ];
-        if (!is_dir(__DIR__ . '/config')) {
-            mkdir(__DIR__ . '/config', 0777, true);
-        }
-        file_put_contents($configFile, "<?php\nreturn " . var_export($config, true) . ";\n");
-
-        header('Location: index.php?installed=1');
-        exit;
-    } catch (\Throwable $throwable) {
-        $errors[] = $throwable->getMessage();
+        Installer::writeConfig($dbConfig, ['name' => $appName]);
+        $success = true;
+    } catch (Throwable $e) {
+        $errors[] = $e->getMessage();
     }
 }
 
-$driver = $_POST['driver'] ?? 'sqlite';
-$errors = $errors ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="utf-8">
-    <title>Installer – Turnier-App</title>
+    <title>Setup · Turniermanagement V2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="public/assets/vendor/bootstrap.min.css">
-    <link rel="stylesheet" href="public/assets/css/app.css">
+    <link rel="stylesheet" href="public/assets/css/styles.css">
 </head>
 <body class="bg-light">
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-lg-7">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h1 class="h4 mb-0">Turnier-App Installation</h1>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h4 mb-0">Setup-Assistent</h1>
+                        <p class="text-muted small mb-0">Offline nutzbar · SQLite oder MySQL/MariaDB</p>
+                    </div>
+                    <?php if ($installed): ?>
+                        <span class="badge bg-success">Konfiguration gefunden</span>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body">
-                    <?php if ($alreadyInstalled): ?>
-                        <div class="alert alert-info">Das System wurde bereits installiert. <a href="index.php">Zum Login</a></div>
-                    <?php endif; ?>
-                    <?php if ($errors): ?>
-                        <div class="alert alert-danger">
-                            <strong>Installation fehlgeschlagen:</strong>
-                            <ul class="mb-0">
-                                <?php foreach ($errors as $error): ?>
-                                    <li><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></li>
-                                <?php endforeach; ?>
-                            </ul>
+                    <?php if ($success): ?>
+                        <div class="alert alert-success">
+                            <strong>Fertig!</strong> Installation abgeschlossen. <a href="auth.php" class="alert-link">Zum Login</a>
                         </div>
-                    <?php endif; ?>
-                    <form method="post" class="needs-validation" novalidate>
-                        <div class="mb-3">
-                            <label class="form-label">Datenbank-Treiber</label>
-                            <select name="driver" class="form-select" onchange="this.form.submit()">
-                                <option value="sqlite" <?= $driver === 'sqlite' ? 'selected' : '' ?>>SQLite (empfohlen)</option>
-                                <option value="mysql" <?= $driver === 'mysql' ? 'selected' : '' ?>>MySQL/MariaDB</option>
-                            </select>
-                        </div>
-                        <?php if ($driver === 'mysql'): ?>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Host</label>
-                                <input type="text" name="host" class="form-control" value="<?= htmlspecialchars($_POST['host'] ?? '127.0.0.1', ENT_QUOTES, 'UTF-8') ?>">
+                    <?php else: ?>
+                        <?php if ($errors): ?>
+                            <div class="alert alert-danger">
+                                <strong>Installation fehlgeschlagen</strong>
+                                <ul class="mb-0">
+                                    <?php foreach ($errors as $error): ?>
+                                        <li><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Port</label>
-                                <input type="text" name="port" class="form-control" value="<?= htmlspecialchars($_POST['port'] ?? '3306', ENT_QUOTES, 'UTF-8') ?>">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Datenbank</label>
-                                <input type="text" name="database" class="form-control" value="<?= htmlspecialchars($_POST['database'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Benutzer</label>
-                                <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label">Passwort</label>
-                                <input type="password" name="password" class="form-control" value="<?= htmlspecialchars($_POST['password'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                            </div>
-                        </div>
-                        <?php else: ?>
-                        <p class="text-muted">SQLite wird automatisch unter <code>storage/database.sqlite</code> angelegt.</p>
                         <?php endif; ?>
-                        <div class="d-flex justify-content-between align-items-center mt-4">
-                            <div class="text-muted small">Demo-Daten werden automatisch angelegt.</div>
-                            <button type="submit" class="btn btn-primary">Installation starten</button>
-                        </div>
-                    </form>
+                        <form method="post" class="needs-validation" novalidate>
+                            <div class="mb-3">
+                                <label class="form-label">Projektname</label>
+                                <input type="text" name="app_name" class="form-control" value="<?= htmlspecialchars($_POST['app_name'] ?? $defaults['app_name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Datenbank</label>
+                                <select name="db_driver" class="form-select" onchange="this.form.submit()">
+                                    <option value="sqlite" <?= ($_POST['db_driver'] ?? $defaults['db_driver']) === 'sqlite' ? 'selected' : '' ?>>SQLite (keine Konfiguration)</option>
+                                    <option value="mysql" <?= ($_POST['db_driver'] ?? $defaults['db_driver']) === 'mysql' ? 'selected' : '' ?>>MySQL/MariaDB</option>
+                                </select>
+                                <small class="text-muted">SQLite legt eine Datei unter <code>storage/database.sqlite</code> an.</small>
+                            </div>
+                            <?php if (($_POST['db_driver'] ?? $defaults['db_driver']) === 'mysql'): ?>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Host</label>
+                                        <input type="text" class="form-control" name="db_host" value="<?= htmlspecialchars($_POST['db_host'] ?? $defaults['db_host'], ENT_QUOTES, 'UTF-8') ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Port</label>
+                                        <input type="text" class="form-control" name="db_port" value="<?= htmlspecialchars($_POST['db_port'] ?? $defaults['db_port'], ENT_QUOTES, 'UTF-8') ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Datenbank</label>
+                                        <input type="text" class="form-control" name="db_database" value="<?= htmlspecialchars($_POST['db_database'] ?? $defaults['db_database'], ENT_QUOTES, 'UTF-8') ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Benutzer</label>
+                                        <input type="text" class="form-control" name="db_username" value="<?= htmlspecialchars($_POST['db_username'] ?? $defaults['db_username'], ENT_QUOTES, 'UTF-8') ?>">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Passwort</label>
+                                        <input type="password" class="form-control" name="db_password" value="<?= htmlspecialchars($_POST['db_password'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Admin-Name</label>
+                                    <input type="text" class="form-control" name="admin_name" value="<?= htmlspecialchars($_POST['admin_name'] ?? 'Administrator', ENT_QUOTES, 'UTF-8') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Admin-E-Mail</label>
+                                    <input type="email" class="form-control" name="admin_email" required value="<?= htmlspecialchars($_POST['admin_email'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Admin-Passwort</label>
+                                    <input type="password" class="form-control" name="admin_password" required>
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="seed_demo" name="seed_demo" <?= isset($_POST['seed_demo']) ? 'checked' : '' ?>>
+                                        <label class="form-check-label" for="seed_demo">Demo-Daten anlegen</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <div class="text-muted small">Setup speichert Konfiguration & legt Tabellen automatisch an.</div>
+                                <button type="submit" class="btn btn-accent">Installation starten</button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
                 </div>
                 <div class="card-footer text-muted small">
-                    Nach Abschluss öffnet sich der Login automatisch.
+                    Kein Internet erforderlich. Vendor-Dateien lokal unter <code>public/assets/vendor/</code> ablegen.
                 </div>
             </div>
         </div>

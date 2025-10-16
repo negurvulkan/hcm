@@ -1,0 +1,42 @@
+<?php
+require __DIR__ . '/auth.php';
+
+$user = auth_require('dashboard');
+
+$pdo = app_pdo();
+
+$openEntries = (int) $pdo->query("SELECT COUNT(*) FROM entries WHERE status = 'open'")->fetchColumn();
+$paidEntries = (int) $pdo->query("SELECT COUNT(*) FROM entries WHERE status = 'paid'")->fetchColumn();
+$helperCheckins = (int) $pdo->query("SELECT COUNT(*) FROM helper_shifts WHERE checked_in_at IS NOT NULL")->fetchColumn();
+
+$today = (new DateTimeImmutable('today'))->format('Y-m-d');
+$todaySchedule = db_all('SELECT c.label, c.start_time, c.end_time FROM classes c WHERE DATE(c.start_time) = :today ORDER BY c.start_time LIMIT 4', ['today' => $today]);
+$currentStart = db_first("SELECT si.position, p.name AS rider, h.name AS horse, c.label AS class_label FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = si.class_id WHERE si.state = 'running' ORDER BY si.updated_at DESC LIMIT 1");
+$nextStarters = db_all("SELECT si.position, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.state = 'scheduled' ORDER BY si.planned_start ASC, si.position ASC LIMIT 5");
+
+$tiles = [
+    'office' => [
+        ['title' => 'Offene Nennungen', 'value' => $openEntries, 'href' => 'entries.php'],
+        ['title' => 'Bezahlte Nennungen', 'value' => $paidEntries, 'href' => 'entries.php'],
+    ],
+    'steward' => [
+        ['title' => 'Heutiger Ablauf', 'value' => count($todaySchedule), 'href' => 'schedule.php'],
+        ['title' => 'Live-Starter', 'value' => $currentStart['position'] ?? '-', 'href' => 'startlist.php'],
+    ],
+    'helpers' => [
+        ['title' => 'Check-ins', 'value' => $helperCheckins, 'href' => 'helpers.php'],
+    ],
+    'judge' => [
+        ['title' => 'Starters in Queue', 'value' => count($nextStarters), 'href' => 'judge.php'],
+    ],
+];
+
+render_page('dashboard.tpl', [
+    'title' => 'Dashboard',
+    'page' => 'dashboard',
+    'user' => $user,
+    'tiles' => $tiles,
+    'todaySchedule' => $todaySchedule,
+    'currentStart' => $currentStart,
+    'nextStarters' => $nextStarters,
+]);
