@@ -71,8 +71,179 @@
                                 </div>
                         </div> 
                         </div>
-                        <textarea class="form-control font-monospace" data-rule-json name="rules_json" rows="14" spellcheck="false" placeholder='{"version":"1"}'><?= htmlspecialchars($editClass['rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                        <textarea id="class-scoring-rule" class="form-control font-monospace" data-rule-json name="rules_json" rows="14" spellcheck="false" placeholder='{"version":"1"}'><?= htmlspecialchars($editClass['rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                         <div class="form-text">JSON direkt bearbeiten oder über Presets starten. Gültige Regeln werden beim Speichern geprüft.</div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-bs-toggle="modal" data-bs-target="#class-scoring-designer-modal">Scoring-Designer öffnen</button>
+                    </div>
+                    <div class="modal fade" id="class-scoring-designer-modal" tabindex="-1" aria-labelledby="class-scoring-designer-title" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="class-scoring-designer-title">Scoring-Designer</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="card border-secondary" data-scoring-designer data-target="#class-scoring-rule"
+                                         data-default='<?= htmlspecialchars($scoringDesignerDefaultJson ?? "{}", ENT_QUOTES, 'UTF-8') ?>'
+                                         data-presets='<?= htmlspecialchars($scoringDesignerPresetsJson ?? "{}", ENT_QUOTES, 'UTF-8') ?>'>
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+                                                <div>
+                                                    <h3 class="h6 mb-1">Bewertungslogik konfigurieren</h3>
+                                                    <p class="text-muted mb-0">Passe Komponenten, Zeit und Tiebreaker ohne JSON-Eingabe an.</p>
+                                                </div>
+                                                <div class="btn-toolbar" role="toolbar">
+                                                    <div class="btn-group btn-group-sm me-2" role="group">
+                                                        <button class="btn btn-outline-secondary" type="button" data-action="reset-default">Zurücksetzen</button>
+                                                    </div>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="dressage">Dressur</button>
+                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="jumping">Springen</button>
+                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="western">Western</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Version</label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="version">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Regel-ID</label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="id">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Anzeigename</label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="label">
+                                                </div>
+                                            </div>
+                                            <h4 class="h6">Richterkonfiguration</h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Richter (min)</label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="input.judges.min" data-type="integer" min="1">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Richter (max)</label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="input.judges.max" data-type="integer" min="1">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Aggregation</label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="input.judges.aggregation.method">
+                                                        <option value="mean">Mittelwert</option>
+                                                        <option value="sum">Summe</option>
+                                                        <option value="median">Median</option>
+                                                        <option value="best">Bester Wert</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Höchste Streicher</label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="input.judges.aggregation.drop_high" data-type="integer" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Niedrigste Streicher</label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="input.judges.aggregation.drop_low" data-type="integer" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Gewichte (Komma separiert)</label>
+                                                    <input type="text" class="form-control form-control-sm" placeholder="1,1,1" data-scoring-path="input.judges.aggregation.weights" data-type="csv-number">
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0">Zusatzfelder</h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-field">Feld hinzufügen</button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="fields" data-empty-text="Keine Zusatzfelder definiert."></div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0">Komponenten</h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-component">Komponente hinzufügen</button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="components" data-empty-text="Keine Komponenten hinterlegt."></div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0">Penalties</h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-penalty">Penalty hinzufügen</button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="penalties" data-empty-text="Keine Penalties konfiguriert."></div>
+                                            <h4 class="h6">Zeitbewertung</h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Zeitmodus</label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="time.mode">
+                                                        <option value="none">Keine Zeitwertung</option>
+                                                        <option value="faults_from_time">Fehler aus Zeit</option>
+                                                        <option value="bonus_from_time">Bonus aus Zeit</option>
+                                                        <option value="best_time">Bestzeit</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Erlaubte Zeit (Sek.)</label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.allowed_s" min="0" step="0.01">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Fehler/Sekunde</label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.fault_per_s" step="0.01">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Zeit-Cap (Sek.)</label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.cap_s" min="0" step="0.01">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Bonus/Sekunde</label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.bonus_per_s" step="0.01">
+                                                </div>
+                                            </div>
+                                            <h4 class="h6">Formeln</h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Per-Judge-Formel</label>
+                                                    <textarea class="form-control font-monospace form-control-sm" rows="2" data-scoring-path="per_judge_formula"></textarea>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Aggregationsformel</label>
+                                                    <textarea class="form-control font-monospace form-control-sm" rows="2" data-scoring-path="aggregate_formula"></textarea>
+                                                </div>
+                                            </div>
+                                            <h4 class="h6">Ranking</h4>
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Sortierreihenfolge</label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="ranking.order">
+                                                        <option value="desc">Absteigend (höher ist besser)</option>
+                                                        <option value="asc">Aufsteigend (niedriger ist besser)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h5 class="h6 mb-0">Tiebreaker-Kette</h5>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-tiebreak">Tiebreaker hinzufügen</button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="tiebreakers" data-empty-text="Keine Tiebreaker gesetzt."></div>
+                                            <h4 class="h6">Ausgabe</h4>
+                                            <div class="row g-3">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Rundung (Nachkommastellen)</label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="output.rounding" data-type="integer" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Einheit</label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="output.unit">
+                                                </div>
+                                                <div class="col-sm-4 d-flex align-items-center">
+                                                    <div class="form-check mt-3 mt-sm-0">
+                                                        <input class="form-check-input" type="checkbox" value="1" id="class-scoring-show-breakdown" data-scoring-path="output.show_breakdown" data-type="boolean">
+                                                        <label class="form-check-label" for="class-scoring-show-breakdown">Breakdown anzeigen</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <small class="text-muted me-auto">Änderungen werden sofort in das JSON-Feld übernommen.</small>
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <div class="input-group input-group-sm" style="max-width: 200px;">
