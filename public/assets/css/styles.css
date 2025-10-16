@@ -1,0 +1,55 @@
+:root {
+    color-scheme: light dark;
+    --bg-body-light: #f8f9fc;
+    --bg-body-dark: #11131a;
+    --card-light: #ffffff;
+    --card-dark: #1b1e27;
+    --accent: #2b72ff;
+    --border-light: rgba(17, 23, 33, 0.1);
+    --border-dark: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    background-color: var(--bg-body-light);
+    color: #1b1e27;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: var(--bg-body-dark);
+        color: #e6e8f0;
+    }
+    .card, .navbar, .modal-content {
+        background-color: var(--card-dark);
+        color: inherit;
+        border-color: var(--border-dark);
+    }
+}
+
+.card, .navbar, .modal-content {
+    border-radius: 0.75rem;
+    border-color: var(--border-light);
+    box-shadow: 0 12px 24px rgba(17, 23, 33, 0.05);
+}
+
+.btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.badge-muted {
+    background: rgba(43, 114, 255, 0.12);
+    color: var(--accent);
+}
+
+.table-sm td, .table-sm th {
+    padding: 0.55rem 0.75rem;
+}
+
+.flash {
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
