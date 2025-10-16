@@ -2,7 +2,6 @@
 require __DIR__ . '/auth.php';
 
 use App\Setup\Installer;
-use Throwable;
 
 $user = auth_require('classes');
 $events = db_all('SELECT id, title FROM events ORDER BY title');
@@ -40,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($rulesRaw !== '') {
         try {
             $rules = json_decode($rulesRaw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             flash('error', 'Regeln enthalten kein gültiges JSON.');
             header('Location: classes.php');
             exit;
