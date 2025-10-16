@@ -57,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    require_write_access('classes');
+
     $action = $_POST['action'] ?? 'create';
     if (isset($_POST['simulate'])) {
         $action = 'simulate_start_numbers';

@@ -8,6 +8,37 @@ $activeEvent = event_active();
 $pdo = app_pdo();
 
 $helperCheckins = (int) $pdo->query("SELECT COUNT(*) FROM helper_shifts WHERE checked_in_at IS NOT NULL")->fetchColumn();
+$instanceConfig = instance_config();
+$instanceMeta = instance_view_context();
+$peerInfo = $instanceMeta['peer'] ?? [];
+$lastDryRun = $instanceConfig->lastDryRun();
+$localCounts = $instanceConfig->collectLocalCounts();
+$localEntriesCount = $localCounts['counts']['entries'] ?? 0;
+$remoteEntriesCount = $lastDryRun['remote']['entries'] ?? 0;
+$lastSyncNote = sprintf('Lokal %d · Peer %d', $localEntriesCount, $remoteEntriesCount);
+$adminTiles = [
+    [
+        'title' => 'Peer-Verbindung',
+        'value' => $peerInfo['status'] === 'ok' ? '● Verbunden' : ($peerInfo['status'] === 'error' ? '● Fehler' : '● Offen'),
+        'value_class' => $peerInfo['status'] === 'ok' ? 'text-success' : ($peerInfo['status'] === 'error' ? 'text-danger' : 'text-muted'),
+        'note' => $peerInfo['formatted_checked_at'] ?? ($peerInfo['message'] ?? 'Noch nicht geprüft'),
+        'href' => 'instance.php',
+    ],
+    [
+        'title' => 'Schreibstatus',
+        'value' => $instanceMeta['read_only'] ? 'Read-only' : 'Schreibend',
+        'value_class' => $instanceMeta['read_only'] ? 'text-warning' : 'text-success',
+        'note' => $instanceMeta['mode_label'] ?? '-',
+        'href' => 'instance.php',
+    ],
+    [
+        'title' => 'Letzter Sync',
+        'value' => $lastDryRun['formatted_timestamp'] ?? 'Keine Daten',
+        'value_class' => !empty($lastDryRun['timestamp']) ? 'text-primary' : 'text-muted',
+        'note' => $lastSyncNote,
+        'href' => 'instance.php',
+    ],
+];
 
 $today = (new DateTimeImmutable('today'))->format('Y-m-d');
 
@@ -42,6 +73,7 @@ if ($isAdmin) {
 }
 
 $tiles = [
+    'admin' => $adminTiles,
     'office' => [
         ['title' => 'Offene Nennungen', 'value' => $openEntries, 'href' => 'entries.php'],
         ['title' => 'Bezahlte Nennungen', 'value' => $paidEntries, 'href' => 'entries.php'],

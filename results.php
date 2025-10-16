@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: results.php?class_id=' . $classId);
         exit;
     }
+    require_write_access('results');
     $action = $_POST['action'] ?? '';
     $resultId = (int) ($_POST['result_id'] ?? 0);
     if ($resultId && in_array($action, ['release', 'revoke'], true)) {

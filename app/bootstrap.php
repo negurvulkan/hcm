@@ -2,6 +2,7 @@
 use App\Core\App;
 use App\Core\Database;
 use App\Core\SmartyView;
+use App\Services\InstanceConfiguration;
 
 spl_autoload_register(static function (string $class): void {
     if (str_starts_with($class, 'App\\')) {
@@ -42,4 +43,9 @@ App::set('config', $config);
 App::set('pdo', Database::connect($config['db'] ?? []));
 $view = new SmartyView(__DIR__ . '/../templates');
 $view->share('appName', $config['app']['name'] ?? 'Turniermanagement V2');
+if (App::has('pdo')) {
+    $instance = new InstanceConfiguration(App::get('pdo'));
+    App::set('instance', $instance);
+    $view->share('instance', $instance->viewContext());
+}
 App::set('view', $view);

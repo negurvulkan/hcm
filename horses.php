@@ -14,6 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    require_write_access('horses');
+
     $action = $_POST['action'] ?? 'create';
 
     if ($action === 'delete') {
