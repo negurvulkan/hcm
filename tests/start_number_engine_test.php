@@ -72,7 +72,7 @@ function expectException(callable $callback, string $contains): void
 }
 
 $pdo->exec('CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, start_number_rules TEXT)');
-$pdo->exec('CREATE TABLE classes (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, label TEXT, arena TEXT, start_time TEXT, division TEXT, tags TEXT)');
+$pdo->exec('CREATE TABLE classes (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, label TEXT, arena TEXT, start_time TEXT, division TEXT, tags TEXT, start_number_rules TEXT)');
 $pdo->exec('CREATE TABLE persons (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, club_id INTEGER)');
 $pdo->exec('CREATE TABLE horses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
 $pdo->exec('CREATE TABLE entries (
@@ -161,15 +161,65 @@ db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, st
 db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (2, 1, 1, 2, 2, "open", :created)', ['created' => $now]);
 db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (3, 1, 2, 1, 1, "open", :created)', ['created' => $now]);
 
+$classOverrideRule = [
+    'mode' => 'classic',
+    'sequence' => ['start' => 200, 'step' => 2, 'range' => [200, 220], 'reset' => 'per_class'],
+    'format' => ['prefix' => 'C', 'width' => 3, 'suffix' => '', 'separator' => '-'],
+    'allocation' => ['entity' => 'start', 'time' => 'on_entry', 'reuse' => 'never', 'lock_after' => 'sign_off'],
+    'constraints' => ['unique_per' => 'class', 'blocklists' => ['210'], 'club_spacing' => 0, 'horse_cooldown_min' => 0],
+    'overrides' => [],
+];
+
+$reuseRule = [
+    'mode' => 'classic',
+    'sequence' => ['start' => 900, 'step' => 1, 'range' => [900, 905], 'reset' => 'per_class'],
+    'format' => ['prefix' => '', 'width' => 0, 'suffix' => '', 'separator' => ''],
+    'allocation' => ['entity' => 'start', 'time' => 'on_startlist', 'reuse' => 'after_scratch', 'lock_after' => 'start_called'],
+    'constraints' => ['unique_per' => 'class', 'blocklists' => [], 'club_spacing' => 0, 'horse_cooldown_min' => 0],
+    'overrides' => [],
+];
+
+db_execute(
+    'INSERT INTO classes (id, event_id, label, arena, start_time, division, start_number_rules) VALUES (:id, :event, :label, :arena, :start, :division, :rules)',
+    [
+        'id' => 5,
+        'event' => 1,
+        'label' => 'Class Override',
+        'arena' => 'Arena X',
+        'start' => '2024-08-19T08:00:00',
+        'division' => 'Open',
+        'rules' => json_encode($classOverrideRule, JSON_THROW_ON_ERROR),
+    ]
+);
+
+db_execute(
+    'INSERT INTO classes (id, event_id, label, arena, start_time, division, start_number_rules) VALUES (:id, :event, :label, :arena, :start, :division, :rules)',
+    [
+        'id' => 6,
+        'event' => 1,
+        'label' => 'Class Reuse',
+        'arena' => 'Arena Y',
+        'start' => '2024-08-20T09:00:00',
+        'division' => 'Open',
+        'rules' => json_encode($reuseRule, JSON_THROW_ON_ERROR),
+    ]
+);
+
+db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (7, 1, 5, 2, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (8, 1, 6, 1, 2, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (9, 1, 6, 2, 1, "open", :created)', ['created' => $now]);
+
 $contextA = ['eventId' => 1, 'classId' => 1, 'user' => ['name' => 'Test']];
 assignStartNumber($contextA, ['entry_id' => 1]);
 assignStartNumber($contextA, ['entry_id' => 2]);
 
-$entry1 = db_first('SELECT start_number_display FROM entries WHERE id = 1');
+$entry1 = db_first('SELECT start_number_display, start_number_allocation_entity, start_number_rule_snapshot FROM entries WHERE id = 1');
 $entry2 = db_first('SELECT start_number_display, start_number_raw FROM entries WHERE id = 2');
 assertSame('01', $entry1['start_number_display'], 'First classic start number mismatch.');
 assertSame('03', $entry2['start_number_display'], 'Blocklist should skip 02.');
 assertSame(3, (int) $entry2['start_number_raw']);
+assertSame('start', $entry1['start_number_allocation_entity']);
+assertTrue(!empty($entry1['start_number_rule_snapshot']), 'Rule snapshot must be stored for exports.');
 
 expectException(function () use ($contextA) {
     db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (4, 1, 1, 1, 2, "open", :created)', ['created' => (new DateTimeImmutable())->format('c')]);
@@ -180,6 +230,35 @@ $contextB = ['eventId' => 1, 'classId' => 2, 'user' => ['name' => 'Test']];
 assignStartNumber($contextB, ['entry_id' => 3]);
 $entry3 = db_first('SELECT start_number_display FROM entries WHERE id = 3');
 assertSame('Y-050', $entry3['start_number_display'], 'Override for Youth division failed.');
+
+db_execute('INSERT INTO startlist_items (id, class_id, entry_id, position, state, created_at, updated_at) VALUES (1, 1, 1, 1, "scheduled", :created, :created)', ['created' => $now]);
+assignStartNumber($contextA, ['entry_id' => 1, 'startlist_id' => 1]);
+$startlistAssignment = db_first('SELECT start_number_assignment_id FROM startlist_items WHERE id = 1');
+assignStartNumber($contextA, ['entry_id' => 1, 'startlist_id' => 1]);
+$startlistAssignmentAfter = db_first('SELECT start_number_assignment_id FROM startlist_items WHERE id = 1');
+assertSame((int) $startlistAssignment['start_number_assignment_id'], (int) $startlistAssignmentAfter['start_number_assignment_id'], 'Start number should remain stable when reordering startlist.');
+
+$contextOverride = ['eventId' => 1, 'classId' => 5, 'user' => ['name' => 'Test']];
+assertTrue(db_first('SELECT id FROM entries WHERE id = 7') !== null, 'Entry for class override missing.');
+assignStartNumber($contextOverride, ['entry_id' => 7]);
+$entry7 = db_first('SELECT start_number_display, start_number_raw, start_number_assignment_id, start_number_allocation_entity, start_number_rule_snapshot FROM entries WHERE id = 7');
+assertSame('C-200', $entry7['start_number_display'], 'Class-level override should control numbering.');
+assertSame(200, (int) $entry7['start_number_raw']);
+assertSame('start', $entry7['start_number_allocation_entity']);
+assertTrue(!empty($entry7['start_number_rule_snapshot']), 'Class override should snapshot applied rule.');
+$formattedOverride = formatStartNumber(['id' => (int) $entry7['start_number_assignment_id']], ['eventId' => 1, 'classId' => 5]);
+assertSame($entry7['start_number_display'], $formattedOverride, 'Format helper must echo stored display for overrides.');
+
+$contextReuse = ['eventId' => 1, 'classId' => 6, 'user' => ['name' => 'Test']];
+assertTrue(db_first('SELECT id FROM entries WHERE id = 8') !== null, 'Entry for reuse rule missing.');
+assignStartNumber($contextReuse, ['entry_id' => 8]);
+$entry8 = db_first('SELECT start_number_raw, start_number_assignment_id FROM entries WHERE id = 8');
+releaseStartNumber(['id' => (int) $entry8['start_number_assignment_id'], 'entry_id' => 8], 'scratch');
+assertTrue(db_first('SELECT id FROM entries WHERE id = 9') !== null, 'Replacement entry missing.');
+assignStartNumber($contextReuse, ['entry_id' => 9]);
+$entry9 = db_first('SELECT start_number_raw, start_number_assignment_id FROM entries WHERE id = 9');
+assertSame((int) $entry8['start_number_raw'], (int) $entry9['start_number_raw'], 'after scratch release should reuse start number.');
+assertSame((int) $entry8['start_number_assignment_id'], (int) $entry9['start_number_assignment_id'], 'Reuse should reactivate released assignment.');
 
 $westernRule = [
     'mode' => 'western',

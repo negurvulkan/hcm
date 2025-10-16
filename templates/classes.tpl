@@ -57,6 +57,38 @@
                         <textarea name="rules_json" class="form-control" rows="6" spellcheck="false" placeholder='{"type":"dressage"}'><?= htmlspecialchars($editClass['rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Startnummern-Regel (JSON)</label>
+                        <textarea name="start_number_rules" class="form-control" rows="6" spellcheck="false" placeholder='{"mode":"classic"}'><?= htmlspecialchars($editClass['start_number_rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <button class="btn btn-sm btn-outline-primary" type="submit" name="simulate" value="1" formnovalidate>Simulation (n=10)</button>
+                            <?php if (!empty($classSimulationError)): ?>
+                                <span class="text-danger small"><?= htmlspecialchars($classSimulationError, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!empty($classSimulation)): ?>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Rohwert</th>
+                                        <th>Anzeige</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach ($classSimulation as $index => $preview): ?>
+                                        <tr>
+                                            <td><?= $index + 1 ?></td>
+                                            <td><?= htmlspecialchars((string) $preview['raw'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars($preview['display'], ENT_QUOTES, 'UTF-8') ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Tiebreaker-Kette (Komma getrennt)</label>
                         <input type="text" name="tiebreakers" class="form-control" placeholder="beste Teilnote, Zeit, Los" value="<?= htmlspecialchars($editClass['tiebreakers_list'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>

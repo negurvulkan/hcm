@@ -36,6 +36,16 @@ class StartNumberService
             $base = [];
         }
         $rule = $this->ensureRuleStructure($base);
+
+        $classOverride = $this->resolveClassOverride($context);
+        if ($classOverride) {
+            $rule = $this->ensureRuleStructure(array_replace_recursive($rule, $classOverride));
+        }
+
+        if (!empty($context['ruleOverride']) && is_array($context['ruleOverride'])) {
+            $rule = $this->ensureRuleStructure(array_replace_recursive($rule, $context['ruleOverride']));
+        }
+
         $rule = $this->applyOverrides($rule, $context);
         return $rule;
     }
@@ -597,6 +607,31 @@ class StartNumberService
             }
         }
         return true;
+    }
+
+    private function resolveClassOverride(array $context): ?array
+    {
+        $raw = null;
+        if (isset($context['class']) && array_key_exists('start_number_rules', $context['class'])) {
+            $raw = $context['class']['start_number_rules'];
+        } elseif (isset($context['class']) && array_key_exists('start_number_rules_text', $context['class'])) {
+            $raw = $context['class']['start_number_rules_text'];
+        }
+        if ($raw === null) {
+            return null;
+        }
+        if (is_array($raw)) {
+            return $raw;
+        }
+        if (is_string($raw) && trim($raw) !== '') {
+            try {
+                $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $e) {
+                return null;
+            }
+            return is_array($decoded) ? $decoded : null;
+        }
+        return null;
     }
 
     private function enrichContext(array $context): array
