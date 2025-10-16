@@ -20,7 +20,7 @@ Ziel ist der Aufbau einer stabilen, modularen und reitweisenunabhängigen Plattf
 - [x] Anzeigeansichten für Zuschauer (TV/Beamer)
 - [x] Rollen- und Rechteverwaltung (RBAC)
 - [x] Installationsroutine (Web-Installer, SQLite/MySQL)
-- [ ] Grundlegende Sync-Funktionen (Pull/Push Online ↔ Lokal)
+- [x] Grundlegende Sync-Funktionen (Pull/Push Online ↔ Lokal)
 - [x] Health-/Info-Endpunkte für Instanzabfrage
 
 ## Version 1.1 – Erweiterte Turnierpraxis
