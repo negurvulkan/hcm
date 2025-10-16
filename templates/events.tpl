@@ -28,167 +28,185 @@
                         <label class="form-label">Orte/Plätze (durch Komma getrennt)</label>
                         <input type="text" name="venues" class="form-control" placeholder="Hauptplatz, Abreitehalle" value="<?= htmlspecialchars(isset($editEvent['venues_list']) ? implode(', ', $editEvent['venues_list']) : '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
-                    <div class="mb-3">
+                                        <div class="mb-3">
                         <label class="form-label" for="start-number-rules-input">Startnummern-Regeln (JSON)</label>
                         <textarea id="start-number-rules-input" name="start_number_rules" class="form-control" rows="10" spellcheck="false" placeholder="{ &quot;mode&quot;: &quot;classic&quot;, ... }"><?= htmlspecialchars($editEvent['start_number_rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
-                        <div class="form-text">Leer lassen oder den Designer darunter verwenden.</div>
+                        <div class="form-text">Leer lassen oder den Designer im Modal verwenden.</div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-bs-toggle="modal" data-bs-target="#event-start-number-designer-modal">Startnummern-Designer öffnen</button>
                     </div>
-                    <div class="card border-secondary mb-3" data-start-number-designer data-target="#start-number-rules-input"
-                         data-rule="<?= htmlspecialchars($ruleDesignerJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>"
-                         data-default="<?= htmlspecialchars($ruleDesignerDefaultsJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>">
-                        <div class="card-body">
-                            <div class="d-flex align-items-start justify-content-between mb-3">
-                                <div>
-                                    <h3 class="h6 mb-1">Startnummern-Designer</h3>
-                                    <p class="text-muted mb-0">Werte anpassen, JSON wird automatisch aktualisiert.</p>
+                    <div class="modal fade" id="event-start-number-designer-modal" tabindex="-1" aria-labelledby="event-start-number-designer-title" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="event-start-number-designer-title">Startnummern-Designer</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                 </div>
-                                <div class="btn-toolbar" role="toolbar">
-                                    <div class="btn-group btn-group-sm me-2" role="group">
-                                        <button class="btn btn-outline-secondary" type="button" data-action="load-json">JSON in Designer laden</button>
-                                        <button class="btn btn-outline-secondary" type="button" data-action="reset-defaults">Zurücksetzen</button>
+                                <div class="modal-body">
+                                    <div class="card border-secondary" data-start-number-designer data-target="#start-number-rules-input"
+                                         data-rule="<?= htmlspecialchars($ruleDesignerJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>"
+                                         data-default="<?= htmlspecialchars($ruleDesignerDefaultsJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-start justify-content-between mb-3">
+                                                <div>
+                                                    <h3 class="h6 mb-1">Konfiguration</h3>
+                                                    <p class="text-muted mb-0">Werte anpassen, das JSON wird automatisch im Formular aktualisiert.</p>
+                                                </div>
+                                                <div class="btn-toolbar" role="toolbar">
+                                                    <div class="btn-group btn-group-sm me-2" role="group">
+                                                        <button class="btn btn-outline-secondary" type="button" data-action="load-json">JSON in Designer laden</button>
+                                                        <button class="btn btn-outline-secondary" type="button" data-action="reset-defaults">Zurücksetzen</button>
+                                                    </div>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="classic">Classic-Vorlage</button>
+                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="western">Western-Vorlage</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Modus</label>
+                                                    <select class="form-select" data-designer-field="mode">
+                                                        <option value="classic">Classic</option>
+                                                        <option value="western">Western</option>
+                                                        <option value="custom">Custom</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Scope</label>
+                                                    <select class="form-select" data-designer-field="scope">
+                                                        <option value="tournament">Turnier</option>
+                                                        <option value="class">Klasse</option>
+                                                        <option value="arena">Arena</option>
+                                                        <option value="day">Tag</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <h4 class="h6">Sequenz</h4>
+                                            <div class="row g-3">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Start</label>
+                                                    <input type="number" class="form-control" data-designer-field="sequence.start" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Schrittweite</label>
+                                                    <input type="number" class="form-control" data-designer-field="sequence.step" min="1">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label">Reset</label>
+                                                    <select class="form-select" data-designer-field="sequence.reset">
+                                                        <option value="never">Nie</option>
+                                                        <option value="per_class">Pro Klasse</option>
+                                                        <option value="per_day">Pro Tag</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Bereich von</label>
+                                                    <input type="number" class="form-control" data-designer-field="sequence.range_min" min="0">
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Bereich bis</label>
+                                                    <input type="number" class="form-control" data-designer-field="sequence.range_max" min="0">
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <h4 class="h6">Format</h4>
+                                            <div class="row g-3">
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Prefix</label>
+                                                    <input type="text" class="form-control" data-designer-field="format.prefix" maxlength="10">
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Ziffernbreite</label>
+                                                    <input type="number" class="form-control" data-designer-field="format.width" min="0">
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Suffix</label>
+                                                    <input type="text" class="form-control" data-designer-field="format.suffix" maxlength="10">
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Separator</label>
+                                                    <input type="text" class="form-control" data-designer-field="format.separator" maxlength="5">
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <h4 class="h6">Zuteilung</h4>
+                                            <div class="row g-3">
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Entität</label>
+                                                    <select class="form-select" data-designer-field="allocation.entity">
+                                                        <option value="start">Start</option>
+                                                        <option value="pair">Reiter/Pferd</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Zeitpunkt</label>
+                                                    <select class="form-select" data-designer-field="allocation.time">
+                                                        <option value="on_entry">Bei Nennung</option>
+                                                        <option value="on_startlist">Startliste</option>
+                                                        <option value="on_gate">Am Gate</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Wiederverwendung</label>
+                                                    <select class="form-select" data-designer-field="allocation.reuse">
+                                                        <option value="never">Nie</option>
+                                                        <option value="after_scratch">Nach Abmeldung</option>
+                                                        <option value="session">Session</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label class="form-label">Sperre nach</label>
+                                                    <select class="form-select" data-designer-field="allocation.lock_after">
+                                                        <option value="sign_off">Freigabe</option>
+                                                        <option value="start_called">Aufruf</option>
+                                                        <option value="never">Nie</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <h4 class="h6">Einschränkungen</h4>
+                                            <div class="row g-3">
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Eindeutigkeit</label>
+                                                    <select class="form-select" data-designer-field="constraints.unique_per">
+                                                        <option value="tournament">Turnier</option>
+                                                        <option value="class">Klasse</option>
+                                                        <option value="day">Tag</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Blockierte Nummern</label>
+                                                    <input type="text" class="form-control" data-designer-field="constraints.blocklists" placeholder="13, 666">
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Vereinsabstand</label>
+                                                    <input type="number" class="form-control" data-designer-field="constraints.club_spacing" min="0">
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label">Horse Cooldown (Min.)</label>
+                                                    <input type="number" class="form-control" data-designer-field="constraints.horse_cooldown_min" min="0">
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0">Overrides</h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-override">Override hinzufügen</button>
+                                            </div>
+                                            <div class="vstack gap-3" data-override-list></div>
+                                            <div class="alert alert-secondary mt-3 mb-0 small">
+                                                Bedingungen pro Override (z. B. Klasse, Division, Arena, Datum) definieren. Nur ausgefüllte Felder werden übernommen.
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="classic">Classic-Vorlage</button>
-                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="western">Western-Vorlage</button>
-                                    </div>
                                 </div>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-sm-6">
-                                    <label class="form-label">Modus</label>
-                                    <select class="form-select" data-designer-field="mode">
-                                        <option value="classic">Classic</option>
-                                        <option value="western">Western</option>
-                                        <option value="custom">Custom</option>
-                                    </select>
+                                <div class="modal-footer">
+                                    <small class="text-muted me-auto">Änderungen werden sofort im JSON-Feld übernommen.</small>
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
                                 </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label">Scope</label>
-                                    <select class="form-select" data-designer-field="scope">
-                                        <option value="tournament">Turnier</option>
-                                        <option value="class">Klasse</option>
-                                        <option value="arena">Arena</option>
-                                        <option value="day">Tag</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <hr>
-                            <h4 class="h6">Sequenz</h4>
-                            <div class="row g-3">
-                                <div class="col-sm-4">
-                                    <label class="form-label">Start</label>
-                                    <input type="number" class="form-control" data-designer-field="sequence.start" min="0">
-                                </div>
-                                <div class="col-sm-4">
-                                    <label class="form-label">Schrittweite</label>
-                                    <input type="number" class="form-control" data-designer-field="sequence.step" min="1">
-                                </div>
-                                <div class="col-sm-4">
-                                    <label class="form-label">Reset</label>
-                                    <select class="form-select" data-designer-field="sequence.reset">
-                                        <option value="never">Nie</option>
-                                        <option value="per_class">Pro Klasse</option>
-                                        <option value="per_day">Pro Tag</option>
-                                    </select>
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label">Bereich von</label>
-                                    <input type="number" class="form-control" data-designer-field="sequence.range_min" min="0">
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label">Bereich bis</label>
-                                    <input type="number" class="form-control" data-designer-field="sequence.range_max" min="0">
-                                </div>
-                            </div>
-                            <hr>
-                            <h4 class="h6">Format</h4>
-                            <div class="row g-3">
-                                <div class="col-sm-3">
-                                    <label class="form-label">Prefix</label>
-                                    <input type="text" class="form-control" data-designer-field="format.prefix" maxlength="10">
-                                </div>
-                                <div class="col-sm-3">
-                                    <label class="form-label">Ziffernbreite</label>
-                                    <input type="number" class="form-control" data-designer-field="format.width" min="0">
-                                </div>
-                                <div class="col-sm-3">
-                                    <label class="form-label">Suffix</label>
-                                    <input type="text" class="form-control" data-designer-field="format.suffix" maxlength="10">
-                                </div>
-                                <div class="col-sm-3">
-                                    <label class="form-label">Separator</label>
-                                    <input type="text" class="form-control" data-designer-field="format.separator" maxlength="5">
-                                </div>
-                            </div>
-                            <hr>
-                            <h4 class="h6">Zuteilung</h4>
-                            <div class="row g-3">
-                                <div class="col-sm-3">
-                                    <label class="form-label">Entität</label>
-                                    <select class="form-select" data-designer-field="allocation.entity">
-                                        <option value="start">Start</option>
-                                        <option value="pair">Reiter/Pferd</option>
-                                    </select>
-                                </div>
-                                <div class="col-sm-3">
-                                    <label class="form-label">Zeitpunkt</label>
-                                    <select class="form-select" data-designer-field="allocation.time">
-                                        <option value="on_entry">Bei Nennung</option>
-                                        <option value="on_startlist">Startliste</option>
-                                        <option value="on_gate">Am Gate</option>
-                                    </select>
-                                </div>
-                                <div class="col-sm-3">
-                                    <label class="form-label">Wiederverwendung</label>
-                                    <select class="form-select" data-designer-field="allocation.reuse">
-                                        <option value="never">Nie</option>
-                                        <option value="after_scratch">Nach Abmeldung</option>
-                                        <option value="session">Sitzung</option>
-                                    </select>
-                                </div>
-                                <div class="col-sm-3">
-                                    <label class="form-label">Sperre nach</label>
-                                    <select class="form-select" data-designer-field="allocation.lock_after">
-                                        <option value="sign_off">Freigabe</option>
-                                        <option value="start_called">Aufruf</option>
-                                        <option value="never">Nie</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <hr>
-                            <h4 class="h6">Einschränkungen</h4>
-                            <div class="row g-3">
-                                <div class="col-sm-6">
-                                    <label class="form-label">Eindeutigkeit</label>
-                                    <select class="form-select" data-designer-field="constraints.unique_per">
-                                        <option value="tournament">Turnier</option>
-                                        <option value="class">Klasse</option>
-                                        <option value="day">Tag</option>
-                                    </select>
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label">Blockierte Nummern</label>
-                                    <input type="text" class="form-control" data-designer-field="constraints.blocklists" placeholder="13, 666">
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label">Vereinsabstand</label>
-                                    <input type="number" class="form-control" data-designer-field="constraints.club_spacing" min="0">
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label">Horse Cooldown (Min.)</label>
-                                    <input type="number" class="form-control" data-designer-field="constraints.horse_cooldown_min" min="0">
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h4 class="h6 mb-0">Overrides</h4>
-                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-override">Override hinzufügen</button>
-                            </div>
-                            <div class="vstack gap-3" data-override-list></div>
-                            <div class="alert alert-secondary mt-3 mb-0 small">
-                                Bedingungen pro Override (z. B. Klasse, Division, Arena, Datum) definieren. Nur ausgefüllte Felder werden übernommen.
                             </div>
                         </div>
+                    </div>
                     </div>
                     <div class="d-grid gap-2">
                         <button class="btn btn-accent" type="submit">Speichern</button>
