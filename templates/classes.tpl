@@ -69,6 +69,7 @@
                                         <option value="western">Western</option>
                                     </select>
                                 </div>
+                        </div> 
                       </div>     
                     </div>
                     <div class="mb-3">
