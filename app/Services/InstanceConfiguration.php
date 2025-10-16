@@ -28,6 +28,7 @@ class InstanceConfiguration
         'peer_last_health_checked_at' => null,
         'peer_last_dry_run_at' => null,
         'peer_last_dry_run_summary' => null,
+        'sync_last_completed_at' => null,
     ];
 
     private PDO $pdo;
