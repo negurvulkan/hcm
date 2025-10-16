@@ -7,41 +7,41 @@ Ziel ist der Aufbau einer stabilen, modularen und reitweisenunabhängigen Plattf
 
 **Ziele:** stabiles Kernsystem, Turniere offline/online durchführen, Grundfunktionen produktionsreif.
 
-- [ ] Hybridbetrieb (Online/Offline) mit Rollen `ONLINE`, `LOCAL`, `MIRROR`
-- [ ] Startnummernvergabe über konfigurierbare Regeln (classic/western/custom)
-- [ ] Turnierphasensteuerung: Prä-Turnier, Turnier, Post-Turnier
-- [ ] Stammdatenverwaltung (Reiter, Pferde, Vereine)
-- [ ] Prüfungsverwaltung inkl. Regelengine (JSON-basiert)
-- [ ] Startlisten-Generator (Basislogik + Konfliktprüfung)
-- [ ] Zeitplanverwaltung (manuell + Verschiebungen)
-- [ ] Richteroberfläche (mobilfähig, offlinefähig)
-- [ ] Ergebnisverwaltung inkl. Tiebreaker
-- [ ] Druckvorlagen (Startlisten, Richterbögen, Ergebnisse, Urkunden)
-- [ ] Anzeigeansichten für Zuschauer (TV/Beamer)
-- [ ] Rollen- und Rechteverwaltung (RBAC)
-- [ ] Installationsroutine (Web-Installer, SQLite/MySQL)
+- [x] Hybridbetrieb (Online/Offline) mit Rollen `ONLINE`, `LOCAL`, `MIRROR`
+- [x] Startnummernvergabe über konfigurierbare Regeln (classic/western/custom)
+- [x] Turnierphasensteuerung: Prä-Turnier, Turnier, Post-Turnier
+- [x] Stammdatenverwaltung (Reiter, Pferde, Vereine)
+- [x] Prüfungsverwaltung inkl. Regelengine (JSON-basiert)
+- [x] Startlisten-Generator (Basislogik + Konfliktprüfung)
+- [x] Zeitplanverwaltung (manuell + Verschiebungen)
+- [x] Richteroberfläche (mobilfähig, offlinefähig)
+- [x] Ergebnisverwaltung inkl. Tiebreaker
+- [x] Druckvorlagen (Startlisten, Richterbögen, Ergebnisse, Urkunden)
+- [x] Anzeigeansichten für Zuschauer (TV/Beamer)
+- [x] Rollen- und Rechteverwaltung (RBAC)
+- [x] Installationsroutine (Web-Installer, SQLite/MySQL)
 - [ ] Grundlegende Sync-Funktionen (Pull/Push Online ↔ Lokal)
-- [ ] Health-/Info-Endpunkte für Instanzabfrage
+- [x] Health-/Info-Endpunkte für Instanzabfrage
 
 ## Version 1.1 – Erweiterte Turnierpraxis
 
 **Ziele:** bessere Arbeitsabläufe am Turniertag, höhere Stabilität, erste Zusatzfunktionen.
 
 - [ ] Sponsor-Modul (Bannerplätze auf Anzeigeansichten)
-- [ ] Live-Ticker (Silent Broadcast im Browser)
-- [ ] Startnummernverwaltung mit Blocklisten & Overrides
-- [ ] Verbesserte Zeitplanlogik (Slots, automatische Anpassung bei Verzögerungen)
-- [ ] Helferplanung (Schichtplan, Check-in)
-- [ ] Audit-Logging für alle Änderungen (Eintrag, Zeit, User, Aktion)
-- [ ] Erweiterte CSV-/JSON-Exporte (Ergebnisse, Meldungen, Finanzen)
+- [x] Live-Ticker (Silent Broadcast im Browser)
+- [x] Startnummernverwaltung mit Blocklisten & Overrides
+- [x] Verbesserte Zeitplanlogik (Slots, automatische Anpassung bei Verzögerungen)
+- [x] Helferplanung (Schichtplan, Check-in)
+- [x] Audit-Logging für alle Änderungen (Eintrag, Zeit, User, Aktion)
+- [x] Erweiterte CSV-/JSON-Exporte (Ergebnisse, Meldungen, Finanzen)
 - [ ] Bessere QR-Integration (z. B. für Richterlinks)
 
 ## Version 1.2 – Automatisierung & Integration
 
 **Ziele:** Abläufe optimieren, externe Anbindungen ermöglichen, Reporting verbessern.
 
-- [ ] Erweiterte Regelengine (mehr Reitweisen, Gewichtungen, Mehr-Richter-Prüfungen)
-- [ ] Live-Zeitplananpassung mit Push an Anzeigen
+- [x] Erweiterte Regelengine (mehr Reitweisen, Gewichtungen, Mehr-Richter-Prüfungen)
+- [x] Live-Zeitplananpassung mit Push an Anzeigen
 - [ ] Statistiken & Auswertungen (Starterzahlen, Laufzeiten, Ausfälle)
 - [ ] Automatische Sponsorberichte (Laufzeit / Sichtbarkeit)
 - [ ] Erweiterte Druckfunktionen (Sponsoring/Branding auf Startnummern)
