@@ -15,6 +15,7 @@
     <thead>
     <tr>
         <th>Platz</th>
+        <th>Startnr.</th>
         <th>Reiter</th>
         <th>Pferd</th>
         <th>Punkte</th>
@@ -24,6 +25,7 @@
     <?php $rank = 1; foreach ($items as $item): ?>
         <tr>
             <td><?= $rank++ ?></td>
+            <td><?= htmlspecialchars($item['start_number_display'] ?? $item['start_number_raw'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars(number_format((float) $item['total'], 2), ENT_QUOTES, 'UTF-8') ?></td>

@@ -6,9 +6,16 @@
 /** @var array $rule */
 /** @var array $scores */
 /** @var array|null $result */
+/** @var array $startNumberRule */
 ?>
 <div class="alert alert-info d-flex justify-content-between align-items-center">
-    <div><strong><?= htmlspecialchars($selectedClass['label'] ?? 'Prüfung', ENT_QUOTES, 'UTF-8') ?></strong> · <?= htmlspecialchars($start['rider'] ?? 'Kein Start', ENT_QUOTES, 'UTF-8') ?></div>
+    <div>
+        <strong><?= htmlspecialchars($selectedClass['label'] ?? 'Prüfung', ENT_QUOTES, 'UTF-8') ?></strong>
+        <?php if (!empty($start['start_number_display'])): ?>
+            <span class="badge bg-primary text-light ms-2">Startnr. <?= htmlspecialchars($start['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+        <?php endif; ?>
+        · <?= htmlspecialchars($start['rider'] ?? 'Kein Start', ENT_QUOTES, 'UTF-8') ?>
+    </div>
     <div class="text-muted small">Offline? <span class="badge bg-light text-dark">Form puffert lokal</span></div>
 </div>
 
@@ -25,7 +32,12 @@
     </div>
     <div class="col-md-8 text-end">
         <?php foreach ($starts as $candidate): ?>
-            <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?>">Nr. <?= (int) $candidate['position'] ?></a>
+            <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?>">
+                Nr. <?= (int) $candidate['position'] ?>
+                <?php if (!empty($candidate['start_number_display'])): ?>
+                    <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($candidate['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php endif; ?>
+            </a>
         <?php endforeach; ?>
     </div>
 </div>

@@ -22,6 +22,7 @@
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                 <tr>
+                    <th>Startnr.</th>
                     <th>Reiter</th>
                     <th>Pferd</th>
                     <th>Gesamt</th>
@@ -32,6 +33,7 @@
                 <tbody>
                 <?php foreach ($results as $result): ?>
                     <tr>
+                        <td><span class="badge bg-primary text-light"><?= htmlspecialchars($result['start_number_display'] ?? $result['start_number_raw'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td><?= htmlspecialchars($result['rider'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($result['horse'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars(number_format((float) $result['total'], 2), ENT_QUOTES, 'UTF-8') ?></td>
@@ -57,7 +59,7 @@
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$results): ?>
-                    <tr><td colspan="5" class="text-muted">Keine Ergebnisse erfasst.</td></tr>
+                    <tr><td colspan="6" class="text-muted">Keine Ergebnisse erfasst.</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>

@@ -46,6 +46,14 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     }
 }
 
+$startNumberContext = [
+    'eventId' => (int) $selectedClass['event_id'],
+    'classId' => $classId,
+    'date' => $selectedClass['start_time'] ? substr($selectedClass['start_time'], 0, 10) : null,
+    'user' => $user,
+];
+$startNumberRule = getStartNumberRule($startNumberContext);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', 'CSRF ungültig.');
@@ -107,6 +115,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]
             );
             $itemId = (int) app_pdo()->lastInsertId();
+            if (in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true)) {
+                assignStartNumber($startNumberContext, [
+                    'entry_id' => (int) $entry['id'],
+                    'startlist_id' => $itemId,
+                ]);
+            }
             audit_log('startlist_items', $itemId, 'generated', null, [
                 'position' => $position + 1,
             ]);
@@ -129,6 +143,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $itemId,
             ]);
             audit_log('startlist_items', $itemId, 'state_change', $before, ['state' => $newState]);
+            if ($newState === 'withdrawn' && !empty($item['start_number_assignment_id'])) {
+                releaseStartNumber([
+                    'id' => (int) $item['start_number_assignment_id'],
+                    'entry_id' => (int) $item['entry_id'],
+                    'startlist_id' => $itemId,
+                ], 'scratch');
+            }
+            if ($newState === 'scheduled' && in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true)) {
+                assignStartNumber($startNumberContext, [
+                    'entry_id' => (int) $item['entry_id'],
+                    'startlist_id' => $itemId,
+                ]);
+            }
             flash('success', 'Status angepasst.');
         }
         header('Location: startlist.php?class_id=' . $classId);
@@ -160,6 +187,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
         $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
         if ($item) {
+            if (!empty($item['start_number_assignment_id'])) {
+                releaseStartNumber([
+                    'id' => (int) $item['start_number_assignment_id'],
+                    'entry_id' => (int) $item['entry_id'],
+                    'startlist_id' => $itemId,
+                ], 'withdraw');
+            }
             db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
             db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
             audit_log('startlist_items', $itemId, 'delete', $item, null);
@@ -195,6 +229,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: startlist.php?class_id=' . $classId);
         exit;
     }
+
+    if ($action === 'reassign_number') {
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        if ($item) {
+            $assignment = $item['start_number_assignment_id'] ? db_first('SELECT * FROM start_number_assignments WHERE id = :id', ['id' => (int) $item['start_number_assignment_id']]) : null;
+            if ($assignment && !empty($assignment['locked_at'])) {
+                flash('error', 'Startnummer ist gesperrt.');
+            } else {
+                if ($assignment) {
+                    releaseStartNumber([
+                        'id' => (int) $assignment['id'],
+                        'entry_id' => (int) $item['entry_id'],
+                        'startlist_id' => $itemId,
+                    ], 'manual_reassign');
+                }
+                if (in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true)) {
+                    assignStartNumber($startNumberContext, [
+                        'entry_id' => (int) $item['entry_id'],
+                        'startlist_id' => $itemId,
+                    ]);
+                    flash('success', 'Startnummer neu vergeben.');
+                } else {
+                    flash('info', 'Startnummer wird am Gate vergeben.');
+                }
+            }
+        }
+        header('Location: startlist.php?class_id=' . $classId);
+        exit;
+    }
 }
 
 $startlist = db_all('SELECT si.*, e.status, p.name AS rider, h.name AS horse, h.id AS horse_id, p.club_id FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
@@ -217,4 +281,5 @@ render_page('startlist.tpl', [
     'selectedClass' => $selectedClass,
     'startlist' => $startlist,
     'conflicts' => $conflicts,
+    'startNumberRule' => $startNumberRule,
 ]);

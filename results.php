@@ -66,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updated = db_first('SELECT * FROM results WHERE id = :id', ['id' => $resultId]);
             audit_log('results', $resultId, 'status_change', $before, $updated);
             if ($status === 'released') {
+                $assignment = db_first('SELECT start_number_assignment_id FROM startlist_items WHERE id = :id', ['id' => $result['startlist_id']]);
+                if (!empty($assignment['start_number_assignment_id'])) {
+                    lockStartNumber((int) $assignment['start_number_assignment_id'], 'result_released');
+                }
                 db_execute('INSERT INTO notifications (type, payload, created_at) VALUES (:type, :payload, :created)', [
                     'type' => 'results_release',
                     'payload' => json_encode([
@@ -97,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$results = db_all('SELECT r.*, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.total DESC', ['class_id' => $classId]);
+$results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.total DESC', ['class_id' => $classId]);
 $audits = db_all('SELECT * FROM audit_log WHERE entity = "results" AND entity_id IN (SELECT r.id FROM results r JOIN startlist_items si ON si.id = r.startlist_id WHERE si.class_id = :class_id) ORDER BY id DESC LIMIT 20', ['class_id' => $classId]);
 
 render_page('results.tpl', [
