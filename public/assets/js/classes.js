@@ -1,4 +1,4 @@
-(function (window, $) {
+(function (window) {
     'use strict';
 
     function deepClone(value) {
@@ -17,6 +17,28 @@
         return clone;
     }
 
+    function mergeObjects(target, source) {
+        if (!source || typeof source !== 'object') {
+            return target;
+        }
+        Object.keys(source).forEach(function (key) {
+            var value = source[key];
+            if (Array.isArray(value)) {
+                target[key] = value.map(function (item) {
+                    return deepClone(item);
+                });
+            } else if (value && typeof value === 'object') {
+                if (!target[key] || typeof target[key] !== 'object') {
+                    target[key] = {};
+                }
+                mergeObjects(target[key], value);
+            } else {
+                target[key] = value;
+            }
+        });
+        return target;
+    }
+
     function toNumberOrNull(value) {
         var number = parseFloat(value);
         if (!isNaN(number) && isFinite(number)) {
@@ -25,13 +47,30 @@
         return null;
     }
 
-    function RuleEditor($form, presets) {
-        this.$form = $form;
-        this.$editor = $form.find('[data-rule-editor]');
-        this.$textarea = this.$editor.find('[data-rule-json]');
-        this.$builder = this.$editor.find('[data-rule-builder]');
-        this.$toggle = this.$editor.find('[data-rule-toggle]');
-        this.$error = this.$editor.find('[data-rule-error]');
+    function safeParseJson(raw, fallback) {
+        if (!raw || typeof raw !== 'string') {
+            return fallback;
+        }
+        try {
+            return JSON.parse(raw);
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function createElement(html) {
+        var template = window.document.createElement('template');
+        template.innerHTML = html.trim();
+        return template.content.firstElementChild;
+    }
+
+    function RuleEditor(form, presets) {
+        this.form = form;
+        this.editor = form.querySelector('[data-rule-editor]');
+        this.textarea = this.editor ? this.editor.querySelector('[data-rule-json]') : null;
+        this.builder = this.editor ? this.editor.querySelector('[data-rule-builder]') : null;
+        this.toggleButton = this.editor ? this.editor.querySelector('[data-rule-toggle]') : null;
+        this.errorBox = this.editor ? this.editor.querySelector('[data-rule-error]') : null;
         this.presets = presets || {};
         this.supportedTypes = ['dressage', 'jumping', 'western'];
         this.state = null;
@@ -40,183 +79,217 @@
     }
 
     RuleEditor.prototype.init = function () {
-        if (!this.$editor.length || !this.$textarea.length) {
+        if (!this.editor || !this.textarea) {
             return;
         }
 
+        this.bindEvents();
+        this.bootstrapState();
+    };
+
+    RuleEditor.prototype.bindEvents = function () {
         var self = this;
-        this.$toggle.removeClass('d-none');
-        this.$toggle.on('click', function (event) {
-            event.preventDefault();
-            self.toggleMode();
-        });
 
-        this.$editor.on('click', '[data-preset]', function (event) {
-            event.preventDefault();
-            var key = $(this).data('preset');
-            self.applyPreset(key);
-        });
-
-        this.$builder.on('change', '[data-rule-type]', function () {
-            var type = $(this).val();
-            self.changeType(type);
-        });
-
-        this.$builder.on('click', '[data-action="add-movement"]', function (event) {
-            event.preventDefault();
-            self.addMovement();
-        });
-
-        this.$builder.on('click', '[data-action="remove-movement"]', function (event) {
-            event.preventDefault();
-            var $row = $(this).closest('[data-index]');
-            var index = parseInt($row.data('index'), 10);
-            self.removeMovement(index);
-        });
-
-        this.$builder.on('input', '[data-dressage-movements] [data-field]', function () {
-            if (!self.state || !Array.isArray(self.state.movements)) {
-                return;
-            }
-            var $row = $(this).closest('[data-index]');
-            var index = parseInt($row.data('index'), 10);
-            if (isNaN(index) || !self.state.movements[index]) {
-                return;
-            }
-            var field = $(this).data('field');
-            if (field === 'max') {
-                var maxValue = toNumberOrNull($(this).val());
-                self.state.movements[index].max = maxValue !== null ? maxValue : null;
-            } else {
-                self.state.movements[index].label = $(this).val();
-            }
-            self.syncTextarea();
-        });
-
-        this.$builder.on('input', '[data-dressage-step]', function () {
-            if (!self.state) {
-                return;
-            }
-            var value = toNumberOrNull($(this).val());
-            self.state.step = value !== null ? value : null;
-            self.syncTextarea();
-        });
-
-        this.$builder.on('change', '[data-dressage-aggregate]', function () {
-            if (!self.state) {
-                return;
-            }
-            self.state.aggregate = $(this).val();
-            self.syncTextarea();
-        });
-
-        this.$builder.on('change', '[data-dressage-drop]', function () {
-            if (!self.state) {
-                return;
-            }
-            self.state.drop_high_low = $(this).is(':checked');
-            self.syncTextarea();
-        });
-
-        this.$builder.on('change', '[data-jumping-faults]', function () {
-            if (!self.state) {
-                return;
-            }
-            self.state.fault_points = $(this).is(':checked');
-            self.syncTextarea();
-        });
-
-        this.$builder.on('input', '[data-jumping-time]', function () {
-            if (!self.state) {
-                return;
-            }
-            var value = toNumberOrNull($(this).val());
-            self.state.time_allowed = value !== null ? value : null;
-            self.syncTextarea();
-        });
-
-        this.$builder.on('input', '[data-jumping-penalty]', function () {
-            if (!self.state) {
-                return;
-            }
-            var value = toNumberOrNull($(this).val());
-            self.state.time_penalty_per_second = value !== null ? value : null;
-            self.syncTextarea();
-        });
-
-        this.$builder.on('click', '[data-action="add-maneuver"]', function (event) {
-            event.preventDefault();
-            self.addManeuver();
-        });
-
-        this.$builder.on('click', '[data-action="remove-maneuver"]', function (event) {
-            event.preventDefault();
-            var $row = $(this).closest('[data-index]');
-            var index = parseInt($row.data('index'), 10);
-            self.removeManeuver(index);
-        });
-
-        this.$builder.on('input', '[data-western-maneuvers] [data-field="label"]', function () {
-            if (!self.state || !Array.isArray(self.state.maneuvers)) {
-                return;
-            }
-            var $row = $(this).closest('[data-index]');
-            var index = parseInt($row.data('index'), 10);
-            if (isNaN(index) || !self.state.maneuvers[index]) {
-                return;
-            }
-            self.state.maneuvers[index].label = $(this).val();
-            self.syncTextarea();
-        });
-
-        this.$builder.on('input', '[data-western-maneuvers] [data-range]', function () {
-            if (!self.state || !Array.isArray(self.state.maneuvers)) {
-                return;
-            }
-            var $row = $(this).closest('[data-index]');
-            var index = parseInt($row.data('index'), 10);
-            if (isNaN(index) || !self.state.maneuvers[index]) {
-                return;
-            }
-            var range = self.state.maneuvers[index].range || [];
-            if ($(this).data('range') === 'min') {
-                range[0] = toNumberOrNull($(this).val());
-            } else {
-                range[1] = toNumberOrNull($(this).val());
-            }
-            self.state.maneuvers[index].range = range;
-            self.syncTextarea();
-        });
-
-        this.$builder.on('click', '[data-action="add-penalty"]', function (event) {
-            event.preventDefault();
-            self.addPenalty();
-        });
-
-        this.$builder.on('keydown', '[data-western-penalty-input]', function (event) {
-            if (event.key === 'Enter') {
+        if (this.toggleButton) {
+            this.toggleButton.classList.remove('d-none');
+            this.toggleButton.addEventListener('click', function (event) {
                 event.preventDefault();
+                self.toggleMode();
+            });
+        }
+
+        this.editor.addEventListener('click', function (event) {
+            var presetButton = event.target.closest('[data-preset]');
+            if (presetButton && self.editor.contains(presetButton)) {
+                event.preventDefault();
+                self.applyPreset(presetButton.getAttribute('data-preset'));
+                return;
+            }
+
+            var actionButton = event.target.closest('[data-action]');
+            if (!actionButton || !self.builder || !self.builder.contains(actionButton)) {
+                return;
+            }
+
+            var action = actionButton.getAttribute('data-action');
+            event.preventDefault();
+
+            if (action === 'add-movement') {
+                self.addMovement();
+                return;
+            }
+            if (action === 'remove-movement') {
+                var movementRow = actionButton.closest('[data-index]');
+                if (movementRow) {
+                    var movementIndex = parseInt(movementRow.getAttribute('data-index'), 10);
+                    self.removeMovement(movementIndex);
+                }
+                return;
+            }
+            if (action === 'add-maneuver') {
+                self.addManeuver();
+                return;
+            }
+            if (action === 'remove-maneuver') {
+                var maneuverRow = actionButton.closest('[data-index]');
+                if (maneuverRow) {
+                    var maneuverIndex = parseInt(maneuverRow.getAttribute('data-index'), 10);
+                    self.removeManeuver(maneuverIndex);
+                }
+                return;
+            }
+            if (action === 'add-penalty') {
                 self.addPenalty();
+                return;
+            }
+            if (action === 'remove-penalty') {
+                var penaltyIndex = parseInt(actionButton.getAttribute('data-index'), 10);
+                if (!isNaN(penaltyIndex)) {
+                    self.removePenalty(penaltyIndex);
+                }
             }
         });
 
-        this.$builder.on('click', '[data-action="remove-penalty"]', function (event) {
-            event.preventDefault();
-            var index = parseInt($(this).data('index'), 10);
-            self.removePenalty(index);
-        });
+        if (this.builder) {
+            this.builder.addEventListener('change', function (event) {
+                self.handleBuilderChange(event);
+            });
 
-        this.$form.on('submit', function () {
+            this.builder.addEventListener('input', function (event) {
+                self.handleBuilderInput(event);
+            });
+
+            var penaltyInput = this.builder.querySelector('[data-western-penalty-input]');
+            if (penaltyInput) {
+                penaltyInput.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        self.addPenalty();
+                    }
+                });
+            }
+        }
+
+        this.form.addEventListener('submit', function () {
             if (!self.manualMode && self.state) {
                 self.syncTextarea();
             }
         });
+    };
 
-        this.bootstrapState();
+    RuleEditor.prototype.handleBuilderChange = function (event) {
+        if (!this.state || !this.builder || !this.builder.contains(event.target)) {
+            return;
+        }
+
+        var target = event.target;
+
+        if (target.matches('[data-rule-type]')) {
+            this.changeType(target.value);
+            return;
+        }
+
+        if (target.matches('[data-dressage-aggregate]')) {
+            this.state.aggregate = target.value || 'average';
+            this.syncTextarea();
+            return;
+        }
+
+        if (target.matches('[data-dressage-drop]')) {
+            this.state.drop_high_low = target.checked;
+            this.syncTextarea();
+            return;
+        }
+
+        if (target.matches('[data-jumping-faults]')) {
+            this.state.fault_points = !!target.checked;
+            this.syncTextarea();
+            return;
+        }
+    };
+
+    RuleEditor.prototype.handleBuilderInput = function (event) {
+        if (!this.state || !this.builder || !this.builder.contains(event.target)) {
+            return;
+        }
+
+        var target = event.target;
+
+        if (target.closest('[data-dressage-movements]') && target.hasAttribute('data-field')) {
+            var movementRow = target.closest('[data-index]');
+            if (!movementRow) {
+                return;
+            }
+            var index = parseInt(movementRow.getAttribute('data-index'), 10);
+            if (isNaN(index) || !this.state.movements || !this.state.movements[index]) {
+                return;
+            }
+            var field = target.getAttribute('data-field');
+            if (field === 'max') {
+                var maxValue = toNumberOrNull(target.value);
+                this.state.movements[index].max = maxValue !== null ? maxValue : null;
+            } else {
+                this.state.movements[index].label = target.value;
+            }
+            this.syncTextarea();
+            return;
+        }
+
+        if (target.matches('[data-dressage-step]')) {
+            var stepValue = toNumberOrNull(target.value);
+            this.state.step = stepValue !== null ? stepValue : null;
+            this.syncTextarea();
+            return;
+        }
+
+        if (target.matches('[data-jumping-time]')) {
+            var allowed = toNumberOrNull(target.value);
+            this.state.time_allowed = allowed !== null ? allowed : null;
+            this.syncTextarea();
+            return;
+        }
+
+        if (target.matches('[data-jumping-penalty]')) {
+            var penalty = toNumberOrNull(target.value);
+            this.state.time_penalty_per_second = penalty !== null ? penalty : null;
+            this.syncTextarea();
+            return;
+        }
+
+        if (target.closest('[data-western-maneuvers]')) {
+            var maneuverRow = target.closest('[data-index]');
+            if (!maneuverRow) {
+                return;
+            }
+            var maneuverIndex = parseInt(maneuverRow.getAttribute('data-index'), 10);
+            if (isNaN(maneuverIndex) || !this.state.maneuvers || !this.state.maneuvers[maneuverIndex]) {
+                return;
+            }
+
+            if (target.getAttribute('data-field') === 'label') {
+                this.state.maneuvers[maneuverIndex].label = target.value;
+                this.syncTextarea();
+                return;
+            }
+
+            if (target.hasAttribute('data-range')) {
+                var range = this.state.maneuvers[maneuverIndex].range || [];
+                var isMin = target.getAttribute('data-range') === 'min';
+                var rangeValue = toNumberOrNull(target.value);
+                if (isMin) {
+                    range[0] = rangeValue !== null ? rangeValue : null;
+                } else {
+                    range[1] = rangeValue !== null ? rangeValue : null;
+                }
+                this.state.maneuvers[maneuverIndex].range = range;
+                this.syncTextarea();
+            }
+            return;
+        }
     };
 
     RuleEditor.prototype.bootstrapState = function () {
-        var raw = $.trim(this.$textarea.val() || '');
+        var raw = (this.textarea.value || '').trim();
         if (raw === '') {
             this.state = this.defaultRule('dressage');
             this.manualMode = false;
@@ -235,7 +308,7 @@
                 return;
             }
             var type = data.type || 'dressage';
-            if ($.inArray(type, this.supportedTypes) === -1) {
+            if (this.supportedTypes.indexOf(type) === -1) {
                 this.manualMode = true;
                 this.state = null;
                 this.setError('Der Regeltyp "' + type + '" wird vom Editor nicht unterstützt.');
@@ -255,38 +328,32 @@
     };
 
     RuleEditor.prototype.getFallbackForType = function (type) {
-        var fallback;
-        switch (type) {
-            case 'jumping':
-                fallback = {
-                    type: 'jumping',
-                    fault_points: true,
-                    time_allowed: 75,
-                    time_penalty_per_second: 1
-                };
-                break;
-            case 'western':
-                fallback = {
-                    type: 'western',
-                    maneuvers: [
-                        { label: 'Manöver 1', range: [-1.5, 1.5] }
-                    ],
-                    penalties: [1, 2, 5]
-                };
-                break;
-            default:
-                fallback = {
-                    type: 'dressage',
-                    movements: [
-                        { label: 'Bewegung 1', max: 10 }
-                    ],
-                    step: 0.5,
-                    aggregate: 'average',
-                    drop_high_low: false
-                };
-                break;
+        if (type === 'jumping') {
+            return {
+                type: 'jumping',
+                fault_points: true,
+                time_allowed: 75,
+                time_penalty_per_second: 1
+            };
         }
-        return fallback;
+        if (type === 'western') {
+            return {
+                type: 'western',
+                maneuvers: [
+                    { label: 'Manöver 1', range: [-1.5, 1.5] }
+                ],
+                penalties: [1, 2, 5]
+            };
+        }
+        return {
+            type: 'dressage',
+            movements: [
+                { label: 'Bewegung 1', max: 10 }
+            ],
+            step: 0.5,
+            aggregate: 'average',
+            drop_high_low: false
+        };
     };
 
     RuleEditor.prototype.defaultRule = function (type) {
@@ -297,7 +364,7 @@
             if (!presetClone.type) {
                 presetClone.type = type;
             }
-            base = $.extend(true, base, presetClone);
+            base = mergeObjects(base, presetClone);
         }
         return this.normalizeRule(base);
     };
@@ -308,17 +375,13 @@
         }
         var clone = deepClone(rule);
         var type = clone.type || 'dressage';
-        switch (type) {
-            case 'jumping':
-                clone = this.normalizeJumpingRule(clone);
-                break;
-            case 'western':
-                clone = this.normalizeWesternRule(clone);
-                break;
-            default:
-                clone = this.normalizeDressageRule(clone);
-                type = 'dressage';
-                break;
+        if (type === 'jumping') {
+            clone = this.normalizeJumpingRule(clone);
+        } else if (type === 'western') {
+            clone = this.normalizeWesternRule(clone);
+        } else {
+            clone = this.normalizeDressageRule(clone);
+            type = 'dressage';
         }
         clone.type = type;
         return clone;
@@ -326,21 +389,15 @@
 
     RuleEditor.prototype.normalizeDressageRule = function (rule) {
         rule.movements = this.normalizeMovements(rule.movements, 'Bewegung');
-        rule.step = toNumberOrNull(rule.step);
-        if (rule.step === null) {
-            rule.step = 0.5;
-        }
+        var step = toNumberOrNull(rule.step);
+        rule.step = step !== null ? step : 0.5;
         rule.aggregate = typeof rule.aggregate === 'string' && rule.aggregate !== '' ? rule.aggregate : 'average';
         rule.drop_high_low = !!rule.drop_high_low;
         return rule;
     };
 
     RuleEditor.prototype.normalizeJumpingRule = function (rule) {
-        if (typeof rule.fault_points === 'undefined') {
-            rule.fault_points = true;
-        } else {
-            rule.fault_points = !!rule.fault_points;
-        }
+        rule.fault_points = typeof rule.fault_points === 'undefined' ? true : !!rule.fault_points;
         var timeAllowed = toNumberOrNull(rule.time_allowed);
         rule.time_allowed = timeAllowed !== null ? timeAllowed : 75;
         var penalty = toNumberOrNull(rule.time_penalty_per_second);
@@ -361,9 +418,10 @@
         }
         return list.map(function (item, index) {
             var movement = deepClone(item || {});
-            movement.label = typeof movement.label === 'string' && movement.label.trim() !== ''
+            var label = typeof movement.label === 'string' && movement.label.trim() !== ''
                 ? movement.label
                 : prefix + ' ' + (index + 1);
+            movement.label = label;
             var maxValue = toNumberOrNull(movement.max);
             movement.max = maxValue !== null ? maxValue : 10;
             return movement;
@@ -377,9 +435,10 @@
         }
         return list.map(function (item, index) {
             var maneuver = deepClone(item || {});
-            maneuver.label = typeof maneuver.label === 'string' && maneuver.label.trim() !== ''
+            var label = typeof maneuver.label === 'string' && maneuver.label.trim() !== ''
                 ? maneuver.label
                 : 'Manöver ' + (index + 1);
+            maneuver.label = label;
             var range = Array.isArray(maneuver.range) ? maneuver.range.slice(0, 2) : [];
             var min = toNumberOrNull(range[0]);
             var max = toNumberOrNull(range[1]);
@@ -392,26 +451,39 @@
         var list = Array.isArray(items) ? items : [];
         return list.map(function (value) {
             var number = toNumberOrNull(value);
-            return number !== null ? number : 0;
+            return number !== null ? number : null;
         }).filter(function (value) {
             return value !== null && !isNaN(value);
         });
     };
 
     RuleEditor.prototype.render = function () {
+        if (!this.editor) {
+            return;
+        }
+
         if (this.manualMode) {
-            this.$builder.addClass('d-none');
-            this.$textarea.removeClass('d-none');
-            this.$toggle.text('UI-Editor nutzen');
+            if (this.builder) {
+                this.builder.classList.add('d-none');
+            }
+            this.textarea.classList.remove('d-none');
+            if (this.toggleButton) {
+                this.toggleButton.textContent = 'UI-Editor nutzen';
+            }
             if (this.errorMessage) {
                 this.setError(this.errorMessage);
             }
             return;
         }
+
         this.clearError();
-        this.$textarea.addClass('d-none');
-        this.$builder.removeClass('d-none');
-        this.$toggle.text('JSON bearbeiten');
+        if (this.builder) {
+            this.builder.classList.remove('d-none');
+        }
+        this.textarea.classList.add('d-none');
+        if (this.toggleButton) {
+            this.toggleButton.textContent = 'JSON bearbeiten';
+        }
         if (!this.state) {
             this.state = this.defaultRule('dressage');
         }
@@ -419,11 +491,22 @@
     };
 
     RuleEditor.prototype.renderBuilder = function () {
+        if (!this.builder || !this.state) {
+            return;
+        }
         var type = this.state.type || 'dressage';
-        this.$builder.find('[data-rule-type]').val(type);
-        this.$builder.find('[data-rule-panel]').addClass('d-none');
-        this.$builder.find('[data-rule-panel="' + type + '"]').removeClass('d-none');
-
+        var typeSelect = this.builder.querySelector('[data-rule-type]');
+        if (typeSelect) {
+            this.setSelectValue(typeSelect, type);
+        }
+        var panels = this.builder.querySelectorAll('[data-rule-panel]');
+        panels.forEach(function (panel) {
+            panel.classList.add('d-none');
+        });
+        var currentPanel = this.builder.querySelector('[data-rule-panel="' + type + '"]');
+        if (currentPanel) {
+            currentPanel.classList.remove('d-none');
+        }
         if (type === 'jumping') {
             this.renderJumping();
         } else if (type === 'western') {
@@ -436,53 +519,74 @@
 
     RuleEditor.prototype.renderDressage = function () {
         this.renderDressageMovements();
-        var step = (typeof this.state.step === 'number') ? this.state.step : '';
-        this.$builder.find('[data-dressage-step]').val(step);
-        var $aggregate = this.$builder.find('[data-dressage-aggregate]');
-        this.setSelectValue($aggregate, this.state.aggregate);
-        this.$builder.find('[data-dressage-drop]').prop('checked', !!this.state.drop_high_low);
+        var stepInput = this.builder.querySelector('[data-dressage-step]');
+        if (stepInput) {
+            stepInput.value = typeof this.state.step === 'number' ? this.state.step : '';
+        }
+        var aggregateSelect = this.builder.querySelector('[data-dressage-aggregate]');
+        if (aggregateSelect) {
+            this.setSelectValue(aggregateSelect, this.state.aggregate);
+        }
+        var dropCheckbox = this.builder.querySelector('[data-dressage-drop]');
+        if (dropCheckbox) {
+            dropCheckbox.checked = !!this.state.drop_high_low;
+        }
     };
 
     RuleEditor.prototype.renderDressageMovements = function () {
-        var $container = this.$builder.find('[data-dressage-movements]');
-        var $empty = this.$builder.find('[data-dressage-empty]');
-        $container.empty();
-
-        if (!this.state.movements || !this.state.movements.length) {
-            $empty.removeClass('d-none');
+        var container = this.builder.querySelector('[data-dressage-movements]');
+        var emptyIndicator = this.builder.querySelector('[data-dressage-empty]');
+        if (!container) {
             return;
         }
-        $empty.addClass('d-none');
-
-        this.state.movements.forEach(function (movement, index) {
-            var $row = $('<div class="row g-2 align-items-center" data-index="' + index + '"></div>');
-            var $labelCol = $('<div class="col"></div>');
-            var $labelInput = $('<input type="text" class="form-control form-control-sm" placeholder="z. B. Trabverstärkung" data-field="label">');
-            $labelInput.val(movement.label || '');
-            $labelCol.append($labelInput);
-
-            var $maxCol = $('<div class="col-auto" style="width: 120px;"></div>');
-            var $maxInput = $('<input type="number" class="form-control form-control-sm" min="0" step="0.1" data-field="max">');
-            if (typeof movement.max === 'number') {
-                $maxInput.val(movement.max);
+        container.innerHTML = '';
+        if (!this.state.movements || !this.state.movements.length) {
+            if (emptyIndicator) {
+                emptyIndicator.classList.remove('d-none');
             }
-            $maxCol.append($maxInput);
+            return;
+        }
+        if (emptyIndicator) {
+            emptyIndicator.classList.add('d-none');
+        }
+        this.state.movements.forEach(function (movement, index) {
+            var row = createElement('<div class="row g-2 align-items-center" data-index="' + index + '"></div>');
+            var labelCol = createElement('<div class="col"></div>');
+            var labelInput = createElement('<input type="text" class="form-control form-control-sm" placeholder="z. B. Trabverstärkung" data-field="label">');
+            labelInput.value = movement.label || '';
+            labelCol.appendChild(labelInput);
 
-            var $removeCol = $('<div class="col-auto"></div>');
-            var $removeButton = $('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-movement" aria-label="Bewegung entfernen">&times;</button>');
-            $removeCol.append($removeButton);
+            var maxCol = createElement('<div class="col-auto" style="width: 120px;"></div>');
+            var maxInput = createElement('<input type="number" class="form-control form-control-sm" min="0" step="0.1" data-field="max">');
+            if (typeof movement.max === 'number') {
+                maxInput.value = String(movement.max);
+            }
+            maxCol.appendChild(maxInput);
 
-            $row.append($labelCol, $maxCol, $removeCol);
-            $container.append($row);
+            var removeCol = createElement('<div class="col-auto"></div>');
+            var removeButton = createElement('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-movement" aria-label="Bewegung entfernen">&times;</button>');
+            removeCol.appendChild(removeButton);
+
+            row.appendChild(labelCol);
+            row.appendChild(maxCol);
+            row.appendChild(removeCol);
+            container.appendChild(row);
         });
     };
 
     RuleEditor.prototype.renderJumping = function () {
-        this.$builder.find('[data-jumping-faults]').prop('checked', this.state.fault_points !== false);
-        var timeAllowed = (typeof this.state.time_allowed === 'number') ? this.state.time_allowed : '';
-        this.$builder.find('[data-jumping-time]').val(timeAllowed);
-        var penalty = (typeof this.state.time_penalty_per_second === 'number') ? this.state.time_penalty_per_second : '';
-        this.$builder.find('[data-jumping-penalty]').val(penalty);
+        var faultsCheckbox = this.builder.querySelector('[data-jumping-faults]');
+        if (faultsCheckbox) {
+            faultsCheckbox.checked = this.state.fault_points !== false;
+        }
+        var timeInput = this.builder.querySelector('[data-jumping-time]');
+        if (timeInput) {
+            timeInput.value = typeof this.state.time_allowed === 'number' ? this.state.time_allowed : '';
+        }
+        var penaltyInput = this.builder.querySelector('[data-jumping-penalty]');
+        if (penaltyInput) {
+            penaltyInput.value = typeof this.state.time_penalty_per_second === 'number' ? this.state.time_penalty_per_second : '';
+        }
     };
 
     RuleEditor.prototype.renderWestern = function () {
@@ -491,58 +595,71 @@
     };
 
     RuleEditor.prototype.renderWesternManeuvers = function () {
-        var $container = this.$builder.find('[data-western-maneuvers]');
-        var $empty = this.$builder.find('[data-western-empty]');
-        $container.empty();
-
-        if (!this.state.maneuvers || !this.state.maneuvers.length) {
-            $empty.removeClass('d-none');
+        var container = this.builder.querySelector('[data-western-maneuvers]');
+        var emptyIndicator = this.builder.querySelector('[data-western-empty]');
+        if (!container) {
             return;
         }
-        $empty.addClass('d-none');
-
+        container.innerHTML = '';
+        if (!this.state.maneuvers || !this.state.maneuvers.length) {
+            if (emptyIndicator) {
+                emptyIndicator.classList.remove('d-none');
+            }
+            return;
+        }
+        if (emptyIndicator) {
+            emptyIndicator.classList.add('d-none');
+        }
         this.state.maneuvers.forEach(function (maneuver, index) {
-            var $row = $('<div class="row g-2 align-items-center" data-index="' + index + '"></div>');
-            var $labelCol = $('<div class="col-sm-5 col-md-6"></div>');
-            var $labelInput = $('<input type="text" class="form-control form-control-sm" placeholder="z. B. Spin" data-field="label">');
-            $labelInput.val(maneuver.label || '');
-            $labelCol.append($labelInput);
+            var row = createElement('<div class="row g-2 align-items-center" data-index="' + index + '"></div>');
+            var labelCol = createElement('<div class="col-sm-5 col-md-6"></div>');
+            var labelInput = createElement('<input type="text" class="form-control form-control-sm" placeholder="z. B. Spin" data-field="label">');
+            labelInput.value = maneuver.label || '';
+            labelCol.appendChild(labelInput);
 
-            var $rangeCol = $('<div class="col-sm-5 col-md-4"></div>');
-            var $rangeGroup = $('<div class="input-group input-group-sm"></div>');
-            var $minInput = $('<input type="number" class="form-control" step="0.1" data-range="min" placeholder="Min">');
+            var rangeCol = createElement('<div class="col-sm-5 col-md-4"></div>');
+            var rangeGroup = createElement('<div class="input-group input-group-sm"></div>');
+            var minInput = createElement('<input type="number" class="form-control" step="0.1" data-range="min" placeholder="Min">');
             if (Array.isArray(maneuver.range) && typeof maneuver.range[0] === 'number') {
-                $minInput.val(maneuver.range[0]);
+                minInput.value = String(maneuver.range[0]);
             }
-            var $separator = $('<span class="input-group-text">bis</span>');
-            var $maxInput = $('<input type="number" class="form-control" step="0.1" data-range="max" placeholder="Max">');
+            var separator = createElement('<span class="input-group-text">bis</span>');
+            var maxInput = createElement('<input type="number" class="form-control" step="0.1" data-range="max" placeholder="Max">');
             if (Array.isArray(maneuver.range) && typeof maneuver.range[1] === 'number') {
-                $maxInput.val(maneuver.range[1]);
+                maxInput.value = String(maneuver.range[1]);
             }
-            $rangeGroup.append($minInput, $separator, $maxInput);
-            $rangeCol.append($rangeGroup);
+            rangeGroup.appendChild(minInput);
+            rangeGroup.appendChild(separator);
+            rangeGroup.appendChild(maxInput);
+            rangeCol.appendChild(rangeGroup);
 
-            var $removeCol = $('<div class="col-auto"></div>');
-            var $removeButton = $('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-maneuver" aria-label="Manöver entfernen">&times;</button>');
-            $removeCol.append($removeButton);
+            var removeCol = createElement('<div class="col-auto"></div>');
+            var removeButton = createElement('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-maneuver" aria-label="Manöver entfernen">&times;</button>');
+            removeCol.appendChild(removeButton);
 
-            $row.append($labelCol, $rangeCol, $removeCol);
-            $container.append($row);
+            row.appendChild(labelCol);
+            row.appendChild(rangeCol);
+            row.appendChild(removeCol);
+            container.appendChild(row);
         });
     };
 
     RuleEditor.prototype.renderWesternPenalties = function () {
-        var $list = this.$builder.find('[data-western-penalties]');
-        $list.empty();
+        var list = this.builder.querySelector('[data-western-penalties]');
+        if (!list) {
+            return;
+        }
+        list.innerHTML = '';
         if (!Array.isArray(this.state.penalties) || !this.state.penalties.length) {
-            $list.append('<span class="text-muted small">Keine Strafpunkte definiert.</span>');
+            var emptyText = createElement('<span class="text-muted small">Keine Strafpunkte definiert.</span>');
+            list.appendChild(emptyText);
             return;
         }
         this.state.penalties.forEach(function (penalty, index) {
-            var label = typeof penalty === 'number' ? penalty : penalty || 0;
-            var $button = $('<button type="button" class="btn btn-sm btn-outline-secondary" data-action="remove-penalty" data-index="' + index + '"></button>');
-            $button.html(label + ' &times;');
-            $list.append($button);
+            var value = typeof penalty === 'number' ? penalty : penalty || 0;
+            var button = createElement('<button type="button" class="btn btn-sm btn-outline-secondary" data-action="remove-penalty" data-index="' + index + '"></button>');
+            button.innerHTML = value + ' &times;';
+            list.appendChild(button);
         });
     };
 
@@ -551,8 +668,7 @@
             return;
         }
         try {
-            var json = JSON.stringify(this.state, null, 2);
-            this.$textarea.val(json);
+            this.textarea.value = JSON.stringify(this.state, null, 2);
         } catch (error) {
             this.setError('Regeln konnten nicht serialisiert werden: ' + error.message);
         }
@@ -565,7 +681,7 @@
                 return;
             }
             var type = parsed.type || 'dressage';
-            if ($.inArray(type, this.supportedTypes) === -1) {
+            if (this.supportedTypes.indexOf(type) === -1) {
                 this.setError('Der Regeltyp "' + type + '" wird vom Editor nicht unterstützt.');
                 return;
             }
@@ -583,7 +699,7 @@
     };
 
     RuleEditor.prototype.parseManualJson = function () {
-        var raw = $.trim(this.$textarea.val() || '');
+        var raw = (this.textarea.value || '').trim();
         if (raw === '') {
             return this.defaultRule('dressage');
         }
@@ -601,7 +717,7 @@
     };
 
     RuleEditor.prototype.changeType = function (type) {
-        if ($.inArray(type, this.supportedTypes) === -1) {
+        if (this.supportedTypes.indexOf(type) === -1) {
             return;
         }
         this.state = this.defaultRule(type);
@@ -660,13 +776,16 @@
         if (!Array.isArray(this.state.penalties)) {
             this.state.penalties = [];
         }
-        var $input = this.$builder.find('[data-western-penalty-input]');
-        var value = toNumberOrNull($input.val());
+        var input = this.builder.querySelector('[data-western-penalty-input]');
+        if (!input) {
+            return;
+        }
+        var value = toNumberOrNull(input.value);
         if (value === null) {
             return;
         }
         this.state.penalties.push(value);
-        $input.val('');
+        input.value = '';
         this.render();
     };
 
@@ -690,11 +809,15 @@
         if (!clone.type) {
             clone.type = key;
         }
-        if ($.inArray(clone.type, this.supportedTypes) === -1) {
+        if (this.supportedTypes.indexOf(clone.type) === -1) {
             this.manualMode = true;
             this.state = null;
             this.setError('Die ausgewählte Vorlage kann nicht im Editor dargestellt werden.');
-            this.$textarea.val(JSON.stringify(clone, null, 2));
+            try {
+                this.textarea.value = JSON.stringify(clone, null, 2);
+            } catch (error) {
+                this.textarea.value = '';
+            }
             this.render();
             return;
         }
@@ -704,49 +827,53 @@
         this.render();
     };
 
-    RuleEditor.prototype.setSelectValue = function ($select, value) {
-        $select.find('option[data-dynamic="1"]').remove();
-        var exists = false;
-        $select.find('option').each(function () {
-            if ($(this).val() === String(value)) {
-                exists = true;
-                return false;
-            }
+    RuleEditor.prototype.setSelectValue = function (select, value) {
+        if (!select) {
+            return;
+        }
+        Array.prototype.slice.call(select.querySelectorAll('option[data-dynamic="1"]')).forEach(function (option) {
+            option.remove();
+        });
+        var exists = Array.prototype.slice.call(select.options).some(function (option) {
+            return option.value === String(value);
         });
         if (!exists && value) {
-            var text = value + ' (benutzerdefiniert)';
-            $select.append($('<option>', {
-                value: value,
-                text: text,
-                'data-dynamic': '1'
-            }));
+            var option = window.document.createElement('option');
+            option.value = value;
+            option.textContent = value + ' (benutzerdefiniert)';
+            option.setAttribute('data-dynamic', '1');
+            select.appendChild(option);
         }
-        $select.val(value);
+        select.value = value || '';
     };
 
     RuleEditor.prototype.setError = function (message) {
         this.errorMessage = message;
-        if (!this.$error.length) {
+        if (!this.errorBox) {
             return;
         }
-        this.$error.text(message).removeClass('d-none');
+        this.errorBox.textContent = message || '';
+        if (message) {
+            this.errorBox.classList.remove('d-none');
+        }
     };
 
     RuleEditor.prototype.clearError = function () {
         this.errorMessage = null;
-        if (!this.$error.length) {
+        if (!this.errorBox) {
             return;
         }
-        this.$error.addClass('d-none').text('');
+        this.errorBox.textContent = '';
+        this.errorBox.classList.add('d-none');
     };
 
-    $(function () {
-        var $form = $('[data-class-form]');
-        if (!$form.length) {
+    window.document.addEventListener('DOMContentLoaded', function () {
+        var form = window.document.querySelector('[data-class-form]');
+        if (!form) {
             return;
         }
-        var presets = $form.data('presets') || {};
-        var editor = new RuleEditor($form, presets);
+        var presets = safeParseJson(form.getAttribute('data-presets'), {});
+        var editor = new RuleEditor(form, presets);
         editor.init();
     });
-})(window, window.jQuery);
+})(window);
