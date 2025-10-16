@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
+require_once __DIR__ . '/app/helpers/scoring.php';
 
 $user = auth_require('results');
 $isAdmin = auth_is_admin($user);
@@ -101,7 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.total DESC', ['class_id' => $classId]);
+$results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
+if ($results && array_reduce($results, static fn(bool $carry, array $row): bool => $carry || $row['rank'] === null, false)) {
+    scoring_recalculate_class($classId, $user, 'results_view');
+    $results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
+}
+foreach ($results as &$row) {
+    $row['breakdown'] = $row['breakdown_json'] ? json_decode($row['breakdown_json'], true, 512, JSON_THROW_ON_ERROR) : [];
+    $row['rule_snapshot'] = $row['rule_snapshot'] ? json_decode($row['rule_snapshot'], true, 512, JSON_THROW_ON_ERROR) : null;
+    $row['tiebreak_path'] = $row['tiebreak_path'] ? json_decode($row['tiebreak_path'], true, 512, JSON_THROW_ON_ERROR) : [];
+}
+unset($row);
 $audits = db_all('SELECT * FROM audit_log WHERE entity = "results" AND entity_id IN (SELECT r.id FROM results r JOIN startlist_items si ON si.id = r.startlist_id WHERE si.class_id = :class_id) ORDER BY id DESC LIMIT 20', ['class_id' => $classId]);
 
 render_page('results.tpl', [

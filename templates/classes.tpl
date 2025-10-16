@@ -70,8 +70,49 @@
                                     </select>
                                 </div>
                         </div> 
-                      </div>     
+                        </div>
+                        <textarea class="form-control font-monospace" data-rule-json name="rules_json" rows="14" spellcheck="false" placeholder='{"version":"1"}'><?= htmlspecialchars($editClass['rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                        <div class="form-text">JSON direkt bearbeiten oder über Presets starten. Gültige Regeln werden beim Speichern geprüft.</div>
                     </div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="input-group input-group-sm" style="max-width: 200px;">
+                            <span class="input-group-text">n</span>
+                            <input type="number" class="form-control" name="simulation_count" value="<?= (int) ($simulationCount ?? 10) ?>" min="1" max="50">
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" type="submit" name="simulate_scoring" value="1" formnovalidate>Scoring-Simulation</button>
+                        <?php if (!empty($scoringSimulationError)): ?>
+                            <span class="text-danger small"><?= htmlspecialchars($scoringSimulationError, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($scoringSimulation)): ?>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Total</th>
+                                    <th>Penalties</th>
+                                    <th>Zeit</th>
+                                    <th>Elim</th>
+                                    <th>Rank</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($scoringSimulation as $index => $sample): ?>
+                                    <?php $result = $sample['result'] ?? []; ?>
+                                    <tr>
+                                        <td><?= $index + 1 ?></td>
+                                        <td><?= htmlspecialchars(number_format((float) ($result['total_rounded'] ?? $result['total_raw'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td><?= htmlspecialchars(number_format((float) ($result['penalties']['total'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td><?= htmlspecialchars(isset($result['time']['seconds']) ? number_format((float) $result['time']['seconds'], 2) : '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td><?= !empty($result['eliminated']) ? '<span class="badge bg-danger">ja</span>' : '<span class="badge bg-success-subtle text-success">nein</span>' ?></td>
+                                        <td><?= htmlspecialchars((string) ($result['rank'] ?? '–'), ENT_QUOTES, 'UTF-8') ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
                     <div class="mb-3">
                         <label class="form-label" for="class-start-number-rules">Startnummern-Regel (JSON)</label>
                         <textarea id="class-start-number-rules" name="start_number_rules" class="form-control" rows="6" spellcheck="false" placeholder='{"mode":"classic"}'><?= htmlspecialchars($editClass['start_number_rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>

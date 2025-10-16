@@ -4,8 +4,13 @@
 /** @var array|null $start */
 /** @var array $starts */
 /** @var array $rule */
-/** @var array $scores */
 /** @var array|null $result */
+/** @var array $fieldsInput */
+/** @var array $judgeComponents */
+/** @var array|null $evaluation */
+/** @var array $perJudgeScores */
+/** @var array $otherJudges */
+/** @var string $judgeKey */
 /** @var array $startNumberRule */
 ?>
 <div class="alert alert-info d-flex justify-content-between align-items-center">
@@ -51,55 +56,104 @@
         <input type="hidden" name="class_id" value="<?= (int) $selectedClass['id'] ?>">
         <input type="hidden" name="start_id" value="<?= (int) $start['id'] ?>">
         <h2 class="h5 mb-3">Wertung für <?= htmlspecialchars($start['rider'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></h2>
-        <?php switch ($rule['type'] ?? 'dressage'): case 'jumping': ?>
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Rittzeit (Sekunden)</label>
-                    <input type="number" step="0.01" name="score[time]" class="form-control" value="<?= htmlspecialchars($scores['time'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Fehlerpunkte</label>
-                    <input type="number" name="score[faults]" class="form-control" value="<?= htmlspecialchars($scores['faults'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Zeitfehler</label>
-                    <input type="number" name="time_penalties" class="form-control" value="<?= htmlspecialchars($result['penalties'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                </div>
-            </div>
-        <?php break; case 'western': ?>
-            <div class="row g-3">
-                <?php foreach ($rule['maneuvers'] ?? [] as $index => $maneuver): ?>
-                    <div class="col-md-4">
-                        <label class="form-label"><?= htmlspecialchars($maneuver['label'] ?? 'Maneuver ' . ($index + 1), ENT_QUOTES, 'UTF-8') ?></label>
-                        <input type="number" step="0.5" min="<?= (float) ($maneuver['range'][0] ?? -1.5) ?>" max="<?= (float) ($maneuver['range'][1] ?? 1.5) ?>" name="score[maneuvers][<?= $index ?>]" class="form-control" value="<?= htmlspecialchars($scores['maneuvers'][$index] ?? '0', ENT_QUOTES, 'UTF-8') ?>">
-                    </div>
-                <?php endforeach; ?>
-            </div>
-            <div class="mt-3">
-                <label class="form-label">Penalties</label>
-                <div class="d-flex gap-3 flex-wrap">
-                    <?php foreach ($rule['penalties'] ?? [] as $penalty): ?>
-                        <label class="form-check">
-                            <input type="checkbox" class="form-check-input" name="score[penalties][]" value="<?= (float) $penalty ?>" <?= in_array((float) $penalty, $scores['penalties'] ?? [], true) ? 'checked' : '' ?>>
-                            <span class="form-check-label"><?= htmlspecialchars($penalty . ' Punkte', ENT_QUOTES, 'UTF-8') ?></span>
-                        </label>
+        <?php $fields = $rule['input']['fields'] ?? []; ?>
+        <?php if ($fields): ?>
+            <div class="mb-4">
+                <h3 class="h6">Globale Eingaben</h3>
+                <div class="row g-3">
+                    <?php foreach ($fields as $field): ?>
+                        <?php $fieldId = $field['id'] ?? null; if (!$fieldId) { continue; }
+                        $type = $field['type'] ?? 'number';
+                        $value = $fieldsInput[$fieldId] ?? null; ?>
+                        <div class="col-md-<?= $type === 'set' ? '12' : '4' ?>">
+                            <label class="form-label"><?= htmlspecialchars($field['label'] ?? $fieldId, ENT_QUOTES, 'UTF-8') ?></label>
+                            <?php if ($type === 'boolean'): ?>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]" value="1" <?= $value ? 'checked' : '' ?>>
+                                    <span class="form-text small ms-2">Aktivieren für „Ja“.</span>
+                                </div>
+                            <?php elseif ($type === 'set'): ?>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <?php foreach (($field['options'] ?? []) as $option): ?>
+                                        <?php $checked = is_array($value) && in_array($option, $value, true); ?>
+                                        <label class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>][]" value="<?= htmlspecialchars((string) $option, ENT_QUOTES, 'UTF-8') ?>" <?= $checked ? 'checked' : '' ?>>
+                                            <span class="form-check-label"><?= htmlspecialchars((string) $option, ENT_QUOTES, 'UTF-8') ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <input type="number" step="0.01" name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]" class="form-control" value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>">
+                            <?php endif; ?>
+                        </div>
                     <?php endforeach; ?>
                 </div>
             </div>
-        <?php break; default: ?>
+        <?php endif; ?>
+
+        <div class="mb-4">
+            <h3 class="h6">Bewertung (<?= htmlspecialchars($judgeKey, ENT_QUOTES, 'UTF-8') ?>)</h3>
             <div class="row g-3">
-                <?php foreach ($rule['movements'] ?? [] as $index => $movement): ?>
+                <?php foreach (($rule['input']['components'] ?? []) as $component): ?>
+                    <?php $componentId = $component['id'] ?? null; if (!$componentId) { continue; }
+                    $value = $judgeComponents[$componentId] ?? null; ?>
                     <div class="col-md-4">
-                        <label class="form-label"><?= htmlspecialchars($movement['label'] ?? 'Aufgabe ' . ($index + 1), ENT_QUOTES, 'UTF-8') ?></label>
-                        <select name="score[movements][<?= $index ?>]" class="form-select">
-                            <?php for ($i = 0; $i <= 10; $i += 0.5): ?>
-                                <option value="<?= $i ?>" <?= ((float) ($scores['movements'][$index] ?? 0) === (float) $i) ? 'selected' : '' ?>><?= $i ?></option>
-                            <?php endfor; ?>
-                        </select>
+                        <label class="form-label"><?= htmlspecialchars($component['label'] ?? $componentId, ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="number"
+                               class="form-control"
+                               name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"
+                               value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>"
+                               <?php if (isset($component['min'])): ?>min="<?= (float) $component['min'] ?>"<?php endif; ?>
+                               <?php if (isset($component['max'])): ?>max="<?= (float) $component['max'] ?>"<?php endif; ?>
+                               step="<?= isset($component['step']) ? (float) $component['step'] : 0.1 ?>">
+                        <?php if (!empty($component['weight'])): ?>
+                            <div class="form-text">Gewichtung: <?= htmlspecialchars((string) $component['weight'], ENT_QUOTES, 'UTF-8') ?></div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>
-        <?php endswitch; ?>
+        </div>
+
+        <?php if (!empty($otherJudges)): ?>
+            <div class="mb-4">
+                <h3 class="h6">Eingaben weiterer Richter</h3>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Richter</th>
+                            <th>Punkte</th>
+                            <th>Zeit</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($otherJudges as $key => $entry): ?>
+                            <?php $scoreEntry = $perJudgeScores[$key] ?? null; ?>
+                            <tr>
+                                <td><?= htmlspecialchars($entry['user']['name'] ?? $key, ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= $scoreEntry ? htmlspecialchars(number_format((float) ($scoreEntry['score'] ?? 0), 2), ENT_QUOTES, 'UTF-8') : '–' ?></td>
+                                <td><?= htmlspecialchars($entry['submitted_at'] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($evaluation['totals'])): ?>
+            <?php $totals = $evaluation['totals']; ?>
+            <div class="alert alert-light border">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <strong>Aktuelle Gesamtwertung:</strong>
+                        <span class="ms-2"><?= htmlspecialchars(number_format((float) ($totals['total_rounded'] ?? $totals['total_raw'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($totals['unit'] ?? 'pts', ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                    <div class="text-muted small">Penalties: <?= htmlspecialchars(number_format((float) ($totals['penalties']['total'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?></div>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <div class="form-check form-switch mt-4">
             <input class="form-check-input" type="checkbox" id="sign" name="sign" <?= ($result['status'] ?? '') === 'signed' ? 'checked' : '' ?>>
             <label class="form-check-label" for="sign">Elektronisch signieren</label>

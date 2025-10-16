@@ -1,6 +1,9 @@
 <?php
 require __DIR__ . '/auth.php';
 require_once __DIR__ . '/app/helpers/start_number_rules.php';
+require_once __DIR__ . '/app/helpers/scoring.php';
+
+use App\Scoring\RuleManager;
 
 $user = auth_require('events');
 $isAdmin = auth_is_admin($user);
@@ -12,6 +15,9 @@ if ($editEvent && $editEvent['venues']) {
 }
 if ($editEvent && !empty($editEvent['start_number_rules'])) {
     $editEvent['start_number_rules_text'] = $editEvent['start_number_rules'];
+}
+if ($editEvent && !empty($editEvent['scoring_rule_json'])) {
+    $editEvent['scoring_rule_text'] = json_encode(scoring_rule_decode($editEvent['scoring_rule_json']) ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }
 
 $ruleDefaults = start_number_rule_defaults();
@@ -119,6 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $venues = array_filter(array_map('trim', explode(',', (string) ($_POST['venues'] ?? ''))));
         $rulesInput = trim((string) ($_POST['start_number_rules'] ?? ''));
         $rulesEncoded = null;
+        $scoringRuleInput = trim((string) ($_POST['scoring_rule_json'] ?? ''));
+        $scoringRuleEncoded = null;
         if ($rulesInput !== '') {
             try {
                 $decodedRules = json_decode($rulesInput, true, 512, JSON_THROW_ON_ERROR);
@@ -126,6 +134,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $designerRule = start_number_rule_merge_defaults($decodedRules);
             } catch (\JsonException $e) {
                 flash('error', 'Regel-JSON ungültig: ' . $e->getMessage());
+                header('Location: events.php' . ($eventId ? '?edit=' . $eventId : ''));
+                exit;
+            }
+        }
+        if ($scoringRuleInput !== '') {
+            try {
+                $decodedScoring = json_decode($scoringRuleInput, true, 512, JSON_THROW_ON_ERROR);
+                RuleManager::validate($decodedScoring);
+                $scoringRuleEncoded = json_encode(RuleManager::mergeDefaults($decodedScoring), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            } catch (\Throwable $e) {
+                flash('error', 'Scoring-Regel ungültig: ' . $e->getMessage());
                 header('Location: events.php' . ($eventId ? '?edit=' . $eventId : ''));
                 exit;
             }
@@ -140,17 +159,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'end' => $end ?: null,
                 'venues' => $venues ? json_encode(array_values($venues), JSON_THROW_ON_ERROR) : null,
                 'rules' => $rulesEncoded,
+                'scoring_rule' => $scoringRuleEncoded,
             ];
 
             if ($action === 'update' && $eventId > 0) {
                 db_execute(
-                    'UPDATE events SET title = :title, start_date = :start, end_date = :end, venues = :venues, start_number_rules = :rules WHERE id = :id',
+                    'UPDATE events SET title = :title, start_date = :start, end_date = :end, venues = :venues, start_number_rules = :rules, scoring_rule_json = :scoring_rule WHERE id = :id',
                     $payload + ['id' => $eventId]
                 );
                 flash('success', 'Turnier aktualisiert.');
             } else {
                 db_execute(
-                    'INSERT INTO events (title, start_date, end_date, venues, start_number_rules) VALUES (:title, :start, :end, :venues, :rules)',
+                    'INSERT INTO events (title, start_date, end_date, venues, start_number_rules, scoring_rule_json) VALUES (:title, :start, :end, :venues, :rules, :scoring_rule)',
                     $payload
                 );
                 flash('success', 'Turnier angelegt.');

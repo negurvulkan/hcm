@@ -22,7 +22,7 @@ if (isset($_GET['download'])) {
             header('Location: print.php');
             exit;
         }
-        $class = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
+        $class = db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]);
         if (!$class || !event_accessible($user, (int) $class['event_id'])) {
             flash('error', 'Keine Berechtigung für dieses Turnier.');
             header('Location: print.php');
@@ -42,8 +42,41 @@ if (isset($_GET['download'])) {
             $filename = 'richterbogen.pdf';
             break;
         case 'results':
-            $data = db_all('SELECT r.total, p.name AS rider, h.name AS horse, si.start_number_display, si.start_number_raw FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.total DESC', ['class_id' => $classId]);
-            $html = $view->render('print/results.tpl', ['items' => $data]);
+            $rows = db_all('SELECT r.id, r.total, r.rank, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, r.status, p.name AS rider, h.name AS horse, si.start_number_display, si.start_number_raw FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
+            foreach ($rows as &$row) {
+                try {
+                    $row['breakdown'] = $row['breakdown_json'] ? json_decode($row['breakdown_json'], true, 512, JSON_THROW_ON_ERROR) : [];
+                } catch (\JsonException $e) {
+                    $row['breakdown'] = ['error' => $e->getMessage()];
+                }
+                try {
+                    $row['rule_snapshot'] = $row['rule_snapshot'] ? json_decode($row['rule_snapshot'], true, 512, JSON_THROW_ON_ERROR) : null;
+                } catch (\JsonException $e) {
+                    $row['rule_snapshot'] = ['error' => $e->getMessage()];
+                }
+                try {
+                    $row['tiebreak_path'] = $row['tiebreak_path'] ? json_decode($row['tiebreak_path'], true, 512, JSON_THROW_ON_ERROR) : [];
+                } catch (\JsonException $e) {
+                    $row['tiebreak_path'] = [];
+                }
+                $row['unit'] = null;
+                if (!empty($row['rule_snapshot']['json'])) {
+                    try {
+                        $decodedRule = json_decode($row['rule_snapshot']['json'], true, 512, JSON_THROW_ON_ERROR);
+                        if (is_array($decodedRule)) {
+                            $row['rule_details'] = $decodedRule;
+                            $row['unit'] = $decodedRule['output']['unit'] ?? null;
+                        }
+                    } catch (\JsonException $e) {
+                        $row['rule_details_error'] = $e->getMessage();
+                    }
+                }
+            }
+            unset($row);
+            $html = $view->render('print/results.tpl', [
+                'items' => $rows,
+                'class' => $class,
+            ]);
             $filename = 'ergebnisliste.pdf';
             break;
         case 'certificate':

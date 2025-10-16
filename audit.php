@@ -55,7 +55,7 @@ function audit_undo(int $logId): bool
             break;
         case 'results':
             db_execute(
-                'UPDATE results SET scores_json = :scores, total = :total, penalties = :penalties, status = :status, signed_by = :signed_by, signed_at = :signed_at, signature_hash = :signature WHERE id = :id',
+                'UPDATE results SET scores_json = :scores, total = :total, penalties = :penalties, status = :status, signed_by = :signed_by, signed_at = :signed_at, signature_hash = :signature, breakdown_json = :breakdown, rule_snapshot = :rule_snapshot, engine_version = :engine_version, tiebreak_path = :tiebreak_path, rank = :rank, eliminated = :eliminated WHERE id = :id',
                 [
                     'scores' => isset($before['scores_json']) ? json_encode($before['scores_json'], JSON_THROW_ON_ERROR) : ($before['scores'] ?? null),
                     'total' => $before['total'] ?? null,
@@ -64,6 +64,12 @@ function audit_undo(int $logId): bool
                     'signed_by' => $before['signed_by'] ?? null,
                     'signed_at' => $before['signed_at'] ?? null,
                     'signature' => $before['signature_hash'] ?? null,
+                    'breakdown' => $before['breakdown_json'] ?? ($before['breakdown'] ?? null),
+                    'rule_snapshot' => $before['rule_snapshot'] ?? null,
+                    'engine_version' => $before['engine_version'] ?? null,
+                    'tiebreak_path' => $before['tiebreak_path'] ?? null,
+                    'rank' => $before['rank'] ?? null,
+                    'eliminated' => $before['eliminated'] ?? 0,
                     'id' => $log['entity_id'],
                 ]
             );

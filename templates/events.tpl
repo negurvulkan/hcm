@@ -28,7 +28,12 @@
                         <label class="form-label">Orte/Plätze (durch Komma getrennt)</label>
                         <input type="text" name="venues" class="form-control" placeholder="Hauptplatz, Abreitehalle" value="<?= htmlspecialchars(isset($editEvent['venues_list']) ? implode(', ', $editEvent['venues_list']) : '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
-                                        <div class="mb-3">
+                    <div class="mb-3">
+                        <label class="form-label" for="scoring-rule-json">Scoring-Regel (JSON)</label>
+                        <textarea id="scoring-rule-json" name="scoring_rule_json" class="form-control font-monospace" rows="8" spellcheck="false" placeholder='{"version":"1","id":"generic.score.v1"}'><?= htmlspecialchars($editEvent['scoring_rule_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                        <div class="form-text">Leer lassen, um die Klassen-Presets zu verwenden. Bei Angabe wird die Regel als Standard für neue Prüfungen genutzt.</div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label" for="start-number-rules-input">Startnummern-Regeln (JSON)</label>
                         <textarea id="start-number-rules-input" name="start_number_rules" class="form-control" rows="10" spellcheck="false" placeholder="{ &quot;mode&quot;: &quot;classic&quot;, ... }"><?= htmlspecialchars($editEvent['start_number_rules_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                         <div class="form-text">Leer lassen oder den Designer im Modal verwenden.</div>

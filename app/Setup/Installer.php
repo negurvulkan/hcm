@@ -2,6 +2,7 @@
 namespace App\Setup;
 
 use App\Core\Database;
+use App\Scoring\RuleManager;
 use DateTimeImmutable;
 use PDO;
 use RuntimeException;
@@ -149,39 +150,16 @@ class Installer
 
     public static function dressagePreset(): array
     {
-        return [
-            'type' => 'dressage',
-            'movements' => [
-                ['label' => 'Trabverstärkungen', 'max' => 10],
-                ['label' => 'Galoppvolten', 'max' => 10],
-                ['label' => 'Übergänge', 'max' => 10],
-            ],
-            'step' => 0.5,
-            'aggregate' => 'average',
-            'drop_high_low' => false,
-        ];
+        return RuleManager::dressagePreset();
     }
 
     public static function jumpingPreset(): array
     {
-        return [
-            'type' => 'jumping',
-            'fault_points' => true,
-            'time_allowed' => 75,
-            'time_penalty_per_second' => 1,
-        ];
+        return RuleManager::jumpingPreset();
     }
 
     public static function westernPreset(): array
     {
-        return [
-            'type' => 'western',
-            'maneuvers' => [
-                ['label' => 'Stop', 'range' => [-1.5, 1.5]],
-                ['label' => 'Spin', 'range' => [-1.5, 1.5]],
-                ['label' => 'Lead Change', 'range' => [-1.5, 1.5]],
-            ],
-            'penalties' => [1, 2, 5],
-        ];
+        return RuleManager::westernPreset();
     }
 }
