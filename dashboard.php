@@ -15,8 +15,8 @@ if ($isAdmin) {
     $openEntries = (int) $pdo->query("SELECT COUNT(*) FROM entries WHERE status = 'open'")->fetchColumn();
     $paidEntries = (int) $pdo->query("SELECT COUNT(*) FROM entries WHERE status = 'paid'")->fetchColumn();
     $todaySchedule = db_all('SELECT c.label, c.start_time, c.end_time FROM classes c WHERE DATE(c.start_time) = :today ORDER BY c.start_time LIMIT 4', ['today' => $today]);
-    $currentStart = db_first("SELECT si.position, p.name AS rider, h.name AS horse, c.label AS class_label FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = si.class_id WHERE si.state = 'running' ORDER BY si.updated_at DESC LIMIT 1");
-    $nextStarters = db_all("SELECT si.position, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.state = 'scheduled' ORDER BY si.planned_start ASC, si.position ASC LIMIT 5");
+    $currentStart = db_first("SELECT si.position, si.start_number_display, p.name AS rider, h.name AS horse, c.label AS class_label FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = si.class_id WHERE si.state = 'running' ORDER BY si.updated_at DESC LIMIT 1");
+    $nextStarters = db_all("SELECT si.position, si.start_number_display, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.state = 'scheduled' ORDER BY si.planned_start ASC, si.position ASC LIMIT 5");
 } else {
     if (!$activeEvent) {
         $openEntries = 0;
@@ -36,8 +36,8 @@ if ($isAdmin) {
         $paidEntries = (int) $stmt->fetchColumn();
 
         $todaySchedule = db_all('SELECT c.label, c.start_time, c.end_time FROM classes c WHERE DATE(c.start_time) = :today AND c.event_id = :event_id ORDER BY c.start_time LIMIT 4', ['today' => $today, 'event_id' => $eventId]);
-        $currentStart = db_first("SELECT si.position, p.name AS rider, h.name AS horse, c.label AS class_label FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = si.class_id WHERE si.state = 'running' AND e.event_id = :event_id ORDER BY si.updated_at DESC LIMIT 1", $countParams);
-        $nextStarters = db_all("SELECT si.position, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.state = 'scheduled' AND e.event_id = :event_id ORDER BY si.planned_start ASC, si.position ASC LIMIT 5", $countParams);
+        $currentStart = db_first("SELECT si.position, si.start_number_display, p.name AS rider, h.name AS horse, c.label AS class_label FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = si.class_id WHERE si.state = 'running' AND e.event_id = :event_id ORDER BY si.updated_at DESC LIMIT 1", $countParams);
+        $nextStarters = db_all("SELECT si.position, si.start_number_display, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.state = 'scheduled' AND e.event_id = :event_id ORDER BY si.planned_start ASC, si.position ASC LIMIT 5", $countParams);
     }
 }
 

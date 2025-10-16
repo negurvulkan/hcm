@@ -9,6 +9,25 @@ $editEvent = $editId ? db_first('SELECT * FROM events WHERE id = :id', ['id' => 
 if ($editEvent && $editEvent['venues']) {
     $editEvent['venues_list'] = json_decode($editEvent['venues'], true, 512, JSON_THROW_ON_ERROR) ?: [];
 }
+if ($editEvent && !empty($editEvent['start_number_rules'])) {
+    $editEvent['start_number_rules_text'] = $editEvent['start_number_rules'];
+}
+
+$ruleDefaults = events_rule_defaults();
+$designerRule = $ruleDefaults;
+if ($editEvent && !empty($editEvent['start_number_rules'])) {
+    try {
+        $decoded = json_decode($editEvent['start_number_rules'], true, 512, JSON_THROW_ON_ERROR);
+        if (is_array($decoded)) {
+            $designerRule = events_merge_rule_defaults($decoded);
+        }
+    } catch (\JsonException $e) {
+        $designerRule = $ruleDefaults;
+    }
+}
+
+$simulation = [];
+$simulationError = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
@@ -17,7 +36,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $action = $_POST['action'] ?? 'create';
+    $action = $_POST['action'] ?? ($_POST['default_action'] ?? 'create');
+
+    if ($action === 'simulate_rules') {
+        $eventId = (int) ($_POST['event_id'] ?? 0);
+        $title = trim((string) ($_POST['title'] ?? ''));
+        $startDate = trim((string) ($_POST['start_date'] ?? ''));
+        $endDate = trim((string) ($_POST['end_date'] ?? ''));
+        $venuesInput = (string) ($_POST['venues'] ?? '');
+        $rulesInput = trim((string) ($_POST['start_number_rules'] ?? ''));
+        $editEvent = [
+            'id' => $eventId,
+            'title' => $title,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'venues_list' => array_filter(array_map('trim', explode(',', $venuesInput))),
+            'start_number_rules_text' => $rulesInput,
+        ];
+        if ($rulesInput === '') {
+            $simulationError = 'Regel-JSON angeben.';
+        } else {
+            try {
+                $rulesDecoded = json_decode($rulesInput, true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($rulesDecoded)) {
+                    $simulationError = 'Regel-JSON muss ein Objekt sein.';
+                } else {
+                    $simulation = events_simulate_numbers($rulesDecoded, 20);
+                    $designerRule = events_merge_rule_defaults($rulesDecoded);
+                }
+            } catch (\JsonException $e) {
+                $simulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
+            }
+        }
+    }
 
     if (in_array($action, ['set_active', 'deactivate'], true)) {
         if (!$isAdmin) {
@@ -59,39 +110,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $eventId = (int) ($_POST['event_id'] ?? 0);
-    $title = trim((string) ($_POST['title'] ?? ''));
-    $start = trim((string) ($_POST['start_date'] ?? ''));
-    $end = trim((string) ($_POST['end_date'] ?? ''));
-    $venues = array_filter(array_map('trim', explode(',', (string) ($_POST['venues'] ?? ''))));
-
-    if ($title === '') {
-        flash('error', 'Titel erforderlich.');
-    } else {
-        $payload = [
-            'title' => $title,
-            'start' => $start ?: null,
-            'end' => $end ?: null,
-            'venues' => $venues ? json_encode(array_values($venues), JSON_THROW_ON_ERROR) : null,
-        ];
-
-        if ($action === 'update' && $eventId > 0) {
-            db_execute(
-                'UPDATE events SET title = :title, start_date = :start, end_date = :end, venues = :venues WHERE id = :id',
-                $payload + ['id' => $eventId]
-            );
-            flash('success', 'Turnier aktualisiert.');
-        } else {
-            db_execute(
-                'INSERT INTO events (title, start_date, end_date, venues) VALUES (:title, :start, :end, :venues)',
-                $payload
-            );
-            flash('success', 'Turnier angelegt.');
+    if ($action !== 'simulate_rules') {
+        $eventId = (int) ($_POST['event_id'] ?? 0);
+        $title = trim((string) ($_POST['title'] ?? ''));
+        $start = trim((string) ($_POST['start_date'] ?? ''));
+        $end = trim((string) ($_POST['end_date'] ?? ''));
+        $venues = array_filter(array_map('trim', explode(',', (string) ($_POST['venues'] ?? ''))));
+        $rulesInput = trim((string) ($_POST['start_number_rules'] ?? ''));
+        $rulesEncoded = null;
+        if ($rulesInput !== '') {
+            try {
+                $decodedRules = json_decode($rulesInput, true, 512, JSON_THROW_ON_ERROR);
+                $rulesEncoded = json_encode($decodedRules, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
+                $designerRule = events_merge_rule_defaults($decodedRules);
+            } catch (\JsonException $e) {
+                flash('error', 'Regel-JSON ungültig: ' . $e->getMessage());
+                header('Location: events.php' . ($eventId ? '?edit=' . $eventId : ''));
+                exit;
+            }
         }
-    }
 
-    header('Location: events.php');
-    exit;
+        if ($title === '') {
+            flash('error', 'Titel erforderlich.');
+        } else {
+            $payload = [
+                'title' => $title,
+                'start' => $start ?: null,
+                'end' => $end ?: null,
+                'venues' => $venues ? json_encode(array_values($venues), JSON_THROW_ON_ERROR) : null,
+                'rules' => $rulesEncoded,
+            ];
+
+            if ($action === 'update' && $eventId > 0) {
+                db_execute(
+                    'UPDATE events SET title = :title, start_date = :start, end_date = :end, venues = :venues, start_number_rules = :rules WHERE id = :id',
+                    $payload + ['id' => $eventId]
+                );
+                flash('success', 'Turnier aktualisiert.');
+            } else {
+                db_execute(
+                    'INSERT INTO events (title, start_date, end_date, venues, start_number_rules) VALUES (:title, :start, :end, :venues, :rules)',
+                    $payload
+                );
+                flash('success', 'Turnier angelegt.');
+            }
+        }
+
+        header('Location: events.php');
+        exit;
+    }
 }
 
 $eventsQuery = 'SELECT * FROM events';
@@ -112,4 +179,104 @@ render_page('events.tpl', [
     'events' => $events,
     'editEvent' => $editEvent,
     'isAdmin' => $isAdmin,
+    'simulation' => $simulation,
+    'simulationError' => $simulationError,
+    'ruleDesignerJson' => events_safe_json($designerRule),
+    'ruleDesignerDefaultsJson' => events_safe_json($ruleDefaults),
 ]);
+
+function events_simulate_numbers(array $rule, int $count): array
+{
+    $defaults = [
+        'sequence' => ['start' => 1, 'step' => 1, 'range' => null],
+        'format' => ['prefix' => '', 'width' => 0, 'suffix' => '', 'separator' => ''],
+        'constraints' => ['blocklists' => []],
+    ];
+    $rule = array_replace_recursive($defaults, $rule);
+    $start = (int) ($rule['sequence']['start'] ?? 1);
+    $step = (int) ($rule['sequence']['step'] ?? 1) ?: 1;
+    $range = $rule['sequence']['range'];
+    $blocklist = array_map('strval', $rule['constraints']['blocklists'] ?? []);
+    $numbers = [];
+    $current = $start;
+    while (count($numbers) < $count) {
+        if ($range && $current > (int) $range[1]) {
+            break;
+        }
+        if ($blocklist && in_array((string) $current, $blocklist, true)) {
+            $current += $step;
+            continue;
+        }
+        $numbers[] = [
+            'raw' => $current,
+            'display' => events_format_number($current, $rule['format']),
+        ];
+        $current += $step;
+    }
+    return $numbers;
+}
+
+function events_format_number(int $number, array $format): string
+{
+    $width = (int) ($format['width'] ?? 0);
+    $body = $width > 0 ? str_pad((string) $number, $width, '0', STR_PAD_LEFT) : (string) $number;
+    $prefix = (string) ($format['prefix'] ?? '');
+    $suffix = (string) ($format['suffix'] ?? '');
+    $separator = (string) ($format['separator'] ?? '');
+    $parts = [];
+    if ($prefix !== '') {
+        $parts[] = $prefix;
+    }
+    $parts[] = $body;
+    if ($suffix !== '') {
+        $parts[] = $suffix;
+    }
+    return $separator === '' ? implode('', $parts) : implode($separator, $parts);
+}
+
+function events_rule_defaults(): array
+{
+    return [
+        'mode' => 'classic',
+        'scope' => 'tournament',
+        'sequence' => [
+            'start' => 1,
+            'step' => 1,
+            'range' => null,
+            'reset' => 'never',
+        ],
+        'format' => [
+            'prefix' => '',
+            'width' => 0,
+            'suffix' => '',
+            'separator' => '',
+        ],
+        'allocation' => [
+            'entity' => 'start',
+            'time' => 'on_startlist',
+            'reuse' => 'never',
+            'lock_after' => 'sign_off',
+        ],
+        'constraints' => [
+            'unique_per' => 'tournament',
+            'blocklists' => [],
+            'club_spacing' => 0,
+            'horse_cooldown_min' => 0,
+        ],
+        'overrides' => [],
+    ];
+}
+
+function events_merge_rule_defaults(array $rule): array
+{
+    return array_replace_recursive(events_rule_defaults(), $rule);
+}
+
+function events_safe_json(array $data): string
+{
+    try {
+        return json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    } catch (\JsonException $e) {
+        return '{}';
+    }
+}

@@ -26,7 +26,12 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h2 class="h4">Aktueller Starter</h2>
-                    <p class="display-5" data-ticker-current><?= htmlspecialchars($current['rider'] ?? 'Noch kein Start', ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="display-5" data-ticker-current>
+                        <?php if (!empty($current['start_number_display'])): ?>
+                            <span class="badge bg-primary text-light me-2">Startnr. <?= htmlspecialchars($current['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                        <?= htmlspecialchars($current['rider'] ?? 'Noch kein Start', ENT_QUOTES, 'UTF-8') ?>
+                    </p>
                     <p class="h4">Pferd: <?= htmlspecialchars($current['horse'] ?? '–', ENT_QUOTES, 'UTF-8') ?></p>
                     <p class="text-muted">Prüfung: <?= htmlspecialchars($current['label'] ?? '–', ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
@@ -38,7 +43,13 @@
                     <h2 class="h4">Nächste Starter</h2>
                     <ul class="list-unstyled" data-ticker-upcoming>
                         <?php foreach ($next as $entry): ?>
-                            <li class="py-1">Nr. <?= (int) $entry['position'] ?> – <?= htmlspecialchars($entry['rider'], ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($entry['horse'], ENT_QUOTES, 'UTF-8') ?>)</li>
+                            <li class="py-1">
+                                Nr. <?= (int) $entry['position'] ?>
+                                <?php if (!empty($entry['start_number_display'])): ?>
+                                    <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($entry['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                                – <?= htmlspecialchars($entry['rider'], ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($entry['horse'], ENT_QUOTES, 'UTF-8') ?>)
+                            </li>
                         <?php endforeach; ?>
                         <?php if (!$next): ?>
                             <li class="text-muted">Keine weiteren Starter.</li>

@@ -15,6 +15,7 @@
     <thead>
     <tr>
         <th>#</th>
+        <th>Startnr.</th>
         <th>Reiter</th>
         <th>Pferd</th>
     </tr>
@@ -23,6 +24,7 @@
     <?php foreach ($items as $item): ?>
         <tr>
             <td><?= (int) $item['position'] ?></td>
+            <td><?= htmlspecialchars($item['start_number_display'] ?? $item['start_number_raw'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
         </tr>
