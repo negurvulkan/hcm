@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/auth.php';
 
+use App\Core\Rbac;
+
 $user = auth_require('dashboard');
 $isAdmin = auth_is_admin($user);
 $activeEvent = event_active();
@@ -97,6 +99,18 @@ $tiles = [
     ],
 ];
 
+$pageQuickActions = Rbac::quickActionsFor($user['role']);
+$liveActions = [];
+if (Rbac::allowed($user['role'], 'judge')) {
+    $liveActions[] = ['href' => 'judge.php', 'label' => t('dashboard.actions.open_judge')];
+}
+if (Rbac::allowed($user['role'], 'schedule')) {
+    $liveActions[] = ['href' => 'schedule.php', 'label' => t('dashboard.actions.adjust_schedule')];
+}
+if (Rbac::allowed($user['role'], 'startlist')) {
+    $liveActions[] = ['href' => 'startlist.php', 'label' => t('dashboard.actions.open_startlist')];
+}
+
 render_page('dashboard.tpl', [
     'titleKey' => 'dashboard.title',
     'page' => 'dashboard',
@@ -105,4 +119,7 @@ render_page('dashboard.tpl', [
     'todaySchedule' => $todaySchedule,
     'currentStart' => $currentStart,
     'nextStarters' => $nextStarters,
+    'pageQuickActions' => $pageQuickActions,
+    'liveActions' => $liveActions,
+    'extraScripts' => ['public/assets/js/dashboard.js'],
 ]);

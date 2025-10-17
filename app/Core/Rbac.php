@@ -34,6 +34,54 @@ class Rbac
         'sync' => ['admin'],
     ];
 
+    private const MENU = [
+        'dashboard.php' => ['key' => 'dashboard', 'label_key' => 'nav.dashboard', 'group' => 'overview'],
+        'persons.php' => ['key' => 'persons', 'label_key' => 'nav.persons', 'group' => 'management'],
+        'horses.php' => ['key' => 'horses', 'label_key' => 'nav.horses', 'group' => 'management'],
+        'clubs.php' => ['key' => 'clubs', 'label_key' => 'nav.clubs', 'group' => 'management'],
+        'events.php' => ['key' => 'events', 'label_key' => 'nav.events', 'group' => 'management'],
+        'classes.php' => ['key' => 'classes', 'label_key' => 'nav.classes', 'group' => 'management'],
+        'entries.php' => ['key' => 'entries', 'label_key' => 'nav.entries', 'group' => 'operations'],
+        'startlist.php' => ['key' => 'startlist', 'label_key' => 'nav.startlists', 'group' => 'operations'],
+        'schedule.php' => ['key' => 'schedule', 'label_key' => 'nav.schedule', 'group' => 'operations'],
+        'display.php' => ['key' => 'display', 'label_key' => 'nav.display', 'group' => 'operations'],
+        'judge.php' => ['key' => 'judge', 'label_key' => 'nav.judge', 'group' => 'operations'],
+        'results.php' => ['key' => 'results', 'label_key' => 'nav.results', 'group' => 'operations'],
+        'helpers.php' => ['key' => 'helpers', 'label_key' => 'nav.helpers', 'group' => 'operations'],
+        'print.php' => ['key' => 'print', 'label_key' => 'nav.print', 'group' => 'operations'],
+        'export.php' => ['key' => 'export', 'label_key' => 'nav.export', 'group' => 'management'],
+        'instance.php' => ['key' => 'instance', 'label_key' => 'nav.instance', 'group' => 'configuration'],
+        'sync_admin.php' => ['key' => 'sync', 'label_key' => 'nav.sync', 'group' => 'configuration'],
+    ];
+
+    private const QUICK_ACTIONS = [
+        [
+            'permissions' => ['entries'],
+            'href' => 'entries.php#entry-form',
+            'label_key' => 'nav.quick.entries_create',
+        ],
+        [
+            'permissions' => ['entries'],
+            'href' => 'entries.php#import-section',
+            'label_key' => 'nav.quick.entries_import',
+        ],
+        [
+            'permissions' => ['schedule'],
+            'href' => 'schedule.php',
+            'label_key' => 'nav.quick.schedule_today',
+        ],
+        [
+            'permissions' => ['judge'],
+            'href' => 'judge.php',
+            'label_key' => 'nav.quick.judge',
+        ],
+        [
+            'permissions' => ['startlist'],
+            'href' => 'startlist.php',
+            'label_key' => 'nav.quick.startlist',
+        ],
+    ];
+
     public static function allowed(string $role, string $permission): bool
     {
         $permissions = self::MAP[$permission] ?? [];
@@ -42,26 +90,21 @@ class Rbac
 
     public static function menuFor(string $role): array
     {
-        $menu = [
-            'dashboard.php' => ['key' => 'dashboard', 'label_key' => 'nav.dashboard'],
-            'persons.php' => ['key' => 'persons', 'label_key' => 'nav.persons'],
-            'horses.php' => ['key' => 'horses', 'label_key' => 'nav.horses'],
-            'clubs.php' => ['key' => 'clubs', 'label_key' => 'nav.clubs'],
-            'events.php' => ['key' => 'events', 'label_key' => 'nav.events'],
-            'classes.php' => ['key' => 'classes', 'label_key' => 'nav.classes'],
-            'entries.php' => ['key' => 'entries', 'label_key' => 'nav.entries'],
-            'startlist.php' => ['key' => 'startlist', 'label_key' => 'nav.startlists'],
-            'schedule.php' => ['key' => 'schedule', 'label_key' => 'nav.schedule'],
-            'display.php' => ['key' => 'display', 'label_key' => 'nav.display'],
-            'judge.php' => ['key' => 'judge', 'label_key' => 'nav.judge'],
-            'results.php' => ['key' => 'results', 'label_key' => 'nav.results'],
-            'helpers.php' => ['key' => 'helpers', 'label_key' => 'nav.helpers'],
-            'print.php' => ['key' => 'print', 'label_key' => 'nav.print'],
-            'export.php' => ['key' => 'export', 'label_key' => 'nav.export'],
-            'instance.php' => ['key' => 'instance', 'label_key' => 'nav.instance'],
-            'sync_admin.php' => ['key' => 'sync', 'label_key' => 'nav.sync'],
-        ];
+        return array_filter(self::MENU, static fn ($item) => self::allowed($role, $item['key']));
+    }
 
-        return array_filter($menu, static fn ($item) => self::allowed($role, $item['key']));
+    public static function quickActionsFor(string $role): array
+    {
+        $actions = [];
+        foreach (self::QUICK_ACTIONS as $action) {
+            foreach ($action['permissions'] as $permission) {
+                if (self::allowed($role, $permission)) {
+                    $actions[] = $action;
+                    break;
+                }
+            }
+        }
+
+        return $actions;
     }
 }

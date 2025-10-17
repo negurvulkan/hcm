@@ -8,6 +8,7 @@ return [
         'default_title' => 'Turniermanagement',
         'nav' => [
             'toggle' => 'Navigation umschalten',
+            'quick_access' => 'Schnellzugriffe',
         ],
         'role_label' => 'Rolle',
         'read_only' => 'Read-only',
@@ -34,6 +35,19 @@ return [
         'export' => 'Export',
         'instance' => 'Instanz & Modus',
         'sync' => 'Sync',
+        'groups' => [
+            'overview' => 'Übersicht',
+            'management' => 'Stammdaten',
+            'operations' => 'Abläufe',
+            'configuration' => 'Konfiguration',
+        ],
+        'quick' => [
+            'entries_create' => 'Neue Nennung',
+            'entries_import' => 'Nennungen importieren',
+            'schedule_today' => 'Heutiger Zeitplan',
+            'judge' => 'Richteroberfläche öffnen',
+            'startlist' => 'Startliste öffnen',
+        ],
     ],
     'pages' => [
         'dashboard' => ['title' => 'Dashboard'],
@@ -105,6 +119,24 @@ return [
     ],
     'dashboard' => [
         'title' => 'Dashboard',
+        'quick_actions' => [
+            'title' => 'Schnellaktionen',
+        ],
+        'filters' => [
+            'all' => 'Alle Rollen',
+            'role' => [
+                'admin' => 'Admin',
+                'office' => 'Büro',
+                'steward' => 'Parcours',
+                'helpers' => 'Helfer',
+                'judge' => 'Richter',
+            ],
+        ],
+        'actions' => [
+            'open_judge' => 'Richteroberfläche öffnen',
+            'adjust_schedule' => 'Zeitplan anpassen',
+            'open_startlist' => 'Startliste anzeigen',
+        ],
         'tiles' => [
             'default_note' => 'Zur Übersicht',
             'peer_connection' => [
@@ -206,6 +238,7 @@ return [
             'class' => 'Prüfung',
             'status' => 'Status',
             'select_placeholder' => 'Wählen…',
+            'filter_placeholder' => 'Tippen zum Filtern…',
             'submit' => 'Speichern',
             'cancel' => 'Abbrechen',
             'import_heading' => 'CSV-Import',
@@ -215,6 +248,7 @@ return [
             'title' => 'Nennungen',
             'mapping_button' => 'Mapping abschließen',
             'columns' => [
+                'select' => 'Auswahl',
                 'rider' => 'Reiter',
                 'horse' => 'Pferd',
                 'class' => 'Prüfung',
@@ -235,6 +269,9 @@ return [
             'note' => 'Hinweis: Personen, Pferde und Prüfungen müssen bereits existieren.',
             'cancel' => 'Abbrechen',
             'submit' => 'Import starten',
+            'preview_heading' => 'Vorschau',
+            'preview_note' => 'Erkannte erste Zeilen aus der CSV.',
+            'preview_remaining' => '{count} weitere Zeilen nicht dargestellt.',
         ],
         'status' => [
             'open' => 'offen',
@@ -247,6 +284,7 @@ return [
             'class_unavailable' => 'Prüfung nicht gefunden oder nicht freigegeben.',
             'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
             'import_expired' => 'Import-Sitzung abgelaufen.',
+            'bulk_selection_required' => 'Bitte zuerst Nennungen auswählen.',
         ],
         'flash' => [
             'created' => 'Nennung gespeichert.',
@@ -259,6 +297,25 @@ return [
                 'one' => 'Eine Nennung importiert.',
                 'other' => '{count} Nennungen importiert.',
             ],
+            'bulk_marked_paid' => [
+                'one' => 'Eine Nennung als bezahlt markiert.',
+                'other' => '{count} Nennungen als bezahlt markiert.',
+            ],
+            'bulk_marked_open' => [
+                'one' => 'Eine Nennung wieder geöffnet.',
+                'other' => '{count} Nennungen wieder geöffnet.',
+            ],
+            'bulk_deleted' => [
+                'one' => 'Eine Nennung gelöscht.',
+                'other' => '{count} Nennungen gelöscht.',
+            ],
+            'bulk_noop' => 'Keine Änderungen vorgenommen.',
+        ],
+        'bulk' => [
+            'mark_paid' => 'Als bezahlt markieren',
+            'mark_open' => 'Auf offen setzen',
+            'delete' => 'Auswahl löschen',
+            'selection_counter' => 'Ausgewählt: {count}',
         ],
     ],
     'helpers' => [
@@ -907,6 +964,19 @@ return [
         'controls' => [
             'switch' => 'Wechseln',
             'position' => 'Nr. {position}',
+            'filter' => [
+                'label' => 'Filter',
+                'all' => 'Alle',
+                'pending' => 'Ausstehend',
+                'running' => 'Laufend',
+                'completed' => 'Abgeschlossen',
+            ],
+            'state' => [
+                'scheduled' => 'Geplant',
+                'running' => 'Laufend',
+                'completed' => 'Abgeschlossen',
+                'withdrawn' => 'Zurückgezogen',
+            ],
         ],
         'empty' => 'Keine Startliste verfügbar.',
         'form' => [
@@ -931,6 +1001,10 @@ return [
             'weight_hint' => 'Gewichtung: {weight}',
             'no_score' => '–',
             'no_value' => '–',
+            'signature_status' => [
+                'draft' => 'Bewertung gespeichert, nicht signiert.',
+                'signed' => 'Signiert und gesperrt.',
+            ],
         ],
         'validation' => [
             'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
@@ -960,6 +1034,7 @@ return [
             'minutes_label' => 'Minuten (+/-)',
             'submit' => 'Verschieben & Broadcast',
             'note' => 'Änderungen werden an Dashboard & Anzeige gesendet.',
+            'presets_label' => 'Vorwahl',
         ],
         'slots' => [
             'title' => 'Slots',
@@ -972,7 +1047,10 @@ return [
                     'planned_start' => 'Geplanter Start',
                     'actions' => 'Aktionen',
                 ],
+                'no_time' => 'Keine Zeit',
             ],
+            'edit' => 'Zeit bearbeiten',
+            'cancel' => 'Abbrechen',
             'confirm_delete' => 'Slot wirklich entfernen?',
         ],
         'history' => [
