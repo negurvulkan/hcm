@@ -8,7 +8,7 @@ $editClub = $editId ? db_first('SELECT * FROM clubs WHERE id = :id', ['id' => $e
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('clubs.validation.csrf_invalid'));
         header('Location: clubs.php');
         exit;
     }
@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $clubId = (int) ($_POST['club_id'] ?? 0);
         if ($clubId) {
             db_execute('DELETE FROM clubs WHERE id = :id', ['id' => $clubId]);
-            flash('success', 'Verein gelöscht.');
+            flash('success', t('clubs.flash.deleted'));
         }
         header('Location: clubs.php');
         exit;
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $short = strtoupper(trim((string) ($_POST['short_name'] ?? '')));
 
     if ($name === '' || $short === '') {
-        flash('error', 'Name und Kürzel angeben.');
+        flash('error', t('clubs.validation.name_short_required'));
     } else {
         if ($action === 'update' && $clubId > 0) {
             db_execute('UPDATE clubs SET name = :name, short_name = :short WHERE id = :id', [
@@ -40,13 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'short' => $short,
                 'id' => $clubId,
             ]);
-            flash('success', 'Verein aktualisiert.');
+            flash('success', t('clubs.flash.updated'));
         } else {
             db_execute('INSERT INTO clubs (name, short_name) VALUES (:name, :short)', [
                 'name' => $name,
                 'short' => $short,
             ]);
-            flash('success', 'Verein gespeichert.');
+            flash('success', t('clubs.flash.created'));
         }
     }
 
@@ -65,7 +65,8 @@ $sql .= ' ORDER BY name';
 $clubs = db_all($sql, $params);
 
 render_page('clubs.tpl', [
-    'title' => 'Vereine',
+    'title' => t('pages.clubs.title'),
+    'titleKey' => 'pages.clubs.title',
     'page' => 'clubs',
     'clubs' => $clubs,
     'filter' => $filter,
