@@ -73,8 +73,16 @@ if (!$starts) {
         'rule' => $selectedClass['rules_json'] ? json_decode($selectedClass['rules_json'], true, 512, JSON_THROW_ON_ERROR) : [],
         'result' => null,
         'starts' => [],
+        'startStateCounts' => [],
+        'extraScripts' => ['public/assets/js/judge.js'],
     ]);
     exit;
+}
+
+$startStateCounts = [];
+foreach ($starts as $candidate) {
+    $stateKey = $candidate['state'] ?? 'scheduled';
+    $startStateCounts[$stateKey] = ($startStateCounts[$stateKey] ?? 0) + 1;
 }
 
 $startId = (int) ($_GET['start_id'] ?? $starts[0]['id']);
@@ -301,6 +309,8 @@ render_page('judge.tpl', [
     'otherJudges' => $otherJudges,
     'judgeKey' => $judgeKey,
     'startNumberRule' => $startNumberRule,
+    'startStateCounts' => $startStateCounts,
+    'extraScripts' => ['public/assets/js/judge.js'],
 ]);
 
 function judge_identifier(array $user): string

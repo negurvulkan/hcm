@@ -12,6 +12,7 @@
 /** @var array $otherJudges */
 /** @var string $judgeKey */
 /** @var array $startNumberRule */
+/** @var array $startStateCounts */
 ?>
 <div class="alert alert-info d-flex justify-content-between align-items-center">
     <div>
@@ -20,6 +21,20 @@
             <span class="badge bg-primary text-light ms-2"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $start['start_number_display']]), ENT_QUOTES, 'UTF-8') ?></span>
         <?php endif; ?>
         · <?= htmlspecialchars($start['rider'] ?? t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?>
+        <?php if (!empty($start['state'])): ?>
+            <?php
+            $stateKey = $start['state'];
+            $stateClass = match ($stateKey) {
+                'completed' => 'bg-success',
+                'running' => 'bg-primary',
+                'withdrawn' => 'bg-danger',
+                default => 'bg-secondary',
+            };
+            ?>
+            <span class="badge <?= htmlspecialchars($stateClass, ENT_QUOTES, 'UTF-8') ?> ms-2">
+                <?= htmlspecialchars(t('judge.controls.state.' . $stateKey), ENT_QUOTES, 'UTF-8') ?>
+            </span>
+        <?php endif; ?>
     </div>
     <div class="text-muted small">
         <?= htmlspecialchars(t('judge.banner.offline_hint'), ENT_QUOTES, 'UTF-8') ?>
@@ -38,15 +53,47 @@
             <button class="btn btn-outline-secondary" type="submit"><?= htmlspecialchars(t('judge.controls.switch'), ENT_QUOTES, 'UTF-8') ?></button>
         </form>
     </div>
-    <div class="col-md-8 text-end">
-        <?php foreach ($starts as $candidate): ?>
-            <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?>">
-                <?= htmlspecialchars(t('judge.controls.position', ['position' => (int) $candidate['position']]), ENT_QUOTES, 'UTF-8') ?>
-                <?php if (!empty($candidate['start_number_display'])): ?>
-                    <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($candidate['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
-                <?php endif; ?>
-            </a>
-        <?php endforeach; ?>
+    <div class="col-md-8">
+        <div class="d-flex flex-column gap-2 align-items-md-end">
+            <div class="d-flex flex-wrap align-items-center gap-2" data-start-filter-group>
+                <span class="small text-muted text-uppercase fw-semibold"><?= htmlspecialchars(t('judge.controls.filter.label'), ENT_QUOTES, 'UTF-8') ?></span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary active" data-start-filter="all"><?= htmlspecialchars(t('judge.controls.filter.all'), ENT_QUOTES, 'UTF-8') ?></button>
+                    <button type="button" class="btn btn-outline-secondary" data-start-filter="pending"><?= htmlspecialchars(t('judge.controls.filter.pending'), ENT_QUOTES, 'UTF-8') ?></button>
+                    <button type="button" class="btn btn-outline-secondary" data-start-filter="running"><?= htmlspecialchars(t('judge.controls.filter.running'), ENT_QUOTES, 'UTF-8') ?></button>
+                    <button type="button" class="btn btn-outline-secondary" data-start-filter="completed"><?= htmlspecialchars(t('judge.controls.filter.completed'), ENT_QUOTES, 'UTF-8') ?></button>
+                </div>
+            </div>
+            <?php if (!empty($startStateCounts)): ?>
+                <div class="small text-muted">
+                    <?php foreach ($startStateCounts as $stateKey => $count): ?>
+                        <span class="me-2">
+                            <strong><?= (int) $count ?></strong> <?= htmlspecialchars(t('judge.controls.state.' . $stateKey), ENT_QUOTES, 'UTF-8') ?>
+                        </span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <div class="d-flex flex-wrap gap-2 justify-content-md-end" data-start-buttons>
+                <?php foreach ($starts as $candidate): ?>
+                    <?php
+                    $state = $candidate['state'] ?? 'scheduled';
+                    $stateBadge = match ($state) {
+                        'completed' => 'bg-success',
+                        'running' => 'bg-primary',
+                        'withdrawn' => 'bg-danger',
+                        default => 'bg-secondary text-dark',
+                    };
+                    ?>
+                    <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?> d-flex align-items-center gap-2" data-start-state="<?= htmlspecialchars($state, ENT_QUOTES, 'UTF-8') ?>">
+                        <span><?= htmlspecialchars(t('judge.controls.position', ['position' => (int) $candidate['position']]), ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if (!empty($candidate['start_number_display'])): ?>
+                            <span class="badge bg-primary text-light"><?= htmlspecialchars($candidate['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                        <span class="badge <?= htmlspecialchars($stateBadge, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('judge.controls.state.' . $state), ENT_QUOTES, 'UTF-8') ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -161,6 +208,9 @@
             <input class="form-check-input" type="checkbox" id="sign" name="sign" <?= ($result['status'] ?? '') === 'signed' ? 'checked' : '' ?>>
             <label class="form-check-label" for="sign"><?= htmlspecialchars(t('judge.form.sign_label'), ENT_QUOTES, 'UTF-8') ?></label>
         </div>
+        <div class="alert alert-secondary mt-3" data-signature-status data-status-draft="<?= htmlspecialchars(t('judge.form.signature_status.draft'), ENT_QUOTES, 'UTF-8') ?>" data-status-signed="<?= htmlspecialchars(t('judge.form.signature_status.signed'), ENT_QUOTES, 'UTF-8') ?>">
+            <?= htmlspecialchars(($result['status'] ?? '') === 'signed' ? t('judge.form.signature_status.signed') : t('judge.form.signature_status.draft'), ENT_QUOTES, 'UTF-8') ?>
+        </div>
     </div>
     <div class="card-footer d-flex justify-content-between align-items-center">
         <div class="text-muted small"><?= htmlspecialchars(t('judge.form.autosave_note'), ENT_QUOTES, 'UTF-8') ?></div>
@@ -174,8 +224,3 @@
 </form>
 <?php endif; ?>
 
-<script>
-    document.querySelectorAll('[data-autosave]').forEach(function (form) {
-        AppHelpers.markDirty($(form));
-    });
-</script>

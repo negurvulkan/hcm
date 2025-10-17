@@ -171,6 +171,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'bulk') {
+        $bulkAction = (string) ($_POST['bulk_action'] ?? '');
+        $entryIds = array_map('intval', $_POST['entry_ids'] ?? []);
+        $entryIds = array_values(array_unique(array_filter($entryIds)));
+        if (!$entryIds || !$bulkAction) {
+            flash('error', t('entries.validation.bulk_selection_required'));
+            header('Location: entries.php');
+            exit;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($entryIds), '?'));
+        $entriesData = $placeholders
+            ? db_all('SELECT id, event_id, start_number_assignment_id FROM entries WHERE id IN (' . $placeholders . ')', $entryIds)
+            : [];
+        $permitted = [];
+        foreach ($entriesData as $row) {
+            if (event_accessible($user, (int) $row['event_id'])) {
+                $permitted[(int) $row['id']] = $row;
+            }
+        }
+
+        if (!$permitted) {
+            flash('error', t('entries.validation.bulk_selection_required'));
+            header('Location: entries.php');
+            exit;
+        }
+
+        $processed = 0;
+        if (in_array($bulkAction, ['mark_paid', 'mark_open'], true)) {
+            $status = $bulkAction === 'mark_paid' ? 'paid' : 'open';
+            foreach ($permitted as $entryId => $row) {
+                db_execute('UPDATE entries SET status = :status, fee_paid_at = :paid_at WHERE id = :id', [
+                    'status' => $status,
+                    'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
+                    'id' => $entryId,
+                ]);
+                $processed++;
+            }
+            if ($processed > 0) {
+                $flashKey = $status === 'paid' ? 'entries.flash.bulk_marked_paid' : 'entries.flash.bulk_marked_open';
+                flash('success', tn($flashKey, $processed, ['count' => $processed]));
+            }
+        } elseif ($bulkAction === 'delete') {
+            foreach ($permitted as $entryId => $row) {
+                if (!empty($row['start_number_assignment_id'])) {
+                    releaseStartNumber([
+                        'id' => (int) $row['start_number_assignment_id'],
+                        'entry_id' => $entryId,
+                    ], 'withdraw');
+                }
+                db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE entry_id = :id)', ['id' => $entryId]);
+                db_execute('DELETE FROM startlist_items WHERE entry_id = :id', ['id' => $entryId]);
+                db_execute('DELETE FROM entries WHERE id = :id', ['id' => $entryId]);
+                $processed++;
+            }
+            if ($processed > 0) {
+                flash('success', tn('entries.flash.bulk_deleted', $processed, ['count' => $processed]));
+            }
+        }
+
+        if ($processed === 0) {
+            flash('info', t('entries.flash.bulk_noop'));
+        }
+
+        header('Location: entries.php');
+        exit;
+    }
+
     if ($action === 'preview_import' && isset($_FILES['csv']) && is_uploaded_file($_FILES['csv']['tmp_name'])) {
         $rows = [];
         if (($handle = fopen($_FILES['csv']['tmp_name'], 'rb')) !== false) {
@@ -285,6 +353,8 @@ if ($editId) {
 $importToken = $_GET['import'] ?? '';
 $importRows = $importToken && isset($_SESSION['entries_import'][$importToken]) ? $_SESSION['entries_import'][$importToken] : null;
 $importHeader = $importRows ? $importRows[0] : [];
+$importPreview = $importRows ? array_slice($importRows, 0, min(6, count($importRows))) : [];
+$importPreviewRemaining = $importRows ? max(count($importRows) - count($importPreview), 0) : 0;
 
 render_page('entries.tpl', [
     'titleKey' => 'pages.entries.title',
@@ -295,5 +365,8 @@ render_page('entries.tpl', [
     'entries' => $entries,
     'importToken' => $importToken,
     'importHeader' => $importHeader,
+    'importPreview' => $importPreview,
+    'importPreviewRemaining' => $importPreviewRemaining,
     'editEntry' => $editEntry,
+    'extraScripts' => ['public/assets/js/entries.js'],
 ]);

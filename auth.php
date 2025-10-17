@@ -240,11 +240,13 @@ function render_page(string $template, array $data = []): void
     $flashes = flash_pull();
     $instance = instance_view_context();
     $translations = translator()?->all() ?? [];
+    $navQuickActions = $user ? \App\Core\Rbac::quickActionsFor($user['role']) : [];
     $content = $view->render($template, array_merge($data, [
         'user' => $user,
         'menu' => $menu,
         'instance' => $instance,
         'translations' => $translations,
+        'navQuickActions' => $navQuickActions,
     ]));
 
     echo $view->render('layout.tpl', array_merge($data, [
@@ -256,6 +258,7 @@ function render_page(string $template, array $data = []): void
         'availableLocales' => available_locales(),
         'currentLocale' => current_locale(),
         'translations' => $translations,
+        'navQuickActions' => $navQuickActions,
     ]));
 }
 

@@ -34,6 +34,48 @@ body {
     box-shadow: 0 12px 24px rgba(17, 23, 33, 0.05);
 }
 
+.navbar-mega {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.navbar-mega__group {
+    min-width: 10rem;
+}
+
+.navbar-mega__label {
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+}
+
+.navbar-mega__group .nav-link {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-mega {
+        flex-direction: column;
+        gap: 1rem;
+        padding-top: 1rem;
+    }
+    .navbar-divider {
+        display: none !important;
+    }
+}
+
+.nav-quick-actions .btn {
+    border-radius: 999px;
+    padding-inline: 1rem;
+}
+
+.navbar-divider {
+    width: 1px;
+    height: 2.5rem;
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .btn-accent {
     background: var(--accent);
     border-color: var(--accent);
@@ -54,6 +96,27 @@ body {
     padding: 0.75rem 1rem;
 }
 
+.flash-stack {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    z-index: 1080;
+    max-width: min(24rem, calc(100% - 2rem));
+}
+
+.flash-message {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    backdrop-filter: blur(4px);
+}
+
+.flash-message.is-dismissing {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
 .instance-status-bar {
     background: rgba(43, 114, 255, 0.08);
 }
@@ -63,5 +126,11 @@ body {
 }
 
 .text-muted {
-    color: rgba(43, 114, 255, 0.12);
+    color: rgba(17, 23, 33, 0.56);
+}
+
+@media (prefers-color-scheme: dark) {
+    .text-muted {
+        color: rgba(230, 232, 240, 0.65);
+    }
 }

@@ -8,6 +8,7 @@ return [
         'default_title' => 'Tournament Management',
         'nav' => [
             'toggle' => 'Toggle navigation',
+            'quick_access' => 'Quick actions',
         ],
         'role_label' => 'Role',
         'read_only' => 'Read-only',
@@ -34,6 +35,19 @@ return [
         'export' => 'Export',
         'instance' => 'Instance & Mode',
         'sync' => 'Sync',
+        'groups' => [
+            'overview' => 'Overview',
+            'management' => 'Master data',
+            'operations' => 'Operations',
+            'configuration' => 'Configuration',
+        ],
+        'quick' => [
+            'entries_create' => 'New entry',
+            'entries_import' => 'Import entries',
+            'schedule_today' => 'Today’s schedule',
+            'judge' => 'Open judge UI',
+            'startlist' => 'Start list',
+        ],
     ],
     'pages' => [
         'dashboard' => ['title' => 'Dashboard'],
@@ -105,6 +119,24 @@ return [
     ],
     'dashboard' => [
         'title' => 'Dashboard',
+        'quick_actions' => [
+            'title' => 'Quick actions',
+        ],
+        'filters' => [
+            'all' => 'All roles',
+            'role' => [
+                'admin' => 'Admin',
+                'office' => 'Office',
+                'steward' => 'Steward',
+                'helpers' => 'Helpers',
+                'judge' => 'Judges',
+            ],
+        ],
+        'actions' => [
+            'open_judge' => 'Open judge UI',
+            'adjust_schedule' => 'Adjust schedule',
+            'open_startlist' => 'Open start list',
+        ],
         'tiles' => [
             'default_note' => 'View details',
             'peer_connection' => [
@@ -206,6 +238,7 @@ return [
             'class' => 'Class',
             'status' => 'Status',
             'select_placeholder' => 'Select…',
+            'filter_placeholder' => 'Type to filter…',
             'submit' => 'Save',
             'cancel' => 'Cancel',
             'import_heading' => 'CSV import',
@@ -215,6 +248,7 @@ return [
             'title' => 'Entries',
             'mapping_button' => 'Complete mapping',
             'columns' => [
+                'select' => 'Select',
                 'rider' => 'Rider',
                 'horse' => 'Horse',
                 'class' => 'Class',
@@ -235,6 +269,9 @@ return [
             'note' => 'Note: Riders, horses, and classes must already exist.',
             'cancel' => 'Cancel',
             'submit' => 'Start import',
+            'preview_heading' => 'Preview',
+            'preview_note' => 'First rows detected in the CSV.',
+            'preview_remaining' => '{count} more rows not shown.',
         ],
         'status' => [
             'open' => 'open',
@@ -247,6 +284,7 @@ return [
             'class_unavailable' => 'Class not found or not available.',
             'forbidden_event' => 'No permission for this event.',
             'import_expired' => 'Import session expired.',
+            'bulk_selection_required' => 'Select entries first.',
         ],
         'flash' => [
             'created' => 'Entry saved.',
@@ -259,6 +297,25 @@ return [
                 'one' => 'One entry imported.',
                 'other' => '{count} entries imported.',
             ],
+            'bulk_marked_paid' => [
+                'one' => 'Marked one entry as paid.',
+                'other' => 'Marked {count} entries as paid.',
+            ],
+            'bulk_marked_open' => [
+                'one' => 'Reopened one entry.',
+                'other' => 'Reopened {count} entries.',
+            ],
+            'bulk_deleted' => [
+                'one' => 'Deleted one entry.',
+                'other' => 'Deleted {count} entries.',
+            ],
+            'bulk_noop' => 'No changes applied.',
+        ],
+        'bulk' => [
+            'mark_paid' => 'Mark as paid',
+            'mark_open' => 'Mark as open',
+            'delete' => 'Delete selected',
+            'selection_counter' => 'Selected: {count}',
         ],
     ],
     'helpers' => [
@@ -907,6 +964,19 @@ return [
         'controls' => [
             'switch' => 'Switch',
             'position' => 'No. {position}',
+            'filter' => [
+                'label' => 'Filter',
+                'all' => 'All',
+                'pending' => 'Pending',
+                'running' => 'Running',
+                'completed' => 'Completed',
+            ],
+            'state' => [
+                'scheduled' => 'Scheduled',
+                'running' => 'Running',
+                'completed' => 'Completed',
+                'withdrawn' => 'Withdrawn',
+            ],
         ],
         'empty' => 'No start list available.',
         'form' => [
@@ -931,6 +1001,10 @@ return [
             'weight_hint' => 'Weight: {weight}',
             'no_score' => '–',
             'no_value' => '–',
+            'signature_status' => [
+                'draft' => 'Score saved, not signed.',
+                'signed' => 'Signed and locked.',
+            ],
         ],
         'validation' => [
             'forbidden_event' => 'No permission for this event.',
@@ -960,6 +1034,7 @@ return [
             'minutes_label' => 'Minutes (+/-)',
             'submit' => 'Shift & broadcast',
             'note' => 'Changes are broadcast to dashboard and display.',
+            'presets_label' => 'Presets',
         ],
         'slots' => [
             'title' => 'Slots',
@@ -972,7 +1047,10 @@ return [
                     'planned_start' => 'Planned start',
                     'actions' => 'Actions',
                 ],
+                'no_time' => 'No time',
             ],
+            'edit' => 'Edit time',
+            'cancel' => 'Cancel',
             'confirm_delete' => 'Remove slot?',
         ],
         'history' => [

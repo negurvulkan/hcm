@@ -150,4 +150,5 @@ render_page('schedule.tpl', [
     'selectedClass' => $selectedClass,
     'items' => $items,
     'shifts' => $shifts,
+    'extraScripts' => ['public/assets/js/schedule.js'],
 ]);
