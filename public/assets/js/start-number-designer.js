@@ -1,6 +1,58 @@
 (function () {
     'use strict';
 
+    function translate(key, params, fallback) {
+        if (window.I18n && typeof window.I18n.t === 'function') {
+            return window.I18n.t(key, params);
+        }
+        if (typeof fallback === 'function') {
+            return fallback(params || {});
+        }
+        if (typeof fallback === 'string') {
+            if (params && fallback.indexOf('{') !== -1) {
+                return Object.keys(params).reduce(function (carry, paramKey) {
+                    var pattern = new RegExp('\\{' + paramKey + '\\}', 'g');
+                    return carry.replace(pattern, String(params[paramKey]));
+                }, fallback);
+            }
+            return fallback;
+        }
+        return key;
+    }
+
+    var defaultOptionLabels = {
+        '': { key: 'start_numbers.designer.labels.none_change', fallback: 'No change' },
+        'never': { key: 'start_numbers.designer.options.reset.never', fallback: 'Never' },
+        'per_class': { key: 'start_numbers.designer.options.reset.per_class', fallback: 'Per class' },
+        'per_day': { key: 'start_numbers.designer.options.reset.per_day', fallback: 'Per day' },
+        'start': { key: 'start_numbers.designer.options.entity.start', fallback: 'Start' },
+        'pair': { key: 'start_numbers.designer.options.entity.pair', fallback: 'Rider/horse' },
+        'on_entry': { key: 'start_numbers.designer.options.time.on_entry', fallback: 'On entry' },
+        'on_startlist': { key: 'start_numbers.designer.options.time.on_startlist', fallback: 'Start list' },
+        'on_gate': { key: 'start_numbers.designer.options.time.on_gate', fallback: 'At the gate' },
+        'after_scratch': { key: 'start_numbers.designer.options.reuse.after_scratch', fallback: 'After scratch' },
+        'session': { key: 'start_numbers.designer.options.reuse.session', fallback: 'Session' },
+        'sign_off': { key: 'start_numbers.designer.options.lock_after.sign_off', fallback: 'Sign-off' },
+        'start_called': { key: 'start_numbers.designer.options.lock_after.start_called', fallback: 'Call-up' }
+    };
+
+    function resolveOptionLabel(value, overrides) {
+        if (overrides && Object.prototype.hasOwnProperty.call(overrides, value)) {
+            var override = overrides[value];
+            if (typeof override === 'string') {
+                return override;
+            }
+            if (override && typeof override === 'object') {
+                return translate(override.key, override.params || null, override.fallback);
+            }
+        }
+        if (Object.prototype.hasOwnProperty.call(defaultOptionLabels, value)) {
+            var meta = defaultOptionLabels[value];
+            return translate(meta.key, meta.params || null, meta.fallback);
+        }
+        return String(value);
+    }
+
     function parseJsonSafe(value, fallback) {
         if (!value) {
             return fallback;
@@ -52,26 +104,10 @@
     }
 
     function buildOptions(values, selected, customLabels) {
-        var baseLabels = {
-            '': 'Keine Änderung',
-            'never': 'Nie',
-            'per_class': 'Pro Klasse',
-            'per_day': 'Pro Tag',
-            'start': 'Start',
-            'pair': 'Reiter/Pferd',
-            'on_entry': 'Bei Nennung',
-            'on_startlist': 'Startliste',
-            'on_gate': 'Am Gate',
-            'after_scratch': 'Nach Abmeldung',
-            'session': 'Session',
-            'sign_off': 'Freigabe',
-            'start_called': 'Aufruf'
-        };
-        var labels = customLabels ? Object.assign({}, baseLabels, customLabels) : baseLabels;
         return values.map(function (value) {
-            var label = Object.prototype.hasOwnProperty.call(labels, value) ? labels[value] : value;
+            var label = resolveOptionLabel(value, customLabels);
             var isSelected = value === selected ? ' selected' : '';
-            return '<option value="' + value + '"' + isSelected + '>' + label + '</option>';
+            return '<option value="' + value + '"' + isSelected + '>' + escapeHtml(label) + '</option>';
         }).join('');
     }
 
@@ -184,7 +220,7 @@
             if (overrides.length === 0) {
                 var empty = document.createElement('div');
                 empty.className = 'text-muted small';
-                empty.textContent = 'Keine Overrides definiert.';
+                empty.textContent = translate('start_numbers.designer.overrides.empty', null, 'No overrides defined.');
                 overrideContainer.appendChild(empty);
             }
         }
@@ -202,38 +238,62 @@
             var sequence = item && item.sequence ? item.sequence : {};
             var format = item && item.format ? item.format : {};
             var allocation = item && item.allocation ? item.allocation : {};
-            return '<div class="d-flex justify-content-between align-items-start mb-3">' +
-                '<h5 class="h6 mb-0">Override #' + (index + 1) + '</h5>' +
-                '<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-override">Entfernen</button>' +
-                '</div>' +
-                '<div class="row g-3 mb-3">' +
-                '<div class="col-sm-6"><label class="form-label">Klassen-Tag</label><input type="text" class="form-control" data-override-field="if.class_tag" value="' + escapeHtml(conditions.class_tag || '') + '"></div>' +
-                '<div class="col-sm-6"><label class="form-label">Division</label><input type="text" class="form-control" data-override-field="if.division" value="' + escapeHtml(conditions.division || '') + '"></div>' +
-                '<div class="col-sm-6"><label class="form-label">Arena</label><input type="text" class="form-control" data-override-field="if.arena" value="' + escapeHtml(conditions.arena || '') + '"></div>' +
-                '<div class="col-sm-6"><label class="form-label">Datum</label><input type="date" class="form-control" data-override-field="if.date" value="' + escapeHtml(conditions.date || '') + '"></div>' +
-                '</div>' +
-                '<h6 class="h6">Sequenz</h6>' +
-                '<div class="row g-3 mb-3">' +
-                '<div class="col-sm-4"><label class="form-label">Start</label><input type="number" class="form-control" data-override-field="sequence.start" value="' + escapeValue(sequence.start) + '"></div>' +
-                '<div class="col-sm-4"><label class="form-label">Schrittweite</label><input type="number" class="form-control" data-override-field="sequence.step" value="' + escapeValue(sequence.step) + '"></div>' +
-                '<div class="col-sm-4"><label class="form-label">Reset</label><select class="form-select" data-override-field="sequence.reset">' + buildOptions(['never', 'per_class', 'per_day'], sequence.reset || '') + '</select></div>' +
-                '<div class="col-sm-6"><label class="form-label">Bereich von</label><input type="number" class="form-control" data-override-field="sequence.range_min" value="' + escapeValue(getRange(sequence, 0)) + '"></div>' +
-                '<div class="col-sm-6"><label class="form-label">Bereich bis</label><input type="number" class="form-control" data-override-field="sequence.range_max" value="' + escapeValue(getRange(sequence, 1)) + '"></div>' +
-                '</div>' +
-                '<h6 class="h6">Format</h6>' +
-                '<div class="row g-3">' +
-                '<div class="col-sm-3"><label class="form-label">Prefix</label><input type="text" class="form-control" data-override-field="format.prefix" value="' + escapeHtml(format.prefix || '') + '"></div>' +
-                '<div class="col-sm-3"><label class="form-label">Breite</label><input type="number" class="form-control" data-override-field="format.width" value="' + escapeValue(format.width) + '"></div>' +
-                '<div class="col-sm-3"><label class="form-label">Suffix</label><input type="text" class="form-control" data-override-field="format.suffix" value="' + escapeHtml(format.suffix || '') + '"></div>' +
-                '<div class="col-sm-3"><label class="form-label">Separator</label><input type="text" class="form-control" data-override-field="format.separator" value="' + escapeHtml(format.separator || '') + '"></div>' +
-                '</div>' +
-                '<h6 class="h6 mt-3">Zuteilung</h6>' +
-                '<div class="row g-3">' +
-                '<div class="col-sm-3"><label class="form-label">Entität</label><select class="form-select" data-override-field="allocation.entity">' + buildOptions(['', 'start', 'pair'], allocation.entity || '', { '': 'Keine Änderung', start: 'Start', pair: 'Reiter/Pferd' }) + '</select></div>' +
-                '<div class="col-sm-3"><label class="form-label">Zeitpunkt</label><select class="form-select" data-override-field="allocation.time">' + buildOptions(['', 'on_entry', 'on_startlist', 'on_gate'], allocation.time || '', { '': 'Keine Änderung', on_entry: 'Bei Nennung', on_startlist: 'Startliste', on_gate: 'Am Gate' }) + '</select></div>' +
-                '<div class="col-sm-3"><label class="form-label">Reuse</label><select class="form-select" data-override-field="allocation.reuse">' + buildOptions(['', 'never', 'after_scratch', 'session'], allocation.reuse || '', { '': 'Keine Änderung', never: 'Nie', after_scratch: 'Nach Abmeldung', session: 'Session' }) + '</select></div>' +
-                '<div class="col-sm-3"><label class="form-label">Sperre nach</label><select class="form-select" data-override-field="allocation.lock_after">' + buildOptions(['', 'sign_off', 'start_called', 'never'], allocation.lock_after || '', { '': 'Keine Änderung', sign_off: 'Freigabe', start_called: 'Aufruf', never: 'Nie' }) + '</select></div>' +
-                '</div>';
+            var heading = translate('start_numbers.designer.overrides.heading', { index: index + 1 }, 'Override #{index}');
+            var removeLabel = translate('start_numbers.designer.overrides.remove', null, 'Remove');
+            var classTagLabel = translate('start_numbers.designer.overrides.fields.class_tag', null, 'Class tag');
+            var divisionLabel = translate('start_numbers.designer.overrides.fields.division', null, 'Division');
+            var arenaLabel = translate('start_numbers.designer.overrides.fields.arena', null, 'Arena');
+            var dateLabel = translate('start_numbers.designer.overrides.fields.date', null, 'Date');
+            var sequenceTitle = translate('start_numbers.designer.sections.sequence.title', null, 'Sequence');
+            var sequenceStartLabel = translate('start_numbers.designer.sections.sequence.start', null, 'Start');
+            var sequenceStepLabel = translate('start_numbers.designer.sections.sequence.step', null, 'Step size');
+            var sequenceResetLabel = translate('start_numbers.designer.sections.sequence.reset', null, 'Reset');
+            var rangeFromLabel = translate('start_numbers.designer.sections.sequence.range_from', null, 'Range from');
+            var rangeToLabel = translate('start_numbers.designer.sections.sequence.range_to', null, 'Range to');
+            var formatTitle = translate('start_numbers.designer.sections.format.title', null, 'Format');
+            var formatPrefixLabel = translate('start_numbers.designer.sections.format.prefix', null, 'Prefix');
+            var formatWidthLabel = translate('start_numbers.designer.sections.format.width', null, 'Width');
+            var formatSuffixLabel = translate('start_numbers.designer.sections.format.suffix', null, 'Suffix');
+            var formatSeparatorLabel = translate('start_numbers.designer.sections.format.separator', null, 'Separator');
+            var allocationTitle = translate('start_numbers.designer.sections.allocation.title', null, 'Allocation');
+            var allocationEntityLabel = translate('start_numbers.designer.sections.allocation.entity', null, 'Entity');
+            var allocationTimeLabel = translate('start_numbers.designer.sections.allocation.time', null, 'Timing');
+            var allocationReuseLabel = translate('start_numbers.designer.sections.allocation.reuse', null, 'Reuse');
+            var allocationLockAfterLabel = translate('start_numbers.designer.sections.allocation.lock_after', null, 'Lock after');
+            return [
+                '<div class="d-flex justify-content-between align-items-start mb-3">',
+                '<h5 class="h6 mb-0">' + escapeHtml(heading) + '</h5>',
+                '<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-override">' + escapeHtml(removeLabel) + '</button>',
+                '</div>',
+                '<div class="row g-3 mb-3">',
+                '<div class="col-sm-6"><label class="form-label">' + escapeHtml(classTagLabel) + '</label><input type="text" class="form-control" data-override-field="if.class_tag" value="' + escapeHtml(conditions.class_tag || '') + '"></div>',
+                '<div class="col-sm-6"><label class="form-label">' + escapeHtml(divisionLabel) + '</label><input type="text" class="form-control" data-override-field="if.division" value="' + escapeHtml(conditions.division || '') + '"></div>',
+                '<div class="col-sm-6"><label class="form-label">' + escapeHtml(arenaLabel) + '</label><input type="text" class="form-control" data-override-field="if.arena" value="' + escapeHtml(conditions.arena || '') + '"></div>',
+                '<div class="col-sm-6"><label class="form-label">' + escapeHtml(dateLabel) + '</label><input type="date" class="form-control" data-override-field="if.date" value="' + escapeHtml(conditions.date || '') + '"></div>',
+                '</div>',
+                '<h6 class="h6">' + escapeHtml(sequenceTitle) + '</h6>',
+                '<div class="row g-3 mb-3">',
+                '<div class="col-sm-4"><label class="form-label">' + escapeHtml(sequenceStartLabel) + '</label><input type="number" class="form-control" data-override-field="sequence.start" value="' + escapeValue(sequence.start) + '"></div>',
+                '<div class="col-sm-4"><label class="form-label">' + escapeHtml(sequenceStepLabel) + '</label><input type="number" class="form-control" data-override-field="sequence.step" value="' + escapeValue(sequence.step) + '"></div>',
+                '<div class="col-sm-4"><label class="form-label">' + escapeHtml(sequenceResetLabel) + '</label><select class="form-select" data-override-field="sequence.reset">' + buildOptions(['never', 'per_class', 'per_day'], sequence.reset || '') + '</select></div>',
+                '<div class="col-sm-6"><label class="form-label">' + escapeHtml(rangeFromLabel) + '</label><input type="number" class="form-control" data-override-field="sequence.range_min" value="' + escapeValue(getRange(sequence, 0)) + '"></div>',
+                '<div class="col-sm-6"><label class="form-label">' + escapeHtml(rangeToLabel) + '</label><input type="number" class="form-control" data-override-field="sequence.range_max" value="' + escapeValue(getRange(sequence, 1)) + '"></div>',
+                '</div>',
+                '<h6 class="h6">' + escapeHtml(formatTitle) + '</h6>',
+                '<div class="row g-3">',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(formatPrefixLabel) + '</label><input type="text" class="form-control" data-override-field="format.prefix" value="' + escapeHtml(format.prefix || '') + '"></div>',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(formatWidthLabel) + '</label><input type="number" class="form-control" data-override-field="format.width" value="' + escapeValue(format.width) + '"></div>',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(formatSuffixLabel) + '</label><input type="text" class="form-control" data-override-field="format.suffix" value="' + escapeHtml(format.suffix || '') + '"></div>',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(formatSeparatorLabel) + '</label><input type="text" class="form-control" data-override-field="format.separator" value="' + escapeHtml(format.separator || '') + '"></div>',
+                '</div>',
+                '<h6 class="h6 mt-3">' + escapeHtml(allocationTitle) + '</h6>',
+                '<div class="row g-3">',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(allocationEntityLabel) + '</label><select class="form-select" data-override-field="allocation.entity">' + buildOptions(['', 'start', 'pair'], allocation.entity || '') + '</select></div>',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(allocationTimeLabel) + '</label><select class="form-select" data-override-field="allocation.time">' + buildOptions(['', 'on_entry', 'on_startlist', 'on_gate'], allocation.time || '') + '</select></div>',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(allocationReuseLabel) + '</label><select class="form-select" data-override-field="allocation.reuse">' + buildOptions(['', 'never', 'after_scratch', 'session'], allocation.reuse || '') + '</select></div>',
+                '<div class="col-sm-3"><label class="form-label">' + escapeHtml(allocationLockAfterLabel) + '</label><select class="form-select" data-override-field="allocation.lock_after">' + buildOptions(['', 'sign_off', 'start_called', 'never'], allocation.lock_after || '') + '</select></div>',
+                '</div>'
+            ].join('');
         }
 
         function applyStateToForm() {
@@ -497,7 +557,7 @@
                     state = mergeWithDefaults(parsed);
                     applyStateToForm();
                 } else {
-                    alert('JSON konnte nicht gelesen werden.');
+                    alert(translate('start_numbers.designer.messages.json_error', null, 'Could not read JSON.'));
                 }
             }
             if (target.dataset.action === 'reset-defaults') {
@@ -519,7 +579,7 @@
                     state = mergeWithDefaults(eventRule);
                     applyStateToForm();
                 } else {
-                    alert('Keine Turnierregel verfügbar.');
+                    alert(translate('start_numbers.designer.messages.no_event_rule', null, 'No event rule available.'));
                 }
             }
         });

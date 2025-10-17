@@ -1,6 +1,32 @@
 (function (window) {
     'use strict';
 
+    function translate(key, params, fallback) {
+        if (window.I18n && typeof window.I18n.t === 'function') {
+            return window.I18n.t(key, params);
+        }
+        if (typeof fallback === 'function') {
+            return fallback(params || {});
+        }
+        if (typeof fallback === 'string') {
+            if (params && fallback.indexOf('{') !== -1) {
+                return Object.keys(params).reduce(function (carry, paramKey) {
+                    var pattern = new RegExp('\\{' + paramKey + '\\}', 'g');
+                    return carry.replace(pattern, String(params[paramKey]));
+                }, fallback);
+            }
+            return fallback;
+        }
+        return key;
+    }
+
+    function escapeHtml(value) {
+        var safe = value === undefined || value === null ? '' : value;
+        return String(safe).replace(/["&'<>]/g, function (char) {
+            return ({ '"': '&quot;', '&': '&amp;', "'": '&#39;', '<': '&lt;', '>': '&gt;' })[char];
+        });
+    }
+
     function deepClone(value) {
         if (value === null || typeof value !== 'object') {
             return value;
@@ -303,7 +329,7 @@
             if (!data || typeof data !== 'object') {
                 this.manualMode = true;
                 this.state = null;
-                this.setError('Regel-JSON muss ein Objekt sein.');
+                this.setError(translate('classes.designer.errors.not_object', null, 'Rule JSON must be an object.'));
                 this.render();
                 return;
             }
@@ -311,7 +337,7 @@
             if (this.supportedTypes.indexOf(type) === -1) {
                 this.manualMode = true;
                 this.state = null;
-                this.setError('Der Regeltyp "' + type + '" wird vom Editor nicht unterstützt.');
+                this.setError(translate('classes.designer.errors.unsupported_type', { type: type }, 'Rule type "{type}" is not supported by the editor.'));
                 this.render();
                 return;
             }
@@ -321,7 +347,7 @@
         } catch (error) {
             this.manualMode = true;
             this.state = null;
-            this.setError('Regel-JSON konnte nicht gelesen werden: ' + error.message);
+            this.setError(translate('classes.designer.errors.json_parse', { message: error.message }, 'Could not read rule JSON: {message}'));
         }
 
         this.render();
@@ -337,18 +363,22 @@
             };
         }
         if (type === 'western') {
+            var maneuverPrefix = translate('classes.designer.defaults.maneuver_prefix', null, 'Manoeuvre');
+            var maneuverLabel = translate('classes.designer.defaults.maneuver_label', { prefix: maneuverPrefix, index: 1 }, '{prefix} {index}');
             return {
                 type: 'western',
                 maneuvers: [
-                    { label: 'Manöver 1', range: [-1.5, 1.5] }
+                    { label: maneuverLabel, range: [-1.5, 1.5] }
                 ],
                 penalties: [1, 2, 5]
             };
         }
+        var movementPrefix = translate('classes.designer.defaults.movement_prefix', null, 'Movement');
+        var movementLabel = translate('classes.designer.defaults.movement_label', { prefix: movementPrefix, index: 1 }, '{prefix} {index}');
         return {
             type: 'dressage',
             movements: [
-                { label: 'Bewegung 1', max: 10 }
+                { label: movementLabel, max: 10 }
             ],
             step: 0.5,
             aggregate: 'average',
@@ -388,7 +418,8 @@
     };
 
     RuleEditor.prototype.normalizeDressageRule = function (rule) {
-        rule.movements = this.normalizeMovements(rule.movements, 'Bewegung');
+        var movementPrefix = translate('classes.designer.defaults.movement_prefix', null, 'Movement');
+        rule.movements = this.normalizeMovements(rule.movements, movementPrefix);
         var step = toNumberOrNull(rule.step);
         rule.step = step !== null ? step : 0.5;
         rule.aggregate = typeof rule.aggregate === 'string' && rule.aggregate !== '' ? rule.aggregate : 'average';
@@ -413,14 +444,20 @@
 
     RuleEditor.prototype.normalizeMovements = function (items, prefix) {
         var list = Array.isArray(items) ? items : [];
+        var effectivePrefix = typeof prefix === 'string' && prefix.trim() !== ''
+            ? prefix
+            : translate('classes.designer.defaults.movement_prefix', null, 'Movement');
+        var buildLabel = function (index) {
+            return translate('classes.designer.defaults.movement_label', { prefix: effectivePrefix, index: index }, '{prefix} {index}');
+        };
         if (!list.length) {
-            list = [{ label: prefix + ' 1', max: 10 }];
+            list = [{ label: buildLabel(1), max: 10 }];
         }
         return list.map(function (item, index) {
             var movement = deepClone(item || {});
             var label = typeof movement.label === 'string' && movement.label.trim() !== ''
                 ? movement.label
-                : prefix + ' ' + (index + 1);
+                : buildLabel(index + 1);
             movement.label = label;
             var maxValue = toNumberOrNull(movement.max);
             movement.max = maxValue !== null ? maxValue : 10;
@@ -430,14 +467,18 @@
 
     RuleEditor.prototype.normalizeManeuvers = function (items) {
         var list = Array.isArray(items) ? items : [];
+        var prefix = translate('classes.designer.defaults.maneuver_prefix', null, 'Manoeuvre');
+        var buildLabel = function (index) {
+            return translate('classes.designer.defaults.maneuver_label', { prefix: prefix, index: index }, '{prefix} {index}');
+        };
         if (!list.length) {
-            list = [{ label: 'Manöver 1', range: [-1.5, 1.5] }];
+            list = [{ label: buildLabel(1), range: [-1.5, 1.5] }];
         }
         return list.map(function (item, index) {
             var maneuver = deepClone(item || {});
             var label = typeof maneuver.label === 'string' && maneuver.label.trim() !== ''
                 ? maneuver.label
-                : 'Manöver ' + (index + 1);
+                : buildLabel(index + 1);
             maneuver.label = label;
             var range = Array.isArray(maneuver.range) ? maneuver.range.slice(0, 2) : [];
             var min = toNumberOrNull(range[0]);
@@ -468,7 +509,7 @@
             }
             this.textarea.classList.remove('d-none');
             if (this.toggleButton) {
-                this.toggleButton.textContent = 'UI-Editor nutzen';
+                this.toggleButton.textContent = translate('classes.designer.ui.use_builder', null, 'Use UI editor');
             }
             if (this.errorMessage) {
                 this.setError(this.errorMessage);
@@ -482,7 +523,7 @@
         }
         this.textarea.classList.add('d-none');
         if (this.toggleButton) {
-            this.toggleButton.textContent = 'JSON bearbeiten';
+            this.toggleButton.textContent = translate('classes.designer.ui.edit_json', null, 'Edit JSON');
         }
         if (!this.state) {
             this.state = this.defaultRule('dressage');
@@ -536,6 +577,8 @@
     RuleEditor.prototype.renderDressageMovements = function () {
         var container = this.builder.querySelector('[data-dressage-movements]');
         var emptyIndicator = this.builder.querySelector('[data-dressage-empty]');
+        var labelPlaceholder = translate('classes.designer.placeholders.movement', null, 'e.g. extended trot');
+        var removeMovementLabel = translate('classes.designer.actions.remove_movement', null, 'Remove movement');
         if (!container) {
             return;
         }
@@ -552,7 +595,7 @@
         this.state.movements.forEach(function (movement, index) {
             var row = createElement('<div class="row g-2 align-items-center" data-index="' + index + '"></div>');
             var labelCol = createElement('<div class="col"></div>');
-            var labelInput = createElement('<input type="text" class="form-control form-control-sm" placeholder="z. B. Trabverstärkung" data-field="label">');
+            var labelInput = createElement('<input type="text" class="form-control form-control-sm" placeholder="' + escapeHtml(labelPlaceholder) + '" data-field="label">');
             labelInput.value = movement.label || '';
             labelCol.appendChild(labelInput);
 
@@ -564,7 +607,7 @@
             maxCol.appendChild(maxInput);
 
             var removeCol = createElement('<div class="col-auto"></div>');
-            var removeButton = createElement('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-movement" aria-label="Bewegung entfernen">&times;</button>');
+            var removeButton = createElement('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-movement" aria-label="' + escapeHtml(removeMovementLabel) + '">&times;</button>');
             removeCol.appendChild(removeButton);
 
             row.appendChild(labelCol);
@@ -597,6 +640,11 @@
     RuleEditor.prototype.renderWesternManeuvers = function () {
         var container = this.builder.querySelector('[data-western-maneuvers]');
         var emptyIndicator = this.builder.querySelector('[data-western-empty]');
+        var labelPlaceholder = translate('classes.designer.placeholders.maneuver', null, 'e.g. spin');
+        var minPlaceholder = translate('classes.designer.placeholders.min', null, 'Min');
+        var maxPlaceholder = translate('classes.designer.placeholders.max', null, 'Max');
+        var separatorLabel = translate('classes.designer.placeholders.to', null, 'to');
+        var removeLabel = translate('classes.designer.actions.remove_maneuver', null, 'Remove manoeuvre');
         if (!container) {
             return;
         }
@@ -613,18 +661,18 @@
         this.state.maneuvers.forEach(function (maneuver, index) {
             var row = createElement('<div class="row g-2 align-items-center" data-index="' + index + '"></div>');
             var labelCol = createElement('<div class="col-sm-5 col-md-6"></div>');
-            var labelInput = createElement('<input type="text" class="form-control form-control-sm" placeholder="z. B. Spin" data-field="label">');
+            var labelInput = createElement('<input type="text" class="form-control form-control-sm" placeholder="' + escapeHtml(labelPlaceholder) + '" data-field="label">');
             labelInput.value = maneuver.label || '';
             labelCol.appendChild(labelInput);
 
             var rangeCol = createElement('<div class="col-sm-5 col-md-4"></div>');
             var rangeGroup = createElement('<div class="input-group input-group-sm"></div>');
-            var minInput = createElement('<input type="number" class="form-control" step="0.1" data-range="min" placeholder="Min">');
+            var minInput = createElement('<input type="number" class="form-control" step="0.1" data-range="min" placeholder="' + escapeHtml(minPlaceholder) + '">');
             if (Array.isArray(maneuver.range) && typeof maneuver.range[0] === 'number') {
                 minInput.value = String(maneuver.range[0]);
             }
-            var separator = createElement('<span class="input-group-text">bis</span>');
-            var maxInput = createElement('<input type="number" class="form-control" step="0.1" data-range="max" placeholder="Max">');
+            var separator = createElement('<span class="input-group-text">' + escapeHtml(separatorLabel) + '</span>');
+            var maxInput = createElement('<input type="number" class="form-control" step="0.1" data-range="max" placeholder="' + escapeHtml(maxPlaceholder) + '">');
             if (Array.isArray(maneuver.range) && typeof maneuver.range[1] === 'number') {
                 maxInput.value = String(maneuver.range[1]);
             }
@@ -634,7 +682,7 @@
             rangeCol.appendChild(rangeGroup);
 
             var removeCol = createElement('<div class="col-auto"></div>');
-            var removeButton = createElement('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-maneuver" aria-label="Manöver entfernen">&times;</button>');
+            var removeButton = createElement('<button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-maneuver" aria-label="' + escapeHtml(removeLabel) + '">&times;</button>');
             removeCol.appendChild(removeButton);
 
             row.appendChild(labelCol);
@@ -651,7 +699,7 @@
         }
         list.innerHTML = '';
         if (!Array.isArray(this.state.penalties) || !this.state.penalties.length) {
-            var emptyText = createElement('<span class="text-muted small">Keine Strafpunkte definiert.</span>');
+            var emptyText = createElement('<span class="text-muted small">' + escapeHtml(translate('classes.designer.penalties.empty', null, 'No penalties defined.')) + '</span>');
             list.appendChild(emptyText);
             return;
         }
@@ -670,7 +718,7 @@
         try {
             this.textarea.value = JSON.stringify(this.state, null, 2);
         } catch (error) {
-            this.setError('Regeln konnten nicht serialisiert werden: ' + error.message);
+            this.setError(translate('classes.designer.errors.serialize_failed', { message: error.message }, 'Rules could not be serialised: {message}'));
         }
     };
 
@@ -682,7 +730,7 @@
             }
             var type = parsed.type || 'dressage';
             if (this.supportedTypes.indexOf(type) === -1) {
-                this.setError('Der Regeltyp "' + type + '" wird vom Editor nicht unterstützt.');
+                this.setError(translate('classes.designer.errors.unsupported_type', { type: type }, 'Rule type "{type}" is not supported by the editor.'));
                 return;
             }
             this.state = this.normalizeRule(parsed);
@@ -706,12 +754,12 @@
         try {
             var data = JSON.parse(raw);
             if (!data || typeof data !== 'object') {
-                this.setError('Regel-JSON muss ein Objekt sein.');
+                this.setError(translate('classes.designer.errors.not_object', null, 'Rule JSON must be an object.'));
                 return null;
             }
             return data;
         } catch (error) {
-            this.setError('Regel-JSON konnte nicht gelesen werden: ' + error.message);
+            this.setError(translate('classes.designer.errors.json_parse', { message: error.message }, 'Could not read rule JSON: {message}'));
             return null;
         }
     };
@@ -732,7 +780,7 @@
         if (!Array.isArray(this.state.movements)) {
             this.state.movements = [];
         }
-        this.state.movements.push({ label: 'Neue Bewegung', max: 10 });
+        this.state.movements.push({ label: translate('classes.designer.defaults.new_movement', null, 'New movement'), max: 10 });
         this.render();
     };
 
@@ -754,7 +802,7 @@
         if (!Array.isArray(this.state.maneuvers)) {
             this.state.maneuvers = [];
         }
-        this.state.maneuvers.push({ label: 'Neues Manöver', range: [-1.5, 1.5] });
+        this.state.maneuvers.push({ label: translate('classes.designer.defaults.new_maneuver', null, 'New manoeuvre'), range: [-1.5, 1.5] });
         this.render();
     };
 
@@ -812,7 +860,7 @@
         if (this.supportedTypes.indexOf(clone.type) === -1) {
             this.manualMode = true;
             this.state = null;
-            this.setError('Die ausgewählte Vorlage kann nicht im Editor dargestellt werden.');
+            this.setError(translate('classes.designer.errors.preset_unavailable', null, 'The selected preset cannot be rendered in the editor.'));
             try {
                 this.textarea.value = JSON.stringify(clone, null, 2);
             } catch (error) {
@@ -840,7 +888,7 @@
         if (!exists && value) {
             var option = window.document.createElement('option');
             option.value = value;
-            option.textContent = value + ' (benutzerdefiniert)';
+            option.textContent = translate('classes.designer.custom_option', { value: value }, '{value} (custom)');
             option.setAttribute('data-dynamic', '1');
             select.appendChild(option);
         }
