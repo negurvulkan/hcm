@@ -228,6 +228,7 @@ $modes = InstanceConfiguration::modes();
     const checklistButton = checklistModal ? checklistModal.querySelector('[data-checklist-confirm]') : null;
     const checklistInputs = checklistModal ? checklistModal.querySelectorAll('.checklist-item') : null;
     const hiddenField = document.getElementById('checklist-complete');
+    let checklistConfirmed = false;
 
     function updateChecklistButton() {
         if (!checklistButton || !checklistInputs) {
@@ -248,6 +249,7 @@ $modes = InstanceConfiguration::modes();
         if (hiddenField) {
             hiddenField.value = '1';
         }
+        checklistConfirmed = true;
         updateChecklistButton();
         if (checklistModal && window.bootstrap) {
             const modalInstance = window.bootstrap.Modal.getInstance(checklistModal);
@@ -256,12 +258,13 @@ $modes = InstanceConfiguration::modes();
     });
 
     checklistModal?.addEventListener('hidden.bs.modal', () => {
-        if (hiddenField) {
+        if (!checklistConfirmed && hiddenField) {
             hiddenField.value = '0';
         }
         checklistInputs?.forEach((input) => {
             input.checked = false;
         });
+        checklistConfirmed = false;
         updateChecklistButton();
     });
 
