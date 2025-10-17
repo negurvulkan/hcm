@@ -90,7 +90,7 @@ if ($editId) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('persons.validation.csrf_invalid'));
         header('Location: persons.php');
         exit;
     }
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db_execute('DELETE FROM users WHERE email = :email', ['email' => mb_strtolower($person['email'])]);
             }
             db_execute('DELETE FROM persons WHERE id = :id', ['id' => $personId]);
-            flash('success', 'Person gelöscht.');
+            flash('success', t('persons.flash.deleted'));
         }
         header('Location: persons.php');
         exit;
@@ -132,15 +132,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors = [];
 
     if ($action === 'update' && $personId > 0 && !$currentPerson) {
-        $errors[] = 'Person nicht gefunden.';
+        $errors[] = t('persons.validation.not_found');
     }
 
     if ($name === '') {
-        $errors[] = 'Name angeben.';
+        $errors[] = t('persons.validation.name_required');
     }
 
     if (!$selectedRoles) {
-        $errors[] = 'Mindestens eine Rolle auswählen.';
+        $errors[] = t('persons.validation.role_required');
     }
 
     $normalizedEmail = $email !== '' ? mb_strtolower($email) : '';
@@ -148,23 +148,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($setPassword) {
         if ($password === '' || $passwordConfirm === '') {
-            $errors[] = 'Passwort und Bestätigung angeben.';
+            $errors[] = t('persons.validation.password_required');
         }
         if ($password !== $passwordConfirm) {
-            $errors[] = 'Passwörter stimmen nicht überein.';
+            $errors[] = t('persons.validation.password_mismatch');
         }
         if (mb_strlen($password) < 8) {
-            $errors[] = 'Passwort muss mindestens 8 Zeichen lang sein.';
+            $errors[] = t('persons.validation.password_length');
         }
         if ($normalizedEmail === '') {
-            $errors[] = 'E-Mail benötigt, um ein Passwort zu setzen.';
+            $errors[] = t('persons.validation.email_required_for_password');
         }
     }
 
     if ($normalizedEmail !== '') {
         $userByEmail = db_first('SELECT id FROM users WHERE email = :email', ['email' => $normalizedEmail]);
         if ($userByEmail && ($action !== 'update' || $previousEmail !== $normalizedEmail)) {
-            $errors[] = 'E-Mail wird bereits von einem anderen Benutzer verwendet.';
+            $errors[] = t('persons.validation.email_taken');
         }
     }
 
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         );
         persons_sync_user($currentPerson, $name, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
-        flash('success', 'Person aktualisiert.');
+        flash('success', t('persons.flash.updated'));
     } else {
         db_execute(
             'INSERT INTO persons (name, email, phone, roles, club_id, created_at) VALUES (:name, :email, :phone, :roles, :club_id, :created_at)',
@@ -207,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         );
         persons_sync_user(null, $name, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
-        flash('success', 'Person angelegt.');
+        flash('success', t('persons.flash.created'));
     }
 
     header('Location: persons.php');
@@ -236,7 +236,8 @@ foreach ($persons as &$person) {
 unset($person);
 
 render_page('persons.tpl', [
-    'title' => 'Personen',
+    'title' => t('pages.persons.title'),
+    'titleKey' => 'pages.persons.title',
     'page' => 'persons',
     'roles' => $roles,
     'persons' => $persons,
