@@ -9,7 +9,7 @@ $editShift = $editId ? db_first('SELECT * FROM helper_shifts WHERE id = :id', ['
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('helpers.validation.csrf_invalid'));
         header('Location: helpers.php');
         exit;
     }
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $start = trim((string) ($_POST['start_time'] ?? ''));
         $end = trim((string) ($_POST['end_time'] ?? ''));
         if ($role === '') {
-            flash('error', 'Rolle angeben.');
+            flash('error', t('helpers.validation.role_required'));
         } else {
             $conflict = null;
             if ($personId && $start && $end) {
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
             if ($conflict) {
-                flash('error', 'Konflikt mit bestehender Schicht.');
+                flash('error', t('helpers.validation.conflict'));
             } else {
                 db_execute('INSERT INTO helper_shifts (role, station, person_id, start_time, end_time, token, created_at) VALUES (:role, :station, :person, :start, :end, :token, :created)', [
                     'role' => $role,
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'token' => bin2hex(random_bytes(6)),
                     'created' => (new \DateTimeImmutable())->format('c'),
                 ]);
-                flash('success', 'Schicht angelegt.');
+                flash('success', t('helpers.flash.created'));
             }
         }
         header('Location: helpers.php');
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'end' => $end ?: null,
                 'id' => $shiftId,
             ]);
-            flash('success', 'Schicht aktualisiert.');
+            flash('success', t('helpers.flash.updated'));
         }
         header('Location: helpers.php');
         exit;
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'time' => (new \DateTimeImmutable())->format('c'),
                 'id' => $shiftId,
             ]);
-            flash('success', 'Check-in registriert.');
+            flash('success', t('helpers.flash.checked_in'));
         }
         header('Location: helpers.php');
         exit;
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $shiftId = (int) ($_POST['shift_id'] ?? 0);
         if ($shiftId) {
             db_execute('DELETE FROM helper_shifts WHERE id = :id', ['id' => $shiftId]);
-            flash('success', 'Schicht gelöscht.');
+            flash('success', t('helpers.flash.deleted'));
         }
         header('Location: helpers.php');
         exit;
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $shifts = db_all('SELECT hs.*, p.name AS person FROM helper_shifts hs LEFT JOIN persons p ON p.id = hs.person_id ORDER BY hs.start_time');
 
 render_page('helpers.tpl', [
-    'title' => 'Helferkoordination',
+    'titleKey' => 'helpers.title',
     'page' => 'helpers',
     'persons' => $persons,
     'shifts' => $shifts,

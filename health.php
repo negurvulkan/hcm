@@ -9,7 +9,7 @@ header('Content-Type: application/json');
 
 if (!App::has('config') || !App::has('pdo')) {
     http_response_code(503);
-    echo json_encode(['status' => 'offline', 'message' => 'Konfiguration nicht geladen.']);
+    echo json_encode(['status' => 'offline', 'message' => t('system.config.not_loaded')]);
     exit;
 }
 

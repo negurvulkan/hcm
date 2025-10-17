@@ -23,7 +23,7 @@ $action = $_POST['action'] ?? 'save';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        $errors[] = 'Sicherheitsprüfung fehlgeschlagen.';
+        $errors[] = t('instance.validation.csrf_invalid');
     }
 
     $form['instance_role'] = strtoupper((string) ($_POST['instance_role'] ?? $form['instance_role']));
@@ -59,16 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save') {
         if (!in_array($form['instance_role'], InstanceConfiguration::roles(), true)) {
-            $errors[] = 'Ungültige Instanz-Rolle ausgewählt.';
+            $errors[] = t('instance.validation.invalid_role');
         }
         if (!in_array($form['operation_mode'], InstanceConfiguration::modes(), true)) {
-            $errors[] = 'Ungültiger Betriebsmodus ausgewählt.';
+            $errors[] = t('instance.validation.invalid_mode');
         }
         if ($form['peer_base_url'] !== '' && !filter_var($form['peer_base_url'], FILTER_VALIDATE_URL)) {
-            $errors[] = 'Peer-URL ist nicht gültig.';
+            $errors[] = t('instance.validation.peer_url_invalid');
         }
         if ($form['peer_base_url'] !== '' && $form['peer_turnier_id'] === '') {
-            $errors[] = 'Peer Turnier-ID angeben.';
+            $errors[] = t('instance.validation.peer_turnier_id_required');
         }
 
         $requiresToken = ($form['peer_base_url'] !== '') && (
@@ -77,11 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $effectiveToken = $clearToken ? null : ($tokenInput !== '' ? $tokenInput : ($hasPeerToken ? '__existing__' : null));
         if ($requiresToken && !$effectiveToken) {
-            $errors[] = 'Für diesen Modus wird ein API-Token benötigt.';
+            $errors[] = t('instance.validation.peer_token_required');
         }
 
         if ($previousMode !== $form['operation_mode'] && !$checklistComplete) {
-            $errors[] = 'Bitte die Checkliste bestätigen, um den Modus zu wechseln.';
+            $errors[] = t('instance.validation.checklist_required');
         }
 
         if (!$errors) {
@@ -93,16 +93,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($changes['after']) {
                 audit_log('system_settings', 0, 'instance_update', $instanceConfig->redact($changes['before']), $instanceConfig->redact($changes['after']));
                 instance_refresh_view();
-                flash('success', 'Konfiguration aktualisiert.');
+                flash('success', t('instance.flash.updated'));
             } else {
-                flash('info', 'Keine Änderungen erkannt.');
+                flash('info', t('instance.flash.no_changes'));
             }
             header('Location: instance.php');
             exit;
         }
     } elseif (in_array($action, ['test_connection', 'dry_run'], true)) {
         if ($hasPendingChanges) {
-            flash('error', 'Bitte zuerst speichern, bevor die Tests ausgeführt werden.');
+            flash('error', t('instance.validation.save_before_tests'));
             header('Location: instance.php');
             exit;
         }
@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $baseUrl = $currentSettings['peer_base_url'] ?? '';
         $token = $currentSettings['peer_api_token'] ?? null;
         if ($baseUrl === '') {
-            flash('error', 'Peer-Basisadresse ist nicht konfiguriert.');
+            flash('error', t('instance.validation.peer_base_missing'));
             header('Location: instance.php');
             exit;
         }
@@ -120,7 +120,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $health = instance_http_get($baseUrl, '/health', $token);
                 $instanceConfig->recordHealthResult(true, $health['status'] ?? 'OK', $health);
                 instance_refresh_view();
-                flash('success', 'Verbindung erfolgreich: ' . ($health['status'] ?? 'ok'));
+                $statusLabel = $health['status'] ?? 'ok';
+                flash('success', t('instance.flash.connection_success', ['status' => $statusLabel]));
             } else {
                 $infoPath = '/mirror/info';
                 if (!empty($currentSettings['peer_turnier_id'])) {
@@ -145,14 +146,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 $instanceConfig->recordDryRun($summary);
                 instance_refresh_view();
-                flash('success', 'Dry-Run durchgeführt. Differenzen Einträge: ' . $summary['differences']['entries']);
+                flash('success', t('instance.flash.dry_run_success', ['count' => $summary['differences']['entries']]));
             }
         } catch (Throwable $exception) {
             if ($action === 'test_connection') {
                 $instanceConfig->recordHealthResult(false, $exception->getMessage());
                 instance_refresh_view();
             }
-            flash('error', 'Peer-Anfrage fehlgeschlagen: ' . $exception->getMessage());
+            flash('error', t('instance.flash.peer_request_failed', ['message' => $exception->getMessage()]));
         }
 
         header('Location: instance.php');
@@ -165,7 +166,7 @@ $lastDryRun = $instanceConfig->lastDryRun();
 $localSnapshot = $instanceConfig->collectLocalCounts();
 
 render_page('instance.tpl', [
-    'title' => 'Instanz & Modus',
+    'titleKey' => 'pages.instance.title',
     'page' => 'instance',
     'errors' => $errors,
     'form' => $form,
