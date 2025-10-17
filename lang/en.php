@@ -263,6 +263,9 @@ return [
     'common' => [
         'actions' => [
             'close' => 'Close',
+            'switch' => 'Switch',
+            'save' => 'Save',
+            'delete' => 'Delete',
         ],
         'labels' => [
             'none' => '–',
@@ -678,6 +681,95 @@ return [
                 'empty' => 'No penalties defined.',
             ],
             'custom_option' => '{value} (custom)',
+        ],
+    ],
+    'schedule' => [
+        'title' => 'Schedule',
+        'validation' => [
+            'forbidden_event' => 'No permission for this event.',
+            'csrf_invalid' => 'Invalid CSRF token.',
+        ],
+        'flash' => [
+            'shifted' => 'Schedule shifted.',
+            'slot_updated' => 'Slot updated.',
+            'slot_deleted' => 'Slot removed.',
+        ],
+        'notifications' => [
+            'shift' => '{minutes} minutes for {class}',
+        ],
+        'shift' => [
+            'title' => 'Live shift',
+            'minutes_label' => 'Minutes (+/-)',
+            'submit' => 'Shift & broadcast',
+            'note' => 'Changes are broadcast to dashboard and display.',
+        ],
+        'slots' => [
+            'title' => 'Slots',
+            'table' => [
+                'columns' => [
+                    'position' => '#',
+                    'start_number' => 'Start no.',
+                    'rider' => 'Rider',
+                    'horse' => 'Horse',
+                    'planned_start' => 'Planned start',
+                    'actions' => 'Actions',
+                ],
+            ],
+            'confirm_delete' => 'Remove slot?',
+        ],
+        'history' => [
+            'title' => 'History',
+            'minutes' => '{value} min',
+            'empty' => 'No shifts recorded.',
+        ],
+    ],
+    'results' => [
+        'title' => 'Results',
+        'validation' => [
+            'forbidden_event' => 'No permission for this event.',
+            'csrf_invalid' => 'Invalid CSRF token.',
+        ],
+        'flash' => [
+            'status_updated' => 'Status updated.',
+            'deleted' => 'Result deleted.',
+        ],
+        'notifications' => [
+            'released' => 'Results released for {class}',
+        ],
+        'table' => [
+            'columns' => [
+                'rank' => 'Rank',
+                'start_number' => 'Start no.',
+                'rider' => 'Rider',
+                'horse' => 'Horse',
+                'total' => 'Total',
+                'penalties' => 'Penalties',
+                'time' => 'Time',
+                'status' => 'Status',
+                'rule' => 'Rule',
+                'actions' => 'Actions',
+            ],
+            'badges' => [
+                'eliminated' => 'elim.',
+            ],
+            'actions' => [
+                'release' => 'Release',
+                'revoke_release' => 'Revoke release',
+                'delete' => 'Delete',
+            ],
+            'confirm_delete' => 'Delete result?',
+            'empty' => 'No results recorded.',
+            'rule_hash' => 'Hash: {hash}',
+        ],
+        'status' => [
+            'draft' => 'draft',
+            'submitted' => 'submitted',
+            'released' => 'released',
+            'signed' => 'signed',
+        ],
+        'audits' => [
+            'title' => 'Change log',
+            'empty' => 'No changes logged.',
         ],
     ],
     'tests' => [

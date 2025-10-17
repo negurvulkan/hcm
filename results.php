@@ -18,7 +18,7 @@ if (!$isAdmin) {
 }
 if (!$classes) {
     render_page('results.tpl', [
-        'title' => 'Ergebnisse',
+        'title' => t('results.title'),
         'page' => 'results',
         'classes' => [],
         'selectedClass' => null,
@@ -34,9 +34,9 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     $classId = (int) $classes[0]['id'];
     $selectedClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
     if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
-        flash('error', 'Keine Berechtigung für dieses Turnier.');
+        flash('error', t('results.validation.forbidden_event'));
         render_page('results.tpl', [
-            'title' => 'Ergebnisse',
+            'title' => t('results.title'),
             'page' => 'results',
             'classes' => [],
             'selectedClass' => null,
@@ -49,7 +49,7 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('results.validation.csrf_invalid'));
         header('Location: results.php?class_id=' . $classId);
         exit;
     }
@@ -76,12 +76,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'type' => 'results_release',
                     'payload' => json_encode([
                         'class_id' => $classId,
-                        'message' => 'Ergebnisse freigegeben für ' . ($selectedClass['label'] ?? ''),
+                        'message' => t('results.notifications.released', [
+                            'class' => $selectedClass['label'] ?? '',
+                        ]),
                     ], JSON_THROW_ON_ERROR),
                     'created' => (new \DateTimeImmutable())->format('c'),
                 ]);
             }
-            flash('success', 'Status aktualisiert.');
+            flash('success', t('results.flash.status_updated'));
         }
         header('Location: results.php?class_id=' . $classId);
         exit;
@@ -96,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $result['startlist_id'],
             ]);
             audit_log('results', $resultId, 'delete', $result, null);
-            flash('success', 'Ergebnis gelöscht.');
+            flash('success', t('results.flash.deleted'));
         }
         header('Location: results.php?class_id=' . $classId);
         exit;
@@ -117,7 +119,7 @@ unset($row);
 $audits = db_all('SELECT * FROM audit_log WHERE entity = "results" AND entity_id IN (SELECT r.id FROM results r JOIN startlist_items si ON si.id = r.startlist_id WHERE si.class_id = :class_id) ORDER BY id DESC LIMIT 20', ['class_id' => $classId]);
 
 render_page('results.tpl', [
-    'title' => 'Ergebnisse',
+    'title' => t('results.title'),
     'page' => 'results',
     'classes' => $classes,
     'selectedClass' => $selectedClass,

@@ -263,6 +263,9 @@ return [
     'common' => [
         'actions' => [
             'close' => 'Schließen',
+            'switch' => 'Wechseln',
+            'save' => 'Speichern',
+            'delete' => 'Löschen',
         ],
         'labels' => [
             'none' => '–',
@@ -678,6 +681,95 @@ return [
                 'empty' => 'Keine Strafpunkte definiert.',
             ],
             'custom_option' => '{value} (benutzerdefiniert)',
+        ],
+    ],
+    'schedule' => [
+        'title' => 'Zeitplan',
+        'validation' => [
+            'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
+            'csrf_invalid' => 'CSRF ungültig.',
+        ],
+        'flash' => [
+            'shifted' => 'Zeitplan verschoben.',
+            'slot_updated' => 'Slot aktualisiert.',
+            'slot_deleted' => 'Slot entfernt.',
+        ],
+        'notifications' => [
+            'shift' => '{minutes} Minuten für {class}',
+        ],
+        'shift' => [
+            'title' => 'Live-Verschiebung',
+            'minutes_label' => 'Minuten (+/-)',
+            'submit' => 'Verschieben & Broadcast',
+            'note' => 'Änderungen werden an Dashboard & Anzeige gesendet.',
+        ],
+        'slots' => [
+            'title' => 'Slots',
+            'table' => [
+                'columns' => [
+                    'position' => '#',
+                    'start_number' => 'Startnr.',
+                    'rider' => 'Reiter',
+                    'horse' => 'Pferd',
+                    'planned_start' => 'Geplanter Start',
+                    'actions' => 'Aktionen',
+                ],
+            ],
+            'confirm_delete' => 'Slot wirklich entfernen?',
+        ],
+        'history' => [
+            'title' => 'Verlauf',
+            'minutes' => '{value} min',
+            'empty' => 'Keine Verschiebungen.',
+        ],
+    ],
+    'results' => [
+        'title' => 'Ergebnisse',
+        'validation' => [
+            'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
+            'csrf_invalid' => 'CSRF ungültig.',
+        ],
+        'flash' => [
+            'status_updated' => 'Status aktualisiert.',
+            'deleted' => 'Ergebnis gelöscht.',
+        ],
+        'notifications' => [
+            'released' => 'Ergebnisse freigegeben für {class}',
+        ],
+        'table' => [
+            'columns' => [
+                'rank' => 'Rang',
+                'start_number' => 'Startnr.',
+                'rider' => 'Reiter',
+                'horse' => 'Pferd',
+                'total' => 'Gesamt',
+                'penalties' => 'Penalties',
+                'time' => 'Zeit',
+                'status' => 'Status',
+                'rule' => 'Regel',
+                'actions' => 'Aktionen',
+            ],
+            'badges' => [
+                'eliminated' => 'elim.',
+            ],
+            'actions' => [
+                'release' => 'Freigeben',
+                'revoke_release' => 'Freigabe zurückziehen',
+                'delete' => 'Löschen',
+            ],
+            'confirm_delete' => 'Ergebnis löschen?',
+            'empty' => 'Keine Ergebnisse erfasst.',
+            'rule_hash' => 'Hash: {hash}',
+        ],
+        'status' => [
+            'draft' => 'Entwurf',
+            'submitted' => 'eingereicht',
+            'released' => 'freigegeben',
+            'signed' => 'signiert',
+        ],
+        'audits' => [
+            'title' => 'Änderungslog',
+            'empty' => 'Keine Änderungen protokolliert.',
         ],
     ],
     'tests' => [
