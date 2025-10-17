@@ -76,8 +76,21 @@ if (!function_exists('persons_sync_user')) {
     }
 }
 
+if (!function_exists('persons_redirect_with_tab')) {
+    function persons_redirect_with_tab(string $url, ?string $tab): void
+    {
+        if ($tab !== null && in_array($tab, ['staff', 'participants'], true)) {
+            $url .= (strpos($url, '?') === false ? '?' : '&') . 'tab=' . rawurlencode($tab);
+        }
+
+        header('Location: ' . $url);
+        exit;
+    }
+}
+
 $user = auth_require('persons');
 $roles = Rbac::ROLES;
+$staffRoles = array_values(array_filter($roles, static fn ($role) => $role !== 'participant'));
 $clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
 $repository = new PartyRepository(app_pdo());
 
@@ -90,13 +103,16 @@ if ($editId) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', t('persons.validation.csrf_invalid'));
-        header('Location: persons.php');
-        exit;
+        $tab = $_POST['tab'] ?? null;
+        $tab = in_array($tab, ['staff', 'participants'], true) ? $tab : null;
+        persons_redirect_with_tab('persons.php', $tab);
     }
 
     require_write_access('persons');
 
     $action = $_POST['action'] ?? 'create';
+    $redirectTab = $_POST['tab'] ?? null;
+    $redirectTab = in_array($redirectTab, ['staff', 'participants'], true) ? $redirectTab : null;
 
     if ($action === 'delete') {
         $personId = (int) ($_POST['person_id'] ?? 0);
@@ -108,8 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $repository->deletePerson($personId);
             flash('success', t('persons.flash.deleted'));
         }
-        header('Location: persons.php');
-        exit;
+        persons_redirect_with_tab('persons.php', $redirectTab);
     }
 
     $personId = (int) ($_POST['person_id'] ?? 0);
@@ -175,8 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'update' && $personId > 0) {
             $redirect .= '?edit=' . $personId;
         }
-        header('Location: ' . $redirect);
-        exit;
+        persons_redirect_with_tab($redirect, $redirectTab);
     }
 
     if ($action === 'update' && $personId > 0) {
@@ -189,14 +203,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('success', t('persons.flash.created'));
     }
 
-    header('Location: persons.php');
-    exit;
+    persons_redirect_with_tab('persons.php', $redirectTab);
 }
 
 $filterName = trim((string) ($_GET['q'] ?? ''));
 $filterRole = trim((string) ($_GET['role'] ?? ''));
+$activeTab = $_GET['tab'] ?? 'staff';
+if (!in_array($activeTab, ['staff', 'participants'], true)) {
+    $activeTab = 'staff';
+}
 
 $persons = $repository->searchPersons($filterName !== '' ? $filterName : null, $filterRole !== '' ? $filterRole : null);
+
+$staffPersons = [];
+$participantPersons = [];
+foreach ($persons as $person) {
+    $roleList = $person['role_list'] ?? [];
+    $hasStaffRole = !empty(array_intersect($staffRoles, $roleList));
+    $hasParticipantRole = in_array('participant', $roleList, true);
+
+    if ($hasStaffRole) {
+        $staffPersons[] = $person;
+    }
+
+    if ($hasParticipantRole || !$hasStaffRole) {
+        $participantPersons[] = $person;
+    }
+}
 
 render_page('persons.tpl', [
     'title' => t('pages.persons.title'),
@@ -204,8 +237,12 @@ render_page('persons.tpl', [
     'page' => 'persons',
     'roles' => $roles,
     'persons' => $persons,
+    'staffRoles' => $staffRoles,
+    'staffPersons' => $staffPersons,
+    'participantPersons' => $participantPersons,
     'clubs' => $clubs,
     'filterName' => $filterName,
     'filterRole' => $filterRole,
+    'activeTab' => $activeTab,
     'editPerson' => $editPerson,
 ]);
