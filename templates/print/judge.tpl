@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="<?= htmlspecialchars(current_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
-    <title>Richterbogen</title>
+    <title><?= htmlspecialchars(t('print.pdf.judge.title'), ENT_QUOTES, 'UTF-8') ?></title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; }
@@ -10,13 +10,13 @@
     </style>
 </head>
 <body>
-<h1>Richterbogen – <?= htmlspecialchars($class['label'] ?? '', ENT_QUOTES, 'UTF-8') ?></h1>
+<h1><?= htmlspecialchars(t('print.pdf.judge.heading', ['class' => $class['label'] ?? '']), ENT_QUOTES, 'UTF-8') ?></h1>
 <table>
     <thead>
     <tr>
-        <th>Aufgabe</th>
-        <th>Note</th>
-        <th>Bemerkung</th>
+        <th><?= htmlspecialchars(t('print.pdf.judge.table.movement'), ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars(t('print.pdf.judge.table.score'), ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars(t('print.pdf.judge.table.comment'), ENT_QUOTES, 'UTF-8') ?></th>
     </tr>
     </thead>
     <tbody>
@@ -29,8 +29,8 @@
             </tr>
         <?php endforeach; ?>
     <?php elseif (($rule['type'] ?? '') === 'jumping'): ?>
-        <tr><td>Zeit</td><td></td><td></td></tr>
-        <tr><td>Fehlerpunkte</td><td></td><td></td></tr>
+        <tr><td><?= htmlspecialchars(t('print.pdf.judge.jumping.time'), ENT_QUOTES, 'UTF-8') ?></td><td></td><td></td></tr>
+        <tr><td><?= htmlspecialchars(t('print.pdf.judge.jumping.penalties'), ENT_QUOTES, 'UTF-8') ?></td><td></td><td></td></tr>
     <?php else: ?>
         <?php foreach ($rule['maneuvers'] ?? [] as $maneuver): ?>
             <tr>
@@ -42,6 +42,6 @@
     <?php endif; ?>
     </tbody>
 </table>
-<p>Richter: ____________________________</p>
+<p><?= htmlspecialchars(t('print.pdf.judge.footer'), ENT_QUOTES, 'UTF-8') ?></p>
 </body>
 </html>

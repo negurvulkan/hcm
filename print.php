@@ -18,13 +18,13 @@ if (isset($_GET['download'])) {
     $class = null;
     if (in_array($type, ['startlist', 'judge', 'results', 'certificate'], true)) {
         if ($classId <= 0) {
-            flash('error', 'Prüfung auswählen.');
+            flash('error', t('print.validation.class_required'));
             header('Location: print.php');
             exit;
         }
         $class = db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]);
         if (!$class || !event_accessible($user, (int) $class['event_id'])) {
-            flash('error', 'Keine Berechtigung für dieses Turnier.');
+            flash('error', t('print.validation.forbidden_event'));
             header('Location: print.php');
             exit;
         }
@@ -34,12 +34,12 @@ if (isset($_GET['download'])) {
         case 'startlist':
             $data = db_all('SELECT si.position, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
             $html = $view->render('print/startlist.tpl', ['items' => $data]);
-            $filename = 'startliste.pdf';
+            $filename = t('print.files.startlist');
             break;
         case 'judge':
             $rule = $class['rules_json'] ? json_decode($class['rules_json'], true, 512, JSON_THROW_ON_ERROR) : [];
             $html = $view->render('print/judge.tpl', ['class' => $class, 'rule' => $rule]);
-            $filename = 'richterbogen.pdf';
+            $filename = t('print.files.judge');
             break;
         case 'results':
             $rows = db_all('SELECT r.id, r.total, r.rank, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, r.status, p.name AS rider, h.name AS horse, si.start_number_display, si.start_number_raw FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
@@ -77,22 +77,22 @@ if (isset($_GET['download'])) {
                 'items' => $rows,
                 'class' => $class,
             ]);
-            $filename = 'ergebnisliste.pdf';
+            $filename = t('print.files.results');
             break;
         case 'certificate':
             $data = db_first('SELECT p.name AS rider, h.name AS horse, r.total FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.total DESC LIMIT 1', ['class_id' => $classId]);
             $html = $view->render('print/certificate.tpl', ['winner' => $data]);
-            $filename = 'urkunde.pdf';
+            $filename = t('print.files.certificate');
             break;
         default:
-            flash('error', 'Unbekannter Typ.');
+            flash('error', t('print.validation.unknown_type'));
             header('Location: print.php');
             exit;
     }
 
     if (!class_exists('Dompdf\\Dompdf')) {
         header('Content-Type: text/html; charset=utf-8');
-        echo '<p>Dompdf ist nicht verfügbar. Bitte lokal installieren.</p>';
+        echo '<p>' . htmlspecialchars(t('print.errors.dompdf_missing'), ENT_QUOTES, 'UTF-8') . '</p>';
         echo $html;
         exit;
     }
@@ -117,7 +117,7 @@ if (!$isAdmin) {
 }
 
 render_page('print.tpl', [
-    'title' => 'Druck',
+    'title' => t('print.title'),
     'page' => 'print',
     'classes' => $classes,
 ]);

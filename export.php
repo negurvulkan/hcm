@@ -21,32 +21,58 @@ if ($type) {
             } else {
                 $rows = db_all($entriesSql . ' ORDER BY e.created_at DESC');
             }
-            outputCsv('entries.csv', ['ID', 'Reiter', 'Pferd', 'Prüfung', 'Status', 'Startnummer (Raw)', 'Startnummer (Display)', 'Allocation', 'Rule Snapshot'], $rows);
+            outputCsv(
+                t('export.csv.entries.filename'),
+                [
+                    t('export.csv.entries.headers.id'),
+                    t('export.csv.entries.headers.rider'),
+                    t('export.csv.entries.headers.horse'),
+                    t('export.csv.entries.headers.class'),
+                    t('export.csv.entries.headers.status'),
+                    t('export.csv.entries.headers.start_number_raw'),
+                    t('export.csv.entries.headers.start_number_display'),
+                    t('export.csv.entries.headers.allocation'),
+                    t('export.csv.entries.headers.rule_snapshot'),
+                ],
+                $rows
+            );
             break;
         case 'starters':
             if (!$classId) {
-                flash('error', 'Klasse wählen.');
+                flash('error', t('export.validation.class_required'));
                 header('Location: export.php');
                 exit;
             }
             $class = db_first('SELECT event_id FROM classes WHERE id = :id', ['id' => $classId]);
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
-                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                flash('error', t('export.validation.forbidden_event'));
                 header('Location: export.php');
                 exit;
             }
             $rows = db_all('SELECT si.position, p.name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
-            outputCsv('starters.csv', ['Pos', 'Reiter', 'Pferd', 'Startnummer (Raw)', 'Startnummer (Display)', 'Allocation', 'Rule Snapshot'], $rows);
+            outputCsv(
+                t('export.csv.starters.filename'),
+                [
+                    t('export.csv.starters.headers.position'),
+                    t('export.csv.starters.headers.rider'),
+                    t('export.csv.starters.headers.horse'),
+                    t('export.csv.starters.headers.start_number_raw'),
+                    t('export.csv.starters.headers.start_number_display'),
+                    t('export.csv.starters.headers.allocation'),
+                    t('export.csv.starters.headers.rule_snapshot'),
+                ],
+                $rows
+            );
             break;
         case 'results_json':
             if (!$classId) {
-                flash('error', 'Klasse wählen.');
+                flash('error', t('export.validation.class_required'));
                 header('Location: export.php');
                 exit;
             }
             $class = db_first('SELECT event_id FROM classes WHERE id = :id', ['id' => $classId]);
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
-                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                flash('error', t('export.validation.forbidden_event'));
                 header('Location: export.php');
                 exit;
             }
@@ -59,7 +85,7 @@ if ($type) {
             }
             unset($row);
             header('Content-Type: application/json');
-            header('Content-Disposition: attachment; filename="results.json"');
+            header('Content-Disposition: attachment; filename="' . t('export.json.results.filename') . '"');
             echo json_encode($rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             exit;
     }
@@ -77,7 +103,7 @@ if (!$isAdmin) {
 }
 
 render_page('export.tpl', [
-    'title' => 'Export',
+    'title' => t('export.title'),
     'page' => 'export',
     'classes' => $classes,
 ]);

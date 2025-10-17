@@ -847,6 +847,156 @@ return [
             'empty' => 'No changes logged.',
         ],
     ],
+    'print' => [
+        'title' => 'Print',
+        'heading' => 'Print & PDFs',
+        'description' => 'Choose a class and download the desired document. Dompdf must be available locally.',
+        'form' => [
+            'class_label' => 'Class',
+            'document_label' => 'Document',
+            'submit' => 'Download',
+        ],
+        'documents' => [
+            'startlist' => 'Start list (A4)',
+            'judge' => 'Judge sheet',
+            'results' => 'Results list',
+            'certificate' => 'Certificate',
+        ],
+        'validation' => [
+            'class_required' => 'Select a class.',
+            'forbidden_event' => 'No permission for this event.',
+            'unknown_type' => 'Unknown type.',
+        ],
+        'errors' => [
+            'dompdf_missing' => 'Dompdf is not available. Please install it locally.',
+        ],
+        'files' => [
+            'startlist' => 'startlist.pdf',
+            'judge' => 'judge-sheet.pdf',
+            'results' => 'results-list.pdf',
+            'certificate' => 'certificate.pdf',
+        ],
+        'pdf' => [
+            'startlist' => [
+                'title' => 'Start list',
+                'table' => [
+                    'position' => '#',
+                    'start_number' => 'Start no.',
+                    'rider' => 'Rider',
+                    'horse' => 'Horse',
+                ],
+            ],
+            'judge' => [
+                'title' => 'Judge sheet',
+                'heading' => 'Judge sheet – {class}',
+                'table' => [
+                    'movement' => 'Movement',
+                    'score' => 'Score',
+                    'comment' => 'Comment',
+                ],
+                'jumping' => [
+                    'time' => 'Time',
+                    'penalties' => 'Penalties',
+                ],
+                'footer' => 'Judge: ____________________________',
+            ],
+            'results' => [
+                'title' => 'Results list',
+                'heading' => 'Results list',
+                'heading_with_class' => 'Results list: {class}',
+                'event_label' => 'Event:',
+                'table' => [
+                    'rank' => 'Rank',
+                    'start_number' => 'Start no.',
+                    'rider' => 'Rider',
+                    'horse' => 'Horse',
+                    'total' => 'Total',
+                ],
+                'badges' => [
+                    'eliminated' => 'ELIM',
+                ],
+                'sections' => [
+                    'penalties' => 'Penalties:',
+                    'penalties_none' => 'none',
+                    'time' => 'Time:',
+                    'components' => 'Components:',
+                    'tiebreak' => 'Tiebreak:',
+                    'rule' => 'Rule:',
+                ],
+                'penalties' => [
+                    'default_label' => 'Penalty',
+                    'elimination_label' => 'Elimination',
+                ],
+                'time_details' => [
+                    'target' => 'Target',
+                    'faults' => 'Faults',
+                    'bonus' => 'Bonus',
+                ],
+                'rule_engine_prefix' => 'Engine',
+                'empty' => 'No results available.',
+            ],
+            'certificate' => [
+                'title' => 'Certificate',
+                'heading' => 'Certificate',
+                'body' => [
+                    'awarded_to' => 'This certificate is awarded to',
+                    'with_horse' => 'with the horse',
+                    'for_score' => 'for winning with {points} points.',
+                    'signature' => 'Show management',
+                ],
+            ],
+        ],
+    ],
+    'export' => [
+        'title' => 'Export',
+        'heading' => 'Export',
+        'description' => 'CSV and JSON exports for show office and evaluation.',
+        'buttons' => [
+            'entries_csv' => 'CSV: Entries',
+            'starters_csv' => 'CSV Start list',
+            'results_json' => 'JSON Results',
+        ],
+        'form' => [
+            'class_select' => 'Select class',
+        ],
+        'validation' => [
+            'class_required' => 'Choose a class.',
+            'forbidden_event' => 'No permission for this event.',
+        ],
+        'csv' => [
+            'entries' => [
+                'filename' => 'entries.csv',
+                'headers' => [
+                    'id' => 'ID',
+                    'rider' => 'Rider',
+                    'horse' => 'Horse',
+                    'class' => 'Class',
+                    'status' => 'Status',
+                    'start_number_raw' => 'Start number (raw)',
+                    'start_number_display' => 'Start number (display)',
+                    'allocation' => 'Allocation',
+                    'rule_snapshot' => 'Rule snapshot',
+                ],
+            ],
+            'starters' => [
+                'filename' => 'starters.csv',
+                'headers' => [
+                    'position' => 'Pos',
+                    'rider' => 'Rider',
+                    'horse' => 'Horse',
+                    'start_number_raw' => 'Start number (raw)',
+                    'start_number_display' => 'Start number (display)',
+                    'allocation' => 'Allocation',
+                    'rule_snapshot' => 'Rule snapshot',
+                ],
+            ],
+        ],
+        'json' => [
+            'results' => [
+                'filename' => 'results.json',
+            ],
+        ],
+    ],
     'tests' => [
         'items' => [
             'one' => '{count} item',
