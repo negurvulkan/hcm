@@ -140,6 +140,39 @@ return [
             ],
         ],
     ],
+    'horses' => [
+        'form' => [
+            'create_title' => 'Register horse',
+            'edit_title' => 'Edit horse',
+            'name' => 'Name',
+            'owner' => 'Owner / rider',
+            'documents_ok' => 'Documents verified',
+            'notes' => 'Note',
+            'submit' => 'Save',
+            'cancel' => 'Cancel',
+        ],
+        'filters' => [
+            'name' => 'Name',
+            'owner' => 'Owner',
+            'all_owners' => 'All',
+            'submit' => 'Filter',
+        ],
+        'list' => [
+            'title' => 'Overview',
+        ],
+        'table' => [
+            'name' => 'Name',
+            'owner' => 'Owner',
+            'status' => 'Status',
+            'notes' => 'Note',
+            'actions' => 'Actions',
+            'edit' => 'Edit',
+            'delete' => 'Delete',
+            'confirm_delete' => 'Delete this entry?',
+            'status_documents_ok' => 'Documents ok',
+            'status_pending' => 'Review pending',
+        ],
+    ],
     'persons' => [
         'form' => [
             'create_title' => 'Create person',
