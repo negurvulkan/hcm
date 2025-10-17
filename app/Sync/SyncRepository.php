@@ -17,22 +17,41 @@ class SyncRepository
      */
     private const SCOPE_DEFINITIONS = [
         'persons' => [
-            'table' => 'persons',
+            'alias_of' => 'parties',
+        ],
+        'parties' => [
+            'table' => 'parties',
             'id_column' => 'id',
-            'columns' => ['id', 'name', 'email', 'phone', 'roles', 'club_id', 'created_at', 'updated_at'],
+            'columns' => ['id', 'party_type', 'display_name', 'sort_name', 'email', 'phone', 'created_at', 'updated_at'],
             'version_column' => 'updated_at',
             'fallback_version_column' => 'created_at',
+        ],
+        'person_profiles' => [
+            'table' => 'person_profiles',
+            'id_column' => 'party_id',
+            'columns' => ['party_id', 'club_id', 'preferred_locale', 'updated_at'],
+            'version_column' => 'updated_at',
             'dependencies' => [
+                ['column' => 'party_id', 'table' => 'parties', 'reference' => 'id'],
                 ['column' => 'club_id', 'table' => 'clubs', 'reference' => 'id'],
+            ],
+        ],
+        'party_roles' => [
+            'table' => 'party_roles',
+            'id_column' => 'id',
+            'columns' => ['id', 'party_id', 'role', 'context', 'assigned_at', 'updated_at'],
+            'version_column' => 'updated_at',
+            'dependencies' => [
+                ['column' => 'party_id', 'table' => 'parties', 'reference' => 'id'],
             ],
         ],
         'horses' => [
             'table' => 'horses',
             'id_column' => 'id',
-            'columns' => ['id', 'name', 'owner_id', 'documents_ok', 'notes', 'updated_at'],
+            'columns' => ['id', 'name', 'owner_party_id', 'documents_ok', 'notes', 'updated_at'],
             'version_column' => 'updated_at',
             'dependencies' => [
-                ['column' => 'owner_id', 'table' => 'persons', 'reference' => 'id'],
+                ['column' => 'owner_party_id', 'table' => 'parties', 'reference' => 'id'],
             ],
         ],
         'clubs' => [
@@ -59,13 +78,13 @@ class SyncRepository
         'entries' => [
             'table' => 'entries',
             'id_column' => 'id',
-            'columns' => ['id', 'event_id', 'class_id', 'person_id', 'horse_id', 'status', 'fee_paid_at', 'created_at', 'updated_at', 'start_number_display', 'start_number_raw', 'start_number_assignment_id', 'start_number_rule_snapshot', 'start_number_allocation_entity'],
+            'columns' => ['id', 'event_id', 'class_id', 'party_id', 'horse_id', 'status', 'fee_paid_at', 'created_at', 'updated_at', 'start_number_display', 'start_number_raw', 'start_number_assignment_id', 'start_number_rule_snapshot', 'start_number_allocation_entity'],
             'version_column' => 'updated_at',
             'fallback_version_column' => 'created_at',
             'dependencies' => [
                 ['column' => 'event_id', 'table' => 'events', 'reference' => 'id'],
                 ['column' => 'class_id', 'table' => 'classes', 'reference' => 'id'],
-                ['column' => 'person_id', 'table' => 'persons', 'reference' => 'id'],
+                ['column' => 'party_id', 'table' => 'parties', 'reference' => 'id'],
                 ['column' => 'horse_id', 'table' => 'horses', 'reference' => 'id'],
             ],
         ],
@@ -115,11 +134,11 @@ class SyncRepository
         'helper_shifts' => [
             'table' => 'helper_shifts',
             'id_column' => 'id',
-            'columns' => ['id', 'role', 'station', 'person_id', 'start_time', 'end_time', 'token', 'checked_in_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'role', 'station', 'party_id', 'start_time', 'end_time', 'token', 'checked_in_at', 'created_at', 'updated_at'],
             'version_column' => 'updated_at',
             'fallback_version_column' => 'created_at',
             'dependencies' => [
-                ['column' => 'person_id', 'table' => 'persons', 'reference' => 'id'],
+                ['column' => 'party_id', 'table' => 'parties', 'reference' => 'id'],
             ],
         ],
         'payments' => [
@@ -135,7 +154,9 @@ class SyncRepository
 
     private const SCOPE_ORDER = [
         'clubs',
-        'persons',
+        'parties',
+        'person_profiles',
+        'party_roles',
         'horses',
         'events',
         'classes',

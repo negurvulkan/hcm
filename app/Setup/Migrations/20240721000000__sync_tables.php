@@ -62,7 +62,10 @@ SQL
         );
 
         $columns = [
-            ['table' => 'persons', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
+            ['table' => 'parties', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
+            ['table' => 'party_roles', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
+            ['table' => 'person_profiles', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
+            ['table' => 'organization_profiles', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
             ['table' => 'horses', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
             ['table' => 'clubs', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
             ['table' => 'events', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],

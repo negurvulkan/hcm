@@ -32,7 +32,9 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $schema = [
     'CREATE TABLE system_settings (setting_key TEXT PRIMARY KEY, value TEXT, updated_at TEXT NOT NULL)',
-    'CREATE TABLE persons (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, phone TEXT, roles TEXT, club_id INTEGER, created_at TEXT, updated_at TEXT)',
+    'CREATE TABLE parties (id INTEGER PRIMARY KEY AUTOINCREMENT, party_type TEXT, display_name TEXT, sort_name TEXT, email TEXT, phone TEXT, created_at TEXT, updated_at TEXT)',
+    'CREATE TABLE person_profiles (party_id INTEGER PRIMARY KEY, club_id INTEGER, preferred_locale TEXT, updated_at TEXT)',
+    'CREATE TABLE party_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, party_id INTEGER, role TEXT, context TEXT, assigned_at TEXT, updated_at TEXT)',
     'CREATE TABLE clubs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, short_name TEXT, updated_at TEXT)',
     'CREATE TABLE sync_state (id INTEGER PRIMARY KEY AUTOINCREMENT, scope TEXT, entity_id TEXT, version TEXT, version_epoch INTEGER, checksum TEXT, payload_meta TEXT, updated_at TEXT)',
     'CREATE UNIQUE INDEX idx_sync_state_scope_id ON sync_state (scope, entity_id)',
@@ -70,39 +72,62 @@ $changeSet->add('clubs', [
         'short_name' => 'RCD',
     ],
 ]);
-$changeSet->add('persons', [
+$changeSet->add('parties', [
     'id' => '1',
     'version' => '2024-07-20T10:01:00+00:00',
     'data' => [
         'id' => 1,
-        'name' => 'Anna Mustermann',
+        'party_type' => 'person',
+        'display_name' => 'Anna Mustermann',
+        'sort_name' => 'anna mustermann',
         'email' => 'anna@example.com',
         'phone' => '+491234567',
-        'roles' => json_encode(['judge'], JSON_THROW_ON_ERROR),
-        'club_id' => 1,
         'created_at' => '2024-07-19T08:00:00+00:00',
+        'updated_at' => '2024-07-20T10:01:00+00:00',
+    ],
+]);
+$changeSet->add('person_profiles', [
+    'id' => '1',
+    'version' => '2024-07-20T10:01:00+00:00',
+    'data' => [
+        'party_id' => 1,
+        'club_id' => 1,
+        'preferred_locale' => null,
+        'updated_at' => '2024-07-20T10:01:00+00:00',
+    ],
+]);
+$changeSet->add('party_roles', [
+    'id' => '1',
+    'version' => '2024-07-20T10:01:00+00:00',
+    'data' => [
+        'id' => 1,
+        'party_id' => 1,
+        'role' => 'judge',
+        'context' => 'system',
+        'assigned_at' => '2024-07-19T08:00:00+00:00',
+        'updated_at' => '2024-07-20T10:01:00+00:00',
     ],
 ]);
 
 $report = importChanges($changeSet);
 $accepted = $report->toArray()['accepted'] ?? [];
-if (count($accepted['clubs'] ?? []) !== 1 || count($accepted['persons'] ?? []) !== 1) {
+if (count($accepted['clubs'] ?? []) !== 1 || count($accepted['parties'] ?? []) !== 1 || count($accepted['person_profiles'] ?? []) !== 1 || count($accepted['party_roles'] ?? []) !== 1) {
     throw new RuntimeException('Import sollte Datensätze übernehmen.');
 }
 
-$diff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['persons']));
-if (count($diff->forScope('persons')) !== 1) {
-    throw new RuntimeException('Diff sollte aktualisierte Person melden.');
+$diff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));
+if (count($diff->forScope('parties')) !== 1) {
+    throw new RuntimeException('Diff sollte aktualisierte Partei melden.');
 }
 
-$pull = sync_pull_entities(['persons' => ['ids' => [1]]]);
-$pulled = $pull->forScope('persons')[0]['data'] ?? [];
-if (($pulled['name'] ?? null) !== 'Anna Mustermann') {
-    throw new RuntimeException('Pull sollte vollständige Person liefern.');
+$pull = sync_pull_entities(['parties' => ['ids' => [1]]]);
+$pulled = $pull->forScope('parties')[0]['data'] ?? [];
+if (($pulled['display_name'] ?? null) !== 'Anna Mustermann') {
+    throw new RuntimeException('Pull sollte vollständige Partei liefern.');
 }
 
 $reportSecond = importChanges($changeSet);
-$acceptedSecond = $reportSecond->toArray()['accepted']['persons'][0]['message'] ?? null;
+$acceptedSecond = $reportSecond->toArray()['accepted']['parties'][0]['message'] ?? null;
 if ($acceptedSecond !== 'noop') {
     throw new RuntimeException('Idempotenter Push sollte als noop markiert sein.');
 }
@@ -113,21 +138,22 @@ $instance->save([
 ]);
 
 $staleChange = new ChangeSet([], InstanceConfiguration::ROLE_LOCAL);
-$staleChange->add('persons', [
+$staleChange->add('parties', [
     'id' => '1',
     'version' => '2024-07-20T09:00:00+00:00',
     'data' => [
         'id' => 1,
-        'name' => 'Anna Alt',
+        'party_type' => 'person',
+        'display_name' => 'Anna Alt',
+        'sort_name' => 'anna alt',
         'email' => 'anna@example.com',
         'phone' => '+491234567',
-        'roles' => json_encode(['judge'], JSON_THROW_ON_ERROR),
-        'club_id' => 1,
         'created_at' => '2024-07-19T08:00:00+00:00',
+        'updated_at' => '2024-07-20T09:00:00+00:00',
     ],
 ]);
 $reportStale = importChanges($staleChange);
-$acceptedStale = $reportStale->toArray()['accepted']['persons'][0]['message'] ?? null;
+$acceptedStale = $reportStale->toArray()['accepted']['parties'][0]['message'] ?? null;
 if ($acceptedStale !== 'updated') {
     throw new RuntimeException('Online-Instanz sollte lokale Daten bevorzugen, selbst wenn älter.');
 }
@@ -137,21 +163,22 @@ $instance->save([
     'operation_mode' => InstanceConfiguration::MODE_TOURNAMENT,
 ]);
 $remoteChange = new ChangeSet([], InstanceConfiguration::ROLE_ONLINE);
-$remoteChange->add('persons', [
+$remoteChange->add('parties', [
     'id' => '1',
     'version' => '2024-07-20T08:30:00+00:00',
     'data' => [
         'id' => 1,
-        'name' => 'Anna Remote',
+        'party_type' => 'person',
+        'display_name' => 'Anna Remote',
+        'sort_name' => 'anna remote',
         'email' => 'anna@example.com',
         'phone' => '+491234567',
-        'roles' => json_encode(['judge'], JSON_THROW_ON_ERROR),
-        'club_id' => 1,
         'created_at' => '2024-07-19T08:00:00+00:00',
+        'updated_at' => '2024-07-20T08:30:00+00:00',
     ],
 ]);
 $reportRemote = importChanges($remoteChange);
-$rejectedRemote = $reportRemote->toArray()['rejected']['persons'][0]['reason'] ?? null;
+$rejectedRemote = $reportRemote->toArray()['rejected']['parties'][0]['reason'] ?? null;
 if ($rejectedRemote !== 'CONFLICT_POLICY_VIOLATION') {
     throw new RuntimeException('Lokale Instanz muss Online-Konflikte ablehnen.');
 }
@@ -162,7 +189,7 @@ $instance->save([
 ]);
 
 try {
-    enforceReadWritePolicy(new SyncRequest('push', 'POST', true, ['persons']));
+    enforceReadWritePolicy(new SyncRequest('push', 'POST', true, ['parties']));
     throw new RuntimeException('Read-only Policy wurde nicht angewendet.');
 } catch (SyncException $exception) {
     if ($exception->getErrorCode() !== 'READ_ONLY_MODE') {
@@ -175,12 +202,12 @@ $instance->save([
     'instance_role' => InstanceConfiguration::ROLE_LOCAL,
 ]);
 
-$transactionId = sync_create_transaction('inbound', 'push', ['persons'], ['accepted' => 1]);
+$transactionId = sync_create_transaction('inbound', 'push', ['parties'], ['accepted' => 1]);
 if (!sync_acknowledge($transactionId)) {
     throw new RuntimeException('Transaktion sollte quittiert werden.');
 }
 
-sync_log_operation('inbound', 'push', ['persons'], 'completed', 'Test-Log');
+sync_log_operation('inbound', 'push', ['parties'], 'completed', 'Test-Log');
 $logs = sync_recent_logs();
 if (!$logs || ($logs[0]['operation'] ?? '') !== 'push') {
     throw new RuntimeException('Logeintrag fehlt.');

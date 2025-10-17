@@ -11,7 +11,7 @@ $classId = (int) ($_GET['class_id'] ?? 0);
 if ($type) {
     switch ($type) {
         case 'entries':
-            $entriesSql = 'SELECT e.id, p.name AS rider, h.name AS horse, c.label AS class_label, e.status, e.start_number_raw, e.start_number_display, e.start_number_allocation_entity, e.start_number_rule_snapshot FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
+            $entriesSql = 'SELECT e.id, pr.display_name AS rider, h.name AS horse, c.label AS class_label, e.status, e.start_number_raw, e.start_number_display, e.start_number_allocation_entity, e.start_number_rule_snapshot FROM entries e JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
             if (!$isAdmin) {
                 if (!$activeEvent) {
                     $rows = [];
@@ -49,7 +49,7 @@ if ($type) {
                 header('Location: export.php');
                 exit;
             }
-            $rows = db_all('SELECT si.position, p.name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+            $rows = db_all('SELECT si.position, pr.display_name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
             outputCsv(
                 t('export.csv.starters.filename'),
                 [
@@ -76,7 +76,7 @@ if ($type) {
                 header('Location: export.php');
                 exit;
             }
-            $rows = db_all('SELECT r.total, r.rank, r.status, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, p.name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id', ['class_id' => $classId]);
+            $rows = db_all('SELECT r.total, r.rank, r.status, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, pr.display_name AS rider, h.name AS horse, si.start_number_raw, si.start_number_display, si.start_number_allocation_entity, si.start_number_rule_snapshot FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id', ['class_id' => $classId]);
             foreach ($rows as &$row) {
                 $row['breakdown'] = $row['breakdown_json'] ? json_decode($row['breakdown_json'], true, 512, JSON_THROW_ON_ERROR) : null;
                 $row['rule_snapshot'] = $row['rule_snapshot'] ? json_decode($row['rule_snapshot'], true, 512, JSON_THROW_ON_ERROR) : null;

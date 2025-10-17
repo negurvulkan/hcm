@@ -19,7 +19,7 @@
                         <select name="person_id" class="form-select" required>
                             <option value=""><?= htmlspecialchars(t('entries.form.select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
                             <?php foreach ($persons as $person): ?>
-                                <option value="<?= (int) $person['id'] ?>" <?= $editEntry && (int) $editEntry['person_id'] === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $person['id'] ?>" <?= $editEntry && (int) $editEntry['party_id'] === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

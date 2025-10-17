@@ -24,6 +24,11 @@ Ein schlankes Grundsystem für Reitturnier-Organisatoren. Fokus auf offlinefähi
 - Für den Betrieb ist kein Internetzugang erforderlich.
 - Bootstrap, jQuery, Iconsets und Fonts werden **nicht** mitgeliefert. Lege sie bei Bedarf lokal unter `public/assets/vendor/` ab und referenziere sie über die bereits vorbereiteten Pfade.
 
+## Party/Rollen-Modell
+- **Kurzarchitektur:** Eine gemeinsame Stammtabelle `parties` verwaltet Personen und Organisationen. Personenspezifische Angaben wie Vereinszuordnung oder Sprache liegen in `person_profiles`. Rollen (z. B. `judge`, `office`) werden normiert in `party_roles` gespeichert und können über den `context` weiter segmentiert werden. Clubs sind als Organisationen modelliert und verknüpfen ihren Datensatz mit `organization_profiles` sowie einem Eintrag in `parties`.
+- **Migrationsschritte:** Bestehende Installationen erhalten das neue Schema über `20240730000000__party_role_model.php`. Die Migration legt die neuen Tabellen an, überführt alle bisherigen `persons`-Datensätze, migriert Referenzen (`entries.party_id`, `horses.owner_party_id`, `helper_shifts.party_id`) und erzeugt Organisations-Partys für vorhandene Vereine. Neue Setups nutzen automatisch die aktualisierte Initialmigration.
+- **Rollentabelle:** `party_roles` enthält `party_id`, `role`, `context`, `assigned_at` und `updated_at`. Pro Kombination aus Partei/Rolle/Kontext besteht ein Unique-Index. Rollenänderungen aktualisieren den Timestamp und sind damit für Sync- und Audit-Prozesse nachvollziehbar.
+
 ## Entwicklungsnotizen
 - Keine Vendor-Bundles ins Repository einchecken.
 - Nur kleine, klar abgegrenzte Dateien erzeugen.

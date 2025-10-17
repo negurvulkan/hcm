@@ -2,6 +2,7 @@
 require __DIR__ . '/auth.php';
 
 use App\Core\Rbac;
+use App\Party\PartyRepository;
 
 if (!function_exists('persons_primary_role')) {
     function persons_primary_role(array $roles): string
@@ -78,14 +79,12 @@ if (!function_exists('persons_sync_user')) {
 $user = auth_require('persons');
 $roles = Rbac::ROLES;
 $clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
+$repository = new PartyRepository(app_pdo());
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editPerson = null;
 if ($editId) {
-    $editPerson = db_first('SELECT * FROM persons WHERE id = :id', ['id' => $editId]);
-    if ($editPerson) {
-        $editPerson['role_list'] = $editPerson['roles'] ? json_decode($editPerson['roles'], true, 512, JSON_THROW_ON_ERROR) : [];
-    }
+    $editPerson = $repository->findPerson($editId);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -102,11 +101,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $personId = (int) ($_POST['person_id'] ?? 0);
         if ($personId) {
-            $person = db_first('SELECT email FROM persons WHERE id = :id', ['id' => $personId]);
+            $person = $repository->findPerson($personId);
             if ($person && ($person['email'] ?? '') !== '') {
                 db_execute('DELETE FROM users WHERE email = :email', ['email' => mb_strtolower($person['email'])]);
             }
-            db_execute('DELETE FROM persons WHERE id = :id', ['id' => $personId]);
+            $repository->deletePerson($personId);
             flash('success', t('persons.flash.deleted'));
         }
         header('Location: persons.php');
@@ -116,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $personId = (int) ($_POST['person_id'] ?? 0);
     $currentPerson = null;
     if ($personId > 0) {
-        $currentPerson = db_first('SELECT * FROM persons WHERE id = :id', ['id' => $personId]);
+        $currentPerson = $repository->findPerson($personId);
     }
 
     $name = trim((string) ($_POST['name'] ?? ''));
@@ -181,31 +180,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'update' && $personId > 0) {
-        db_execute(
-            'UPDATE persons SET name = :name, email = :email, phone = :phone, roles = :roles, club_id = :club_id WHERE id = :id',
-            [
-                'name' => $name,
-                'email' => $email ?: null,
-                'phone' => $phone ?: null,
-                'roles' => json_encode(array_values($selectedRoles), JSON_THROW_ON_ERROR),
-                'club_id' => $clubId,
-                'id' => $personId,
-            ]
-        );
+        $repository->updatePerson($personId, $name, $email ?: null, $phone ?: null, $clubId, $selectedRoles);
         persons_sync_user($currentPerson, $name, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
         flash('success', t('persons.flash.updated'));
     } else {
-        db_execute(
-            'INSERT INTO persons (name, email, phone, roles, club_id, created_at) VALUES (:name, :email, :phone, :roles, :club_id, :created_at)',
-            [
-                'name' => $name,
-                'email' => $email ?: null,
-                'phone' => $phone ?: null,
-                'roles' => json_encode(array_values($selectedRoles), JSON_THROW_ON_ERROR),
-                'club_id' => $clubId,
-                'created_at' => (new \DateTimeImmutable())->format('c'),
-            ]
-        );
+        $newId = $repository->createPerson($name, $email ?: null, $phone ?: null, $clubId, $selectedRoles);
         persons_sync_user(null, $name, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
         flash('success', t('persons.flash.created'));
     }
@@ -217,23 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $filterName = trim((string) ($_GET['q'] ?? ''));
 $filterRole = trim((string) ($_GET['role'] ?? ''));
 
-$sql = 'SELECT p.*, c.name AS club_name FROM persons p LEFT JOIN clubs c ON c.id = p.club_id WHERE 1=1';
-$params = [];
-if ($filterName !== '') {
-    $sql .= ' AND p.name LIKE :name';
-    $params['name'] = '%' . $filterName . '%';
-}
-if ($filterRole !== '') {
-    $sql .= ' AND p.roles LIKE :role';
-    $params['role'] = '%"' . $filterRole . '"%';
-}
-$sql .= ' ORDER BY p.name LIMIT 100';
-
-$persons = db_all($sql, $params);
-foreach ($persons as &$person) {
-    $person['role_list'] = json_decode($person['roles'] ?? '[]', true, 512, JSON_THROW_ON_ERROR) ?: [];
-}
-unset($person);
+$persons = $repository->searchPersons($filterName !== '' ? $filterName : null, $filterRole !== '' ? $filterRole : null);
 
 render_page('persons.tpl', [
     'title' => t('pages.persons.title'),

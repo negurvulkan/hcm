@@ -19,21 +19,49 @@ CREATE TABLE IF NOT EXISTS users (
 )
 SQL,
             <<<SQL
-CREATE TABLE IF NOT EXISTS persons (
+CREATE TABLE IF NOT EXISTS parties (
     id {$idPrimary},
-    name VARCHAR(160) NOT NULL,
-    email VARCHAR(160),
+    party_type VARCHAR(40) NOT NULL,
+    display_name VARCHAR(190) NOT NULL,
+    sort_name VARCHAR(190),
+    email VARCHAR(190),
     phone VARCHAR(80),
-    roles TEXT NOT NULL,
+    created_at {$datetime} NOT NULL,
+    updated_at {$datetime}
+)
+SQL,
+            <<<SQL
+CREATE TABLE IF NOT EXISTS party_roles (
+    id {$idPrimary},
+    party_id INTEGER NOT NULL,
+    role VARCHAR(60) NOT NULL,
+    context VARCHAR(60) NOT NULL DEFAULT 'system',
+    assigned_at {$datetime} NOT NULL,
+    updated_at {$datetime}
+)
+SQL,
+            <<<SQL
+CREATE TABLE IF NOT EXISTS person_profiles (
+    party_id INTEGER PRIMARY KEY,
     club_id INTEGER,
-    created_at {$datetime} NOT NULL
+    preferred_locale VARCHAR(10),
+    updated_at {$datetime}
+)
+SQL,
+            <<<SQL
+CREATE TABLE IF NOT EXISTS organization_profiles (
+    party_id INTEGER PRIMARY KEY,
+    category VARCHAR(60) NOT NULL,
+    short_name VARCHAR(40),
+    metadata TEXT,
+    updated_at {$datetime}
 )
 SQL,
             <<<SQL
 CREATE TABLE IF NOT EXISTS horses (
     id {$idPrimary},
     name VARCHAR(160) NOT NULL,
-    owner_id INTEGER,
+    owner_party_id INTEGER,
     documents_ok {$boolean} DEFAULT 0,
     notes TEXT
 )
@@ -41,6 +69,7 @@ SQL,
             <<<SQL
 CREATE TABLE IF NOT EXISTS clubs (
     id {$idPrimary},
+    party_id INTEGER,
     name VARCHAR(160) NOT NULL,
     short_name VARCHAR(20) NOT NULL
 )
@@ -74,7 +103,7 @@ CREATE TABLE IF NOT EXISTS entries (
     id {$idPrimary},
     event_id INTEGER NOT NULL,
     class_id INTEGER NOT NULL,
-    person_id INTEGER NOT NULL,
+    party_id INTEGER NOT NULL,
     horse_id INTEGER NOT NULL,
     status VARCHAR(40) NOT NULL,
     fee_paid_at {$datetime},
@@ -121,7 +150,7 @@ CREATE TABLE IF NOT EXISTS helper_shifts (
     id {$idPrimary},
     role VARCHAR(120) NOT NULL,
     station VARCHAR(120),
-    person_id INTEGER,
+    party_id INTEGER,
     start_time {$datetime},
     end_time {$datetime},
     token VARCHAR(120) UNIQUE,
@@ -149,6 +178,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at {$datetime} NOT NULL
 )
 SQL,
+            'CREATE UNIQUE INDEX IF NOT EXISTS party_roles_unique ON party_roles (party_id, role, context)',
+            'CREATE INDEX IF NOT EXISTS parties_type_name_idx ON parties (party_type, sort_name)',
         ];
 
         foreach ($queries as $query) {
