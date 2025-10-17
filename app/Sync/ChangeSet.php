@@ -34,11 +34,11 @@ class ChangeSet
         $meta = $record['meta'] ?? [];
 
         if ($id === '' || $version === '') {
-            throw new SyncException('SCHEMA_VALIDATION_FAILED', 'Änderungsdatensatz ohne ID oder Version.');
+            throw new SyncException('SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.change_missing_identifiers'));
         }
 
         if ($data !== null && !is_array($data)) {
-            throw new SyncException('SCHEMA_VALIDATION_FAILED', 'Payload muss ein Objekt sein.');
+            throw new SyncException('SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.payload_must_be_object'));
         }
 
         if (!is_array($meta)) {
@@ -93,17 +93,17 @@ class ChangeSet
         $cursor = isset($payload['cursor']) ? (string) $payload['cursor'] : null;
         $entities = $payload['entities'] ?? [];
         if (!is_array($entities)) {
-            throw new SyncException('SCHEMA_VALIDATION_FAILED', 'Ungültige Entities-Struktur.');
+            throw new SyncException('SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.invalid_entities_structure'));
         }
 
         $set = new self([], $origin, $cursor);
         foreach ($entities as $scope => $records) {
             if (!is_array($records)) {
-                throw new SyncException('SCHEMA_VALIDATION_FAILED', 'Entities müssen Arrays sein.');
+                throw new SyncException('SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.entities_must_be_arrays'));
             }
             foreach ($records as $record) {
                 if (!is_array($record)) {
-                    throw new SyncException('SCHEMA_VALIDATION_FAILED', 'Datensatz muss Objekt sein.');
+                    throw new SyncException('SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.record_must_be_object'));
                 }
                 $set->add((string) $scope, $record);
             }

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use App\Core\App;
+use App\I18n\Translator;
 use App\Services\InstanceConfiguration;
 use App\Sync\ChangeSet;
 use App\Sync\Scopes;
@@ -12,6 +13,8 @@ use App\Sync\SyncRequest;
 
 require __DIR__ . '/../app/Core/App.php';
 require __DIR__ . '/../app/Services/InstanceConfiguration.php';
+require __DIR__ . '/../app/I18n/Translator.php';
+require __DIR__ . '/../app/helpers/i18n.php';
 require __DIR__ . '/../app/Sync/SyncException.php';
 require __DIR__ . '/../app/Sync/SyncCursor.php';
 require __DIR__ . '/../app/Sync/Since.php';
@@ -42,6 +45,9 @@ foreach ($schema as $sql) {
 }
 
 App::set('pdo', $pdo);
+$translator = new Translator('de', 'de', __DIR__ . '/../lang');
+App::set('translator', $translator);
+App::set('locale', 'de');
 $instance = new InstanceConfiguration($pdo);
 $instance->save([
     'instance_role' => InstanceConfiguration::ROLE_LOCAL,

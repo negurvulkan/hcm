@@ -17,21 +17,28 @@ use Throwable;
     <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h6 text-uppercase mb-3">Peer-Informationen</h2>
+                <h2 class="h6 text-uppercase mb-3"><?= htmlspecialchars(t('sync.ui.peer.title'), ENT_QUOTES, 'UTF-8') ?></h2>
                 <dl class="row mb-0 small">
-                    <dt class="col-6 text-muted">Basis-URL</dt>
-                    <dd class="col-6 text-end"><?= $peer['base_url'] ? htmlspecialchars($peer['base_url'], ENT_QUOTES, 'UTF-8') : '<span class="text-muted">nicht gesetzt</span>' ?></dd>
-                    <dt class="col-6 text-muted">Peer Turnier-ID</dt>
-                    <dd class="col-6 text-end"><?= $peer['turnier_id'] ? htmlspecialchars($peer['turnier_id'], ENT_QUOTES, 'UTF-8') : '<span class="text-muted">nicht gesetzt</span>' ?></dd>
-                    <dt class="col-6 text-muted">Letzter Sync</dt>
+                    <dt class="col-6 text-muted"><?= htmlspecialchars(t('sync.ui.peer.base_url'), ENT_QUOTES, 'UTF-8') ?></dt>
+                    <dd class="col-6 text-end"><?= $peer['base_url'] ? htmlspecialchars($peer['base_url'], ENT_QUOTES, 'UTF-8') : '<span class="text-muted">' . htmlspecialchars(t('sync.ui.peer.not_set'), ENT_QUOTES, 'UTF-8') . '</span>' ?></dd>
+                    <dt class="col-6 text-muted"><?= htmlspecialchars(t('sync.ui.peer.peer_event_id'), ENT_QUOTES, 'UTF-8') ?></dt>
+                    <dd class="col-6 text-end"><?= $peer['turnier_id'] ? htmlspecialchars($peer['turnier_id'], ENT_QUOTES, 'UTF-8') : '<span class="text-muted">' . htmlspecialchars(t('sync.ui.peer.not_set'), ENT_QUOTES, 'UTF-8') . '</span>' ?></dd>
+                    <dt class="col-6 text-muted"><?= htmlspecialchars(t('sync.ui.peer.last_sync'), ENT_QUOTES, 'UTF-8') ?></dt>
                     <dd class="col-6 text-end">
                         <?php if ($lastSyncAt): ?>
-                            <?php try { $dt = new DateTimeImmutable($lastSyncAt); echo htmlspecialchars($dt->format('d.m.Y H:i'), ENT_QUOTES, 'UTF-8'); } catch (Throwable) { echo htmlspecialchars($lastSyncAt, ENT_QUOTES, 'UTF-8'); } ?>
+                            <?php
+                            try {
+                                $formatted = format_datetime(new DateTimeImmutable($lastSyncAt));
+                            } catch (Throwable) {
+                                $formatted = $lastSyncAt;
+                            }
+                            echo htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8');
+                            ?>
                         <?php else: ?>
-                            <span class="text-muted">keine Daten</span>
+                            <span class="text-muted"><?= htmlspecialchars(t('sync.ui.peer.no_data'), ENT_QUOTES, 'UTF-8') ?></span>
                         <?php endif; ?>
                     </dd>
-                    <dt class="col-6 text-muted">Aktueller Cursor</dt>
+                    <dt class="col-6 text-muted"><?= htmlspecialchars(t('sync.ui.peer.cursor'), ENT_QUOTES, 'UTF-8') ?></dt>
                     <dd class="col-6 text-end small text-break"><?= htmlspecialchars($cursor->value(), ENT_QUOTES, 'UTF-8') ?></dd>
                 </dl>
             </div>
@@ -52,22 +59,22 @@ use Throwable;
         <?php endif; ?>
         <div class="card mb-4">
             <div class="card-body">
-                <h2 class="h5 mb-3">Sync-Aktionen</h2>
+                <h2 class="h5 mb-3"><?= htmlspecialchars(t('sync.ui.actions.title'), ENT_QUOTES, 'UTF-8') ?></h2>
                 <div class="d-flex flex-wrap gap-2">
                     <form method="post" class="me-2">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="diff">
-                        <button type="submit" class="btn btn-outline-primary">Dry-Run / Diff</button>
+                        <button type="submit" class="btn btn-outline-primary"><?= htmlspecialchars(t('sync.ui.actions.diff'), ENT_QUOTES, 'UTF-8') ?></button>
                     </form>
                     <form method="post" class="me-2">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="pull">
-                        <button type="submit" class="btn btn-outline-secondary" <?= $canPull ? '' : 'disabled' ?>>Pull jetzt</button>
+                        <button type="submit" class="btn btn-outline-secondary" <?= $canPull ? '' : 'disabled' ?>><?= htmlspecialchars(t('sync.ui.actions.pull_now'), ENT_QUOTES, 'UTF-8') ?></button>
                     </form>
                     <form method="post">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="push">
-                        <button type="submit" class="btn btn-outline-secondary" <?= $canPush ? '' : 'disabled' ?>>Push jetzt</button>
+                        <button type="submit" class="btn btn-outline-secondary" <?= $canPush ? '' : 'disabled' ?>><?= htmlspecialchars(t('sync.ui.actions.push_now'), ENT_QUOTES, 'UTF-8') ?></button>
                     </form>
                 </div>
             </div>
@@ -75,14 +82,14 @@ use Throwable;
         <?php if ($diffSummary): ?>
             <div class="card mb-4">
                 <div class="card-body">
-                    <h2 class="h6 text-uppercase mb-3">Dry-Run Ergebnis</h2>
-                    <p class="text-muted small mb-3">Seit Cursor <code><?= htmlspecialchars($diffSummary['since'], ENT_QUOTES, 'UTF-8') ?></code></p>
+                    <h2 class="h6 text-uppercase mb-3"><?= htmlspecialchars(t('sync.ui.diff.title'), ENT_QUOTES, 'UTF-8') ?></h2>
+                    <p class="text-muted small mb-3"><?= t('sync.ui.diff.since', ['cursor' => '<code>' . htmlspecialchars($diffSummary['since'], ENT_QUOTES, 'UTF-8') . '</code>']) ?></p>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th>Scope</th>
-                                    <th class="text-end">Änderungen</th>
+                                    <th><?= htmlspecialchars(t('sync.ui.diff.scope'), ENT_QUOTES, 'UTF-8') ?></th>
+                                    <th class="text-end"><?= htmlspecialchars(t('sync.ui.diff.changes'), ENT_QUOTES, 'UTF-8') ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -100,19 +107,19 @@ use Throwable;
         <?php endif; ?>
         <div class="card">
             <div class="card-body">
-                <h2 class="h6 text-uppercase mb-3">Letzte Sync-Operationen</h2>
+                <h2 class="h6 text-uppercase mb-3"><?= htmlspecialchars(t('sync.ui.logs.title'), ENT_QUOTES, 'UTF-8') ?></h2>
                 <?php if (!$logs): ?>
-                    <p class="text-muted mb-0">Keine Einträge vorhanden.</p>
+                    <p class="text-muted mb-0"><?= htmlspecialchars(t('sync.ui.logs.empty'), ENT_QUOTES, 'UTF-8') ?></p>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle">
                             <thead>
                                 <tr>
-                                    <th>Zeit</th>
-                                    <th>Richtung</th>
-                                    <th>Aktion</th>
-                                    <th>Scopes</th>
-                                    <th>Status</th>
+                                    <th><?= htmlspecialchars(t('sync.ui.logs.time'), ENT_QUOTES, 'UTF-8') ?></th>
+                                    <th><?= htmlspecialchars(t('sync.ui.logs.direction'), ENT_QUOTES, 'UTF-8') ?></th>
+                                    <th><?= htmlspecialchars(t('sync.ui.logs.operation'), ENT_QUOTES, 'UTF-8') ?></th>
+                                    <th><?= htmlspecialchars(t('sync.ui.logs.scopes'), ENT_QUOTES, 'UTF-8') ?></th>
+                                    <th><?= htmlspecialchars(t('sync.ui.logs.status'), ENT_QUOTES, 'UTF-8') ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -120,7 +127,14 @@ use Throwable;
                                     <tr>
                                         <td class="text-nowrap small">
                                             <?php if (!empty($log['created_at'])): ?>
-                                                <?php try { $dt = new DateTimeImmutable($log['created_at']); echo htmlspecialchars($dt->format('d.m. H:i'), ENT_QUOTES, 'UTF-8'); } catch (Throwable) { echo htmlspecialchars($log['created_at'], ENT_QUOTES, 'UTF-8'); } ?>
+                                                <?php
+                                                try {
+                                                    $formatted = format_datetime(new DateTimeImmutable($log['created_at']), 'short', 'short');
+                                                } catch (Throwable) {
+                                                    $formatted = $log['created_at'];
+                                                }
+                                                echo htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8');
+                                                ?>
                                             <?php else: ?>
                                                 <span class="text-muted">–</span>
                                             <?php endif; ?>

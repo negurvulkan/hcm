@@ -48,7 +48,7 @@ class SyncCursor
         try {
             return (new DateTimeImmutable($value))->format('c');
         } catch (Exception $exception) {
-            throw new SyncException('INVALID_CURSOR', 'Ungültiger Cursor: ' . $exception->getMessage(), 0, $exception);
+            throw new SyncException('INVALID_CURSOR', \t('sync.api.errors.invalid_cursor_message', ['message' => $exception->getMessage()]), 0, $exception);
         }
     }
 }

@@ -22,7 +22,7 @@ $canPush = $instance->canWrite();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        $errors[] = 'Sicherheitsprüfung fehlgeschlagen.';
+        $errors[] = t('sync.flash.csrf_failed');
     } else {
         $action = $_POST['action'] ?? '';
         try {
@@ -38,17 +38,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'since' => $since->value(),
                     'counts' => $counts,
                 ];
-                sync_log_operation('outbound', 'diff', array_keys($counts), 'completed', 'Dry-Run über UI', ['entities' => $counts]);
-                $success = 'Dry-Run erfolgreich ausgeführt.';
+                sync_log_operation('outbound', 'diff', array_keys($counts), 'completed', t('sync.logs.ui_diff'), ['entities' => $counts]);
+                $success = t('sync.flash.diff_success');
             } elseif ($action === 'pull' && $canPull) {
-                sync_log_operation('outbound', 'pull', $scopes, 'queued', 'Manueller Pull ausgelöst.');
-                $success = 'Pull-Vorgang wurde vorbereitet.';
+                sync_log_operation('outbound', 'pull', $scopes, 'queued', t('sync.logs.manual_pull'));
+                $success = t('sync.flash.pull_queued');
             } elseif ($action === 'push' && $canPush) {
                 enforceReadWritePolicy(new SyncRequest('push', 'POST', true, $scopes));
-                sync_log_operation('inbound', 'push', $scopes, 'queued', 'Manueller Push ausgelöst.');
-                $success = 'Push-Vorgang wurde vorbereitet.';
+                sync_log_operation('inbound', 'push', $scopes, 'queued', t('sync.logs.manual_push'));
+                $success = t('sync.flash.push_queued');
             } else {
-                $errors[] = 'Aktion nicht verfügbar.';
+                $errors[] = t('sync.flash.action_unavailable');
             }
         } catch (SyncException $exception) {
             $errors[] = $exception->getMessage();
@@ -63,7 +63,7 @@ $stmt->execute(['key' => 'sync_last_completed_at']);
 $lastSyncAt = $stmt->fetchColumn() ?: null;
 
 render_page('sync.tpl', [
-    'title' => 'Sync',
+    'title' => t('pages.sync.title'),
     'page' => 'sync',
     'user' => $user,
     'cursor' => $cursor,

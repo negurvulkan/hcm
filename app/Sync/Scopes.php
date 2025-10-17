@@ -48,7 +48,7 @@ class Scopes
         }
 
         if ($normalized === []) {
-            throw new SyncException('INVALID_SCOPE', 'Keine gültigen Scopes übergeben.');
+            throw new SyncException('INVALID_SCOPE', \t('sync.api.errors.no_valid_scopes'));
         }
 
         $this->scopes = $normalized;

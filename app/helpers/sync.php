@@ -21,7 +21,7 @@ if (!function_exists('sync_service')) {
 
         $instance = App::get('instance');
         if (!$instance instanceof InstanceConfiguration) {
-            throw new SyncException('SERVICE_UNAVAILABLE', 'Instanzkonfiguration fehlt.', 503);
+            throw new SyncException('SERVICE_UNAVAILABLE', t('sync.api.errors.instance_configuration_missing'), 503);
         }
 
         $service = SyncService::make();

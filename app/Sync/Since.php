@@ -46,7 +46,7 @@ class Since
             return new self((string) $value['value']);
         }
 
-        throw new SyncException('INVALID_CURSOR', 'Ungültiger Cursor übergeben.');
+        throw new SyncException('INVALID_CURSOR', \t('sync.api.errors.invalid_cursor_passed'));
     }
 
     public function isBeforeNow(): bool
