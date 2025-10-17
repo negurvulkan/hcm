@@ -207,7 +207,7 @@ function auth_require(string $permission = 'dashboard'): array
     if ($permission && !Rbac::allowed($user['role'], $permission)) {
         http_response_code(403);
         render_page('errors/403.tpl', [
-            'title' => 'Zugriff verweigert',
+            'titleKey' => 'auth.errors.forbidden_title',
             'page' => $permission,
         ]);
         exit;
@@ -219,7 +219,7 @@ function auth_require(string $permission = 'dashboard'): array
 function auth_logout(): void
 {
     auth_instance()->logout();
-    flash('success', 'Abgemeldet.');
+    flash('success', t('auth.flash.logged_out'));
 }
 
 function csrf_token(): string
@@ -311,7 +311,7 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
         $errors = [];
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::check($_POST['_token'] ?? null)) {
-                $errors[] = 'Sicherheitsprüfung fehlgeschlagen.';
+                $errors[] = t('auth.validation.csrf_invalid');
             }
             if (!$errors) {
                 require_write_access('auth');
@@ -322,18 +322,18 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
 
             if (!$errors) {
                 if ($new === '' || $new !== $confirm) {
-                    $errors[] = 'Neues Passwort bitte eingeben und bestätigen.';
+                    $errors[] = t('auth.validation.password_mismatch');
                 } else {
                     $row = db_first('SELECT password FROM users WHERE id = :id', ['id' => $user['id']]);
                     if (!$row || !password_verify($current, $row['password'])) {
-                        $errors[] = 'Aktuelles Passwort stimmt nicht.';
+                        $errors[] = t('auth.validation.password_incorrect');
                     }
                 }
             }
 
             if (!$errors) {
                 auth_instance()->updatePassword($user['id'], $new);
-                flash('success', 'Passwort aktualisiert.');
+                flash('success', t('auth.flash.password_updated'));
                 header('Location: dashboard.php');
                 exit;
             }
@@ -355,12 +355,12 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
     $error = null;
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!Csrf::check($_POST['_token'] ?? null)) {
-            $error = 'Sicherheitsprüfung fehlgeschlagen.';
+            $error = t('auth.validation.csrf_invalid');
         } else {
             $email = trim((string) ($_POST['email'] ?? ''));
             $password = (string) ($_POST['password'] ?? '');
             if (!auth_instance()->attempt($email, $password)) {
-                $error = 'Login fehlgeschlagen.';
+                $error = t('auth.errors.login_failed');
             } else {
                 header('Location: dashboard.php');
                 exit;

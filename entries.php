@@ -23,7 +23,7 @@ if (!isset($_SESSION['entries_import'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('entries.validation.csrf_invalid'));
         header('Location: entries.php');
         exit;
     }
@@ -39,11 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
 
         if (!$personId || !$horseId || !$classId) {
-            flash('error', 'Bitte Reiter, Pferd und Prüfung wählen.');
+            flash('error', t('entries.validation.selection_required'));
         } else {
             $class = db_first('SELECT id, event_id FROM classes WHERE id = :id', ['id' => $classId]);
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
-                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                flash('error', t('entries.validation.forbidden_event'));
             } else {
                 db_execute(
                     'INSERT INTO entries (event_id, class_id, person_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :person_id, :horse_id, :status, :paid_at, :created)',
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (($rule['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
                     assignStartNumber($context, ['entry_id' => $entryId]);
                 }
-                flash('success', 'Nennung gespeichert.');
+                flash('success', t('entries.flash.created'));
             }
         }
 
@@ -83,12 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
 
         if (!$entryId || !$personId || !$horseId || !$classId) {
-            flash('error', 'Bitte alle Felder ausfüllen.');
+            flash('error', t('entries.validation.fields_required'));
         } else {
             $existing = db_first('SELECT * FROM entries WHERE id = :id', ['id' => $entryId]);
             $class = db_first('SELECT id, event_id FROM classes WHERE id = :id', ['id' => $classId]);
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
-                flash('error', 'Prüfung nicht gefunden oder nicht freigegeben.');
+                flash('error', t('entries.validation.class_unavailable'));
             } else {
                 db_execute(
                     'UPDATE entries SET event_id = :event_id, class_id = :class_id, person_id = :person_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (($rule['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
                     assignStartNumber($context, ['entry_id' => $entryId]);
                 }
-                flash('success', 'Nennung aktualisiert.');
+                flash('success', t('entries.flash.updated'));
             }
         }
 
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($entryId) {
         $entry = db_first('SELECT event_id, start_number_assignment_id FROM entries WHERE id = :id', ['id' => $entryId]);
             if (!$entry || !event_accessible($user, (int) $entry['event_id'])) {
-                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                flash('error', t('entries.validation.forbidden_event'));
             } else {
                 if (!empty($entry['start_number_assignment_id'])) {
                     releaseStartNumber([
@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db_execute('DELETE FROM results WHERE startlist_id IN (SELECT id FROM startlist_items WHERE entry_id = :id)', ['id' => $entryId]);
                 db_execute('DELETE FROM startlist_items WHERE entry_id = :id', ['id' => $entryId]);
                 db_execute('DELETE FROM entries WHERE id = :id', ['id' => $entryId]);
-                flash('success', 'Nennung gelöscht.');
+                flash('success', t('entries.flash.deleted'));
             }
         }
         header('Location: entries.php');
@@ -154,14 +154,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($entryId) {
             $entry = db_first('SELECT event_id FROM entries WHERE id = :id', ['id' => $entryId]);
             if (!$entry || !event_accessible($user, (int) $entry['event_id'])) {
-                flash('error', 'Keine Berechtigung für dieses Turnier.');
+                flash('error', t('entries.validation.forbidden_event'));
             } else {
                 db_execute('UPDATE entries SET status = :status, fee_paid_at = :paid_at WHERE id = :id', [
                     'status' => $status,
                     'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
                     'id' => $entryId,
                 ]);
-                flash('success', 'Status aktualisiert.');
+                flash('success', t('entries.flash.status_updated'));
             }
         }
         header('Location: entries.php');
@@ -177,13 +177,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fclose($handle);
         }
         if (!$rows) {
-            flash('error', 'CSV konnte nicht gelesen werden.');
+            flash('error', t('entries.flash.csv_error'));
             header('Location: entries.php');
             exit;
         }
         $token = bin2hex(random_bytes(8));
         $_SESSION['entries_import'][$token] = $rows;
-        flash('success', 'CSV geladen – Spalten zuordnen.');
+        flash('success', t('entries.flash.csv_loaded'));
         header('Location: entries.php?import=' . $token);
         exit;
     }
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mapping = $_POST['mapping'] ?? [];
         $rows = $_SESSION['entries_import'][$token] ?? null;
         if (!$rows) {
-            flash('error', 'Import-Sitzung abgelaufen.');
+            flash('error', t('entries.validation.import_expired'));
             header('Location: entries.php');
             exit;
         }
@@ -252,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         unset($_SESSION['entries_import'][$token]);
-        flash('success', $created . ' Nennungen importiert.');
+        flash('success', tn('entries.flash.import_success', $created, ['count' => $created]));
         header('Location: entries.php');
         exit;
     }
@@ -284,7 +284,7 @@ $importRows = $importToken && isset($_SESSION['entries_import'][$importToken]) ?
 $importHeader = $importRows ? $importRows[0] : [];
 
 render_page('entries.tpl', [
-    'title' => 'Nennungen',
+    'titleKey' => 'pages.entries.title',
     'page' => 'entries',
     'persons' => $persons,
     'horses' => $horses,

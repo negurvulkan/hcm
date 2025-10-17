@@ -20,7 +20,7 @@ if (!$isAdmin) {
 }
 if (!$classes) {
     render_page('judge.tpl', [
-        'title' => 'Richten',
+        'titleKey' => 'pages.judge.title',
         'page' => 'judge',
         'classes' => [],
         'selectedClass' => null,
@@ -38,9 +38,9 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     $classId = (int) $classes[0]['id'];
     $selectedClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $classId]);
     if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
-        flash('error', 'Keine Berechtigung für dieses Turnier.');
+        flash('error', t('judge.validation.forbidden_event'));
         render_page('judge.tpl', [
-            'title' => 'Richten',
+            'titleKey' => 'pages.judge.title',
             'page' => 'judge',
             'classes' => [],
             'selectedClass' => null,
@@ -64,7 +64,7 @@ $startNumberRule = getStartNumberRule($startNumberContext);
 $starts = db_all('SELECT si.id, si.position, si.state, si.start_number_display, si.start_number_assignment_id, e.id AS entry_id, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 if (!$starts) {
     render_page('judge.tpl', [
-        'title' => 'Richten',
+        'titleKey' => 'pages.judge.title',
         'page' => 'judge',
         'classes' => $classes,
         'selectedClass' => $selectedClass,
@@ -148,7 +148,7 @@ if ($start && $start['state'] !== 'running' && $start['state'] !== 'withdrawn') 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('judge.validation.csrf_invalid'));
         header('Location: judge.php?class_id=' . $classId . '&start_id=' . $startId);
         exit;
     }
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'updated' => (new \DateTimeImmutable())->format('c'),
                 'id' => $startId,
             ]);
-            flash('success', 'Wertung entfernt.');
+            flash('success', t('judge.flash.result_deleted'));
         }
         header('Location: judge.php?class_id=' . $classId . '&start_id=' . $startId);
         exit;
@@ -280,13 +280,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     scoring_recalculate_class($classId, $user, 'judge_submit');
 
-    flash('success', 'Wertung gespeichert.');
+    flash('success', t('judge.flash.result_saved'));
     header('Location: judge.php?class_id=' . $classId . '&start_id=' . $startId);
     exit;
 }
 
 render_page('judge.tpl', [
-    'title' => 'Richten',
+    'titleKey' => 'pages.judge.title',
     'page' => 'judge',
     'classes' => $classes,
     'selectedClass' => $selectedClass,

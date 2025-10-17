@@ -15,13 +15,16 @@
 ?>
 <div class="alert alert-info d-flex justify-content-between align-items-center">
     <div>
-        <strong><?= htmlspecialchars($selectedClass['label'] ?? 'Prüfung', ENT_QUOTES, 'UTF-8') ?></strong>
+        <strong><?= htmlspecialchars($selectedClass['label'] ?? t('judge.banner.class_fallback'), ENT_QUOTES, 'UTF-8') ?></strong>
         <?php if (!empty($start['start_number_display'])): ?>
-            <span class="badge bg-primary text-light ms-2">Startnr. <?= htmlspecialchars($start['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+            <span class="badge bg-primary text-light ms-2"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $start['start_number_display']]), ENT_QUOTES, 'UTF-8') ?></span>
         <?php endif; ?>
-        · <?= htmlspecialchars($start['rider'] ?? 'Kein Start', ENT_QUOTES, 'UTF-8') ?>
+        · <?= htmlspecialchars($start['rider'] ?? t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?>
     </div>
-    <div class="text-muted small">Offline? <span class="badge bg-light text-dark">Form puffert lokal</span></div>
+    <div class="text-muted small">
+        <?= htmlspecialchars(t('judge.banner.offline_hint'), ENT_QUOTES, 'UTF-8') ?>
+        <span class="badge bg-light text-dark ms-1"><?= htmlspecialchars(t('judge.banner.offline_badge'), ENT_QUOTES, 'UTF-8') ?></span>
+    </div>
 </div>
 
 <div class="row g-3 mb-3">
@@ -32,13 +35,13 @@
                     <option value="<?= (int) $class['id'] ?>" <?= (int) $selectedClass['id'] === (int) $class['id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['title'] . ' · ' . $class['label'], ENT_QUOTES, 'UTF-8') ?></option>
                 <?php endforeach; ?>
             </select>
-            <button class="btn btn-outline-secondary" type="submit">Wechseln</button>
+            <button class="btn btn-outline-secondary" type="submit"><?= htmlspecialchars(t('judge.controls.switch'), ENT_QUOTES, 'UTF-8') ?></button>
         </form>
     </div>
     <div class="col-md-8 text-end">
         <?php foreach ($starts as $candidate): ?>
             <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?>">
-                Nr. <?= (int) $candidate['position'] ?>
+                <?= htmlspecialchars(t('judge.controls.position', ['position' => (int) $candidate['position']]), ENT_QUOTES, 'UTF-8') ?>
                 <?php if (!empty($candidate['start_number_display'])): ?>
                     <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($candidate['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
@@ -48,18 +51,18 @@
 </div>
 
 <?php if (!$start): ?>
-    <p class="text-muted">Keine Startliste verfügbar.</p>
+    <p class="text-muted"><?= htmlspecialchars(t('judge.empty'), ENT_QUOTES, 'UTF-8') ?></p>
 <?php else: ?>
 <form method="post" class="card" data-autosave>
     <div class="card-body">
         <?= csrf_field() ?>
         <input type="hidden" name="class_id" value="<?= (int) $selectedClass['id'] ?>">
         <input type="hidden" name="start_id" value="<?= (int) $start['id'] ?>">
-        <h2 class="h5 mb-3">Wertung für <?= htmlspecialchars($start['rider'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></h2>
+        <h2 class="h5 mb-3"><?= htmlspecialchars(t('judge.form.heading', ['rider' => $start['rider'], 'horse' => $start['horse']]), ENT_QUOTES, 'UTF-8') ?></h2>
         <?php $fields = $rule['input']['fields'] ?? []; ?>
         <?php if ($fields): ?>
             <div class="mb-4">
-                <h3 class="h6">Globale Eingaben</h3>
+                <h3 class="h6"><?= htmlspecialchars(t('judge.form.global_inputs'), ENT_QUOTES, 'UTF-8') ?></h3>
                 <div class="row g-3">
                     <?php foreach ($fields as $field): ?>
                         <?php $fieldId = $field['id'] ?? null; if (!$fieldId) { continue; }
@@ -70,7 +73,7 @@
                             <?php if ($type === 'boolean'): ?>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]" value="1" <?= $value ? 'checked' : '' ?>>
-                                    <span class="form-text small ms-2">Aktivieren für „Ja“.</span>
+                                    <span class="form-text small ms-2"><?= htmlspecialchars(t('judge.form.toggle_hint'), ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
                             <?php elseif ($type === 'set'): ?>
                                 <div class="d-flex flex-wrap gap-3">
@@ -92,7 +95,7 @@
         <?php endif; ?>
 
         <div class="mb-4">
-            <h3 class="h6">Bewertung (<?= htmlspecialchars($judgeKey, ENT_QUOTES, 'UTF-8') ?>)</h3>
+            <h3 class="h6"><?= htmlspecialchars(t('judge.form.judge_inputs', ['judge' => $judgeKey]), ENT_QUOTES, 'UTF-8') ?></h3>
             <div class="row g-3">
                 <?php foreach (($rule['input']['components'] ?? []) as $component): ?>
                     <?php $componentId = $component['id'] ?? null; if (!$componentId) { continue; }
@@ -107,7 +110,7 @@
                                <?php if (isset($component['max'])): ?>max="<?= (float) $component['max'] ?>"<?php endif; ?>
                                step="<?= isset($component['step']) ? (float) $component['step'] : 0.1 ?>">
                         <?php if (!empty($component['weight'])): ?>
-                            <div class="form-text">Gewichtung: <?= htmlspecialchars((string) $component['weight'], ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="form-text"><?= htmlspecialchars(t('judge.form.weight_hint', ['weight' => $component['weight']]), ENT_QUOTES, 'UTF-8') ?></div>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -116,14 +119,14 @@
 
         <?php if (!empty($otherJudges)): ?>
             <div class="mb-4">
-                <h3 class="h6">Eingaben weiterer Richter</h3>
+                <h3 class="h6"><?= htmlspecialchars(t('judge.form.other_judges'), ENT_QUOTES, 'UTF-8') ?></h3>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th>Richter</th>
-                            <th>Punkte</th>
-                            <th>Zeit</th>
+                            <th><?= htmlspecialchars(t('judge.form.other_judges_columns.judge'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('judge.form.other_judges_columns.score'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('judge.form.other_judges_columns.submitted'), ENT_QUOTES, 'UTF-8') ?></th>
                         </tr>
                         </thead>
                         <tbody>
@@ -131,8 +134,8 @@
                             <?php $scoreEntry = $perJudgeScores[$key] ?? null; ?>
                             <tr>
                                 <td><?= htmlspecialchars($entry['user']['name'] ?? $key, ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= $scoreEntry ? htmlspecialchars(number_format((float) ($scoreEntry['score'] ?? 0), 2), ENT_QUOTES, 'UTF-8') : '–' ?></td>
-                                <td><?= htmlspecialchars($entry['submitted_at'] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= $scoreEntry ? htmlspecialchars(number_format((float) ($scoreEntry['score'] ?? 0), 2), ENT_QUOTES, 'UTF-8') : htmlspecialchars(t('judge.form.no_score'), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($entry['submitted_at'] ?? t('judge.form.no_value'), ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -146,26 +149,26 @@
             <div class="alert alert-light border">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <strong>Aktuelle Gesamtwertung:</strong>
-                        <span class="ms-2"><?= htmlspecialchars(number_format((float) ($totals['total_rounded'] ?? $totals['total_raw'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($totals['unit'] ?? 'pts', ENT_QUOTES, 'UTF-8') ?></span>
+                        <strong><?= htmlspecialchars(t('judge.form.current_total'), ENT_QUOTES, 'UTF-8') ?></strong>
+                        <span class="ms-2"><?= htmlspecialchars(number_format((float) ($totals['total_rounded'] ?? $totals['total_raw'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($totals['unit'] ?? t('judge.form.unit_default'), ENT_QUOTES, 'UTF-8') ?></span>
                     </div>
-                    <div class="text-muted small">Penalties: <?= htmlspecialchars(number_format((float) ($totals['penalties']['total'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?></div>
+                    <div class="text-muted small"><?= htmlspecialchars(t('judge.form.penalties', ['value' => number_format((float) ($totals['penalties']['total'] ?? 0), 2)]), ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
             </div>
         <?php endif; ?>
 
         <div class="form-check form-switch mt-4">
             <input class="form-check-input" type="checkbox" id="sign" name="sign" <?= ($result['status'] ?? '') === 'signed' ? 'checked' : '' ?>>
-            <label class="form-check-label" for="sign">Elektronisch signieren</label>
+            <label class="form-check-label" for="sign"><?= htmlspecialchars(t('judge.form.sign_label'), ENT_QUOTES, 'UTF-8') ?></label>
         </div>
     </div>
     <div class="card-footer d-flex justify-content-between align-items-center">
-        <div class="text-muted small">Zwischenspeichern möglich – Abschicken speichert endgültig.</div>
+        <div class="text-muted small"><?= htmlspecialchars(t('judge.form.autosave_note'), ENT_QUOTES, 'UTF-8') ?></div>
         <div class="d-flex gap-2">
             <?php if ($result): ?>
-                <button class="btn btn-outline-danger" type="submit" name="action" value="delete_result" formnovalidate onclick="return confirm('Wertung wirklich löschen?')">Löschen</button>
+                <button class="btn btn-outline-danger" type="submit" name="action" value="delete_result" formnovalidate onclick="return confirm('<?= htmlspecialchars(t('judge.form.delete_confirm'), ENT_QUOTES, 'UTF-8') ?>')"><?= htmlspecialchars(t('judge.form.delete'), ENT_QUOTES, 'UTF-8') ?></button>
             <?php endif; ?>
-            <button class="btn btn-accent" type="submit" name="action" value="save">Wertung speichern</button>
+            <button class="btn btn-accent" type="submit" name="action" value="save"><?= htmlspecialchars(t('judge.form.save'), ENT_QUOTES, 'UTF-8') ?></button>
         </div>
     </div>
 </form>

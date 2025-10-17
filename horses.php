@@ -9,7 +9,7 @@ $editHorse = $editId ? db_first('SELECT * FROM horses WHERE id = :id', ['id' => 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('horses.validation.csrf_invalid'));
         header('Location: horses.php');
         exit;
     }
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $horseId = (int) ($_POST['horse_id'] ?? 0);
         if ($horseId) {
             db_execute('DELETE FROM horses WHERE id = :id', ['id' => $horseId]);
-            flash('success', 'Pferd gelöscht.');
+            flash('success', t('horses.flash.deleted'));
         }
         header('Location: horses.php');
         exit;
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $notes = trim((string) ($_POST['notes'] ?? ''));
 
     if ($name === '') {
-        flash('error', 'Name erforderlich.');
+        flash('error', t('horses.validation.name_required'));
     } else {
         if ($action === 'update' && $horseId > 0) {
             db_execute(
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'id' => $horseId,
                 ]
             );
-            flash('success', 'Pferd aktualisiert.');
+            flash('success', t('horses.flash.updated'));
         } else {
             db_execute(
                 'INSERT INTO horses (name, owner_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'notes' => $notes ?: null,
                 ]
             );
-            flash('success', 'Pferd gespeichert.');
+            flash('success', t('horses.flash.created'));
         }
     }
 
@@ -85,7 +85,7 @@ $sql .= ' ORDER BY h.name LIMIT 100';
 $horses = db_all($sql, $params);
 
 render_page('horses.tpl', [
-    'title' => 'Pferde',
+    'titleKey' => 'pages.horses.title',
     'page' => 'horses',
     'horses' => $horses,
     'owners' => $owners,
