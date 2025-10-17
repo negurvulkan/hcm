@@ -1,14 +1,23 @@
 <?php
 /** @var array $persons */
 /** @var array $horses */
+/** @var array $clubs */
 /** @var array $classes */
 /** @var array $entries */
 /** @var array|null $importHeader */
 /** @var array $importPreview */
 /** @var int $importPreviewRemaining */
+/** @var int $selectedPersonId */
+/** @var int $selectedHorseId */
+/** @var int $defaultHorseOwnerId */
 ?>
 <?php $selectionTemplate = t('entries.bulk.selection_counter'); ?>
 <?php $selectionInitial = str_replace('{count}', '0', $selectionTemplate); ?>
+<?php
+$personSelectValue = $editEntry ? (int) $editEntry['party_id'] : (int) ($selectedPersonId ?? 0);
+$horseSelectValue = $editEntry ? (int) $editEntry['horse_id'] : (int) ($selectedHorseId ?? 0);
+$ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
+?>
 <div class="row g-4">
     <div class="col-lg-4">
         <div class="card h-100">
@@ -19,22 +28,32 @@
                     <input type="hidden" name="action" value="<?= $editEntry ? 'update' : 'create' ?>">
                     <input type="hidden" name="entry_id" value="<?= $editEntry ? (int) $editEntry['id'] : '' ?>">
                     <div class="mb-3">
-                        <label class="form-label"><?= htmlspecialchars(t('entries.form.person'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-label mb-0" for="entry-person-select"><?= htmlspecialchars(t('entries.form.person'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#quickPersonModal">
+                                <?= htmlspecialchars(t('entries.quick.person.button'), ENT_QUOTES, 'UTF-8') ?>
+                            </button>
+                        </div>
                         <input type="search" class="form-control form-control-sm mb-2" placeholder="<?= htmlspecialchars(t('entries.form.filter_placeholder'), ENT_QUOTES, 'UTF-8') ?>" data-select-filter="#entry-person-select">
                         <select name="person_id" id="entry-person-select" class="form-select" required data-enhanced-select>
                             <option value=""><?= htmlspecialchars(t('entries.form.select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
                             <?php foreach ($persons as $person): ?>
-                                <option value="<?= (int) $person['id'] ?>" <?= $editEntry && (int) $editEntry['party_id'] === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $person['id'] ?>" <?= $personSelectValue === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><?= htmlspecialchars(t('entries.form.horse'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-label mb-0" for="entry-horse-select"><?= htmlspecialchars(t('entries.form.horse'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#quickHorseModal">
+                                <?= htmlspecialchars(t('entries.quick.horse.button'), ENT_QUOTES, 'UTF-8') ?>
+                            </button>
+                        </div>
                         <input type="search" class="form-control form-control-sm mb-2" placeholder="<?= htmlspecialchars(t('entries.form.filter_placeholder'), ENT_QUOTES, 'UTF-8') ?>" data-select-filter="#entry-horse-select">
                         <select name="horse_id" id="entry-horse-select" class="form-select" required data-enhanced-select>
                             <option value=""><?= htmlspecialchars(t('entries.form.select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
                             <?php foreach ($horses as $horse): ?>
-                                <option value="<?= (int) $horse['id'] ?>" <?= $editEntry && (int) $editEntry['horse_id'] === (int) $horse['id'] ? 'selected' : '' ?>><?= htmlspecialchars($horse['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $horse['id'] ?>" <?= $horseSelectValue === (int) $horse['id'] ? 'selected' : '' ?>><?= htmlspecialchars($horse['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -173,6 +192,96 @@
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="quickPersonModal" tabindex="-1" aria-labelledby="quickPersonModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="quickPersonModalLabel"><?= htmlspecialchars(t('entries.quick.person.title'), ENT_QUOTES, 'UTF-8') ?></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= htmlspecialchars(t('entries.quick.close'), ENT_QUOTES, 'UTF-8') ?>"></button>
+            </div>
+            <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="create_person">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="quick-person-name"><?= htmlspecialchars(t('entries.quick.person.name'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="text" class="form-control" id="quick-person-name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="quick-person-email"><?= htmlspecialchars(t('entries.quick.person.email'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="email" class="form-control" id="quick-person-email" name="email" placeholder="<?= htmlspecialchars(t('entries.quick.person.email_placeholder'), ENT_QUOTES, 'UTF-8') ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="quick-person-phone"><?= htmlspecialchars(t('entries.quick.person.phone'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="text" class="form-control" id="quick-person-phone" name="phone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="quick-person-club"><?= htmlspecialchars(t('entries.quick.person.club'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <select class="form-select" id="quick-person-club" name="club_id">
+                            <option value=""><?= htmlspecialchars(t('entries.form.select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php foreach ($clubs as $club): ?>
+                                <option value="<?= (int) $club['id'] ?>"><?= htmlspecialchars($club['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= htmlspecialchars(t('entries.quick.cancel'), ENT_QUOTES, 'UTF-8') ?></button>
+                    <button type="submit" class="btn btn-accent"><?= htmlspecialchars(t('entries.quick.person.submit'), ENT_QUOTES, 'UTF-8') ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="quickHorseModal" tabindex="-1" aria-labelledby="quickHorseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="quickHorseModalLabel"><?= htmlspecialchars(t('entries.quick.horse.title'), ENT_QUOTES, 'UTF-8') ?></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= htmlspecialchars(t('entries.quick.close'), ENT_QUOTES, 'UTF-8') ?>"></button>
+            </div>
+            <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="create_horse">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="quick-horse-name"><?= htmlspecialchars(t('entries.quick.horse.name'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="text" class="form-control" id="quick-horse-name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-label mb-0" for="quick-horse-owner"><?= htmlspecialchars(t('entries.quick.horse.owner'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#quickPersonModal" data-bs-dismiss="modal">
+                                <?= htmlspecialchars(t('entries.quick.horse.add_owner'), ENT_QUOTES, 'UTF-8') ?>
+                            </button>
+                        </div>
+                        <input type="search" class="form-control form-control-sm mb-2" placeholder="<?= htmlspecialchars(t('entries.form.filter_placeholder'), ENT_QUOTES, 'UTF-8') ?>" data-select-filter="#quick-horse-owner">
+                        <select class="form-select" id="quick-horse-owner" name="owner_id">
+                            <option value=""><?= htmlspecialchars(t('entries.form.select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php foreach ($persons as $person): ?>
+                                <option value="<?= (int) $person['id'] ?>" <?= $ownerSelectValue === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" value="1" id="quick-horse-documents" name="documents_ok">
+                        <label class="form-check-label" for="quick-horse-documents"><?= htmlspecialchars(t('entries.quick.horse.documents_ok'), ENT_QUOTES, 'UTF-8') ?></label>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label" for="quick-horse-notes"><?= htmlspecialchars(t('entries.quick.horse.notes'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <textarea class="form-control" id="quick-horse-notes" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= htmlspecialchars(t('entries.quick.cancel'), ENT_QUOTES, 'UTF-8') ?></button>
+                    <button type="submit" class="btn btn-accent"><?= htmlspecialchars(t('entries.quick.horse.submit'), ENT_QUOTES, 'UTF-8') ?></button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
