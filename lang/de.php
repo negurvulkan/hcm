@@ -1180,6 +1180,8 @@ return [
             'invalid_role' => 'Ungültige Instanz-Rolle ausgewählt.',
             'invalid_mode' => 'Ungültiger Betriebsmodus ausgewählt.',
             'peer_url_invalid' => 'Peer-URL ist nicht gültig.',
+            'peer_base_required' => 'Peer-Basis-URL für die lokale Instanz angeben.',
+            'peer_base_local_only' => 'Im Turniermodus kann nur die lokale Instanz die Peer-Basis-URL setzen.',
             'peer_turnier_id_required' => 'Peer Turnier-ID angeben.',
             'peer_token_required' => 'Für diesen Modus wird ein API-Token benötigt.',
             'checklist_required' => 'Bitte die Checkliste bestätigen, um den Modus zu wechseln.',

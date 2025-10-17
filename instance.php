@@ -28,16 +28,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $form['instance_role'] = strtoupper((string) ($_POST['instance_role'] ?? $form['instance_role']));
     $form['operation_mode'] = strtoupper((string) ($_POST['operation_mode'] ?? $form['operation_mode']));
+    $peerBaseProvided = array_key_exists('peer_base_url', $_POST);
     $form['peer_base_url'] = trim((string) ($_POST['peer_base_url'] ?? $form['peer_base_url']));
     $form['peer_turnier_id'] = trim((string) ($_POST['peer_turnier_id'] ?? $form['peer_turnier_id']));
     $tokenInput = trim((string) ($_POST['peer_api_token'] ?? ''));
     $clearToken = isset($_POST['peer_api_token_clear']);
     $checklistComplete = ($_POST['checklist_complete'] ?? '') === '1';
 
+    $isLocalInstance = $form['instance_role'] === InstanceConfiguration::ROLE_LOCAL;
+    $isOnlineInstance = $form['instance_role'] === InstanceConfiguration::ROLE_ONLINE;
+    $isMirrorInstance = $form['instance_role'] === InstanceConfiguration::ROLE_MIRROR;
+    $isTournamentMode = $form['operation_mode'] === InstanceConfiguration::MODE_TOURNAMENT;
+
     if ($clearToken) {
         $hasPeerToken = false;
     } elseif ($tokenInput !== '') {
         $hasPeerToken = true;
+    }
+
+    if ($isTournamentMode && $isOnlineInstance && !$isMirrorInstance) {
+        if ($action === 'save' && $peerBaseProvided && $form['peer_base_url'] !== '') {
+            $errors[] = t('instance.validation.peer_base_local_only');
+        }
+        $form['peer_base_url'] = '';
     }
 
     $updates = [
@@ -67,14 +80,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form['peer_base_url'] !== '' && !filter_var($form['peer_base_url'], FILTER_VALIDATE_URL)) {
             $errors[] = t('instance.validation.peer_url_invalid');
         }
+        if ($isTournamentMode && $isLocalInstance && $form['peer_base_url'] === '') {
+            $errors[] = t('instance.validation.peer_base_required');
+        }
         if ($form['peer_base_url'] !== '' && $form['peer_turnier_id'] === '') {
+            $errors[] = t('instance.validation.peer_turnier_id_required');
+        } elseif ($isTournamentMode && ($isLocalInstance || $isOnlineInstance) && $form['peer_turnier_id'] === '') {
             $errors[] = t('instance.validation.peer_turnier_id_required');
         }
 
-        $requiresToken = ($form['peer_base_url'] !== '') && (
-            ($form['operation_mode'] === InstanceConfiguration::MODE_TOURNAMENT && $form['instance_role'] === InstanceConfiguration::ROLE_LOCAL) ||
-            ($form['operation_mode'] === InstanceConfiguration::MODE_POST_TOURNAMENT && $form['instance_role'] === InstanceConfiguration::ROLE_ONLINE)
-        );
+        $requiresToken = false;
+        if ($isTournamentMode && ($isLocalInstance || $isOnlineInstance)) {
+            $requiresToken = true;
+        } elseif ($form['peer_base_url'] !== '') {
+            $requiresToken = (
+                ($form['operation_mode'] === InstanceConfiguration::MODE_TOURNAMENT && $isLocalInstance) ||
+                ($form['operation_mode'] === InstanceConfiguration::MODE_POST_TOURNAMENT && $isOnlineInstance)
+            );
+        }
         $effectiveToken = $clearToken ? null : ($tokenInput !== '' ? $tokenInput : ($hasPeerToken ? '__existing__' : null));
         if ($requiresToken && !$effectiveToken) {
             $errors[] = t('instance.validation.peer_token_required');
