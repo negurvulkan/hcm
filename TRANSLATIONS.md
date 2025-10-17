@@ -9,7 +9,9 @@
 | Personenverwaltung | ✅ | Formulare, Filter, Tabellenaktionen sowie Flash- und Validierungsmeldungen übersetzt. |
 | Pferdeverwaltung | ✅ | Formulare, Filter und Statusanzeigen übersetzt. |
 | Vereinsverwaltung | ✅ | Formulare, Filter und Tabellenaktionen lokalisiert. |
-| Weitere Module | ⏳ | Weitere Bereiche (z. B. Turniere, Prüfungen) folgen schrittweise. |
+| Turnierverwaltung & Startnummern | ✅ | Turnierformulare, Templates und Startnummern-Designer (JS) nutzen nun Übersetzungen. |
+| Klassenverwaltung & Designer | ✅ | Klassenformular, Startnummernmodal und Regel-Designer wurden vollständig lokalisiert. |
+| Weitere Module | ⏳ | Weitere Bereiche (z. B. Zeitplan, Ergebnisse) folgen schrittweise. |
 
 ## English (en)
 
@@ -20,4 +22,6 @@
 | Persons management | ✅ | Forms, filters, table actions, and flash/validation messages translated. |
 | Horse management | ✅ | Forms, filters, and status badges localized. |
 | Club management | ✅ | Forms, filters, and table actions localized. |
-| Remaining modules | ⏳ | Additional modules (e.g., events, classes) will be localized next. |
+| Events & start numbers | ✅ | Event forms, templates, and start-number designer JS now pull translations. |
+| Classes & rule designer | ✅ | Class form, modal, and rule designer JavaScript are fully localized. |
+| Remaining modules | ⏳ | Additional modules (e.g., schedule, results) will be localized next. |

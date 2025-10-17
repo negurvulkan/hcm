@@ -45,7 +45,7 @@ $simulationError = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('events.validation.csrf_invalid'));
         header('Location: events.php');
         exit;
     }
@@ -70,25 +70,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'start_number_rules_text' => $rulesInput,
         ];
         if ($rulesInput === '') {
-            $simulationError = 'Regel-JSON angeben.';
+            $simulationError = t('events.validation.rule_json_required');
         } else {
             try {
                 $rulesDecoded = json_decode($rulesInput, true, 512, JSON_THROW_ON_ERROR);
                 if (!is_array($rulesDecoded)) {
-                    $simulationError = 'Regel-JSON muss ein Objekt sein.';
+                    $simulationError = t('events.validation.rule_json_object');
                 } else {
                     $simulation = events_simulate_numbers($rulesDecoded, 20);
                     $designerRule = start_number_rule_merge_defaults($rulesDecoded);
                 }
             } catch (\JsonException $e) {
-                $simulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
+                $simulationError = t('events.validation.rule_json_invalid', ['message' => $e->getMessage()]);
             }
         }
     }
 
     if (in_array($action, ['set_active', 'deactivate'], true)) {
         if (!$isAdmin) {
-            flash('error', 'Nur Administratoren können Turniere aktivieren oder deaktivieren.');
+            flash('error', t('events.validation.admin_only_activation'));
             header('Location: events.php');
             exit;
         }
@@ -99,11 +99,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db_execute('UPDATE events SET is_active = 0 WHERE is_active = 1');
                 db_execute('UPDATE events SET is_active = 1 WHERE id = :id', ['id' => $eventId]);
                 event_active(true);
-                flash('success', 'Aktives Turnier aktualisiert.');
+                flash('success', t('events.flash.activated'));
             } else {
                 db_execute('UPDATE events SET is_active = 0 WHERE id = :id', ['id' => $eventId]);
                 event_active(true);
-                flash('success', 'Turnier deaktiviert.');
+                flash('success', t('events.flash.deactivated'));
             }
         }
         header('Location: events.php');
@@ -115,11 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($eventId) {
             $hasClasses = db_first('SELECT COUNT(*) AS cnt FROM classes WHERE event_id = :id', ['id' => $eventId]);
             if ($hasClasses && (int) $hasClasses['cnt'] > 0) {
-                flash('error', 'Turnier besitzt Prüfungen und kann nicht gelöscht werden.');
+                flash('error', t('events.validation.has_classes'));
             } else {
                 db_execute('DELETE FROM events WHERE id = :id', ['id' => $eventId]);
                 event_active(true);
-                flash('success', 'Turnier gelöscht.');
+                flash('success', t('events.flash.deleted'));
             }
         }
         header('Location: events.php');
@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $rulesEncoded = json_encode($decodedRules, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
                 $designerRule = start_number_rule_merge_defaults($decodedRules);
             } catch (\JsonException $e) {
-                flash('error', 'Regel-JSON ungültig: ' . $e->getMessage());
+                flash('error', t('events.validation.rule_json_invalid', ['message' => $e->getMessage()]));
                 header('Location: events.php' . ($eventId ? '?edit=' . $eventId : ''));
                 exit;
             }
@@ -153,14 +153,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 RuleManager::validate($decodedScoring);
                 $scoringRuleEncoded = json_encode(RuleManager::mergeDefaults($decodedScoring), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             } catch (\Throwable $e) {
-                flash('error', 'Scoring-Regel ungültig: ' . $e->getMessage());
+                flash('error', t('events.validation.scoring_invalid', ['message' => $e->getMessage()]));
                 header('Location: events.php' . ($eventId ? '?edit=' . $eventId : ''));
                 exit;
             }
         }
 
         if ($title === '') {
-            flash('error', 'Titel erforderlich.');
+            flash('error', t('events.validation.title_required'));
         } else {
             $payload = [
                 'title' => $title,
@@ -176,13 +176,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'UPDATE events SET title = :title, start_date = :start, end_date = :end, venues = :venues, start_number_rules = :rules, scoring_rule_json = :scoring_rule WHERE id = :id',
                     $payload + ['id' => $eventId]
                 );
-                flash('success', 'Turnier aktualisiert.');
+                flash('success', t('events.flash.updated'));
             } else {
                 db_execute(
                     'INSERT INTO events (title, start_date, end_date, venues, start_number_rules, scoring_rule_json) VALUES (:title, :start, :end, :venues, :rules, :scoring_rule)',
                     $payload
                 );
-                flash('success', 'Turnier angelegt.');
+                flash('success', t('events.flash.created'));
             }
         }
 
@@ -204,7 +204,7 @@ foreach ($events as &$event) {
 unset($event);
 
 render_page('events.tpl', [
-    'title' => 'Turniere',
+    'title' => t('events.title'),
     'page' => 'events',
     'events' => $events,
     'editEvent' => $editEvent,

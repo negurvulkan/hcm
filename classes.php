@@ -28,7 +28,7 @@ $editClass = null;
 if ($editId) {
     $editClass = db_first('SELECT * FROM classes WHERE id = :id', ['id' => $editId]);
     if ($editClass && !event_accessible($user, (int) $editClass['event_id'])) {
-        flash('error', 'Kein Zugriff auf dieses Turnier.');
+        flash('error', t('classes.validation.forbidden_event'));
         header('Location: classes.php');
         exit;
     }
@@ -52,7 +52,7 @@ $simulationCount = 10;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('classes.validation.csrf_invalid'));
         header('Location: classes.php');
         exit;
     }
@@ -95,14 +95,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         if (!$eventId || !event_accessible($user, $eventId)) {
-            $classSimulationError = 'Turnier auswählen.';
+            $classSimulationError = t('classes.validation.select_event');
         } elseif ($ruleJson === '') {
-            $classSimulationError = 'Regel-JSON angeben.';
+            $classSimulationError = t('classes.validation.rule_json_required');
         } else {
             try {
                 $decodedRule = json_decode($ruleJson, true, 512, JSON_THROW_ON_ERROR);
                 if (!is_array($decodedRule)) {
-                    $classSimulationError = 'Regel-JSON muss ein Objekt sein.';
+                    $classSimulationError = t('classes.validation.rule_json_object');
                 } else {
                     $context = [
                         'eventId' => $eventId,
@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $classSimulation = simulateStartNumbers($context, 10);
                 }
             } catch (\JsonException $e) {
-                $classSimulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
+                $classSimulationError = t('classes.validation.rule_json_invalid', ['message' => $e->getMessage()]);
             }
         }
     } elseif ($action === 'simulate_scoring') {
@@ -139,10 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (is_array($decoded)) {
                     $resolvedRule = $decoded;
                 } else {
-                    $scoringSimulationError = 'Regel-JSON ungültig.';
+                    $scoringSimulationError = t('classes.validation.rule_json_invalid_simple');
                 }
             } catch (\JsonException $e) {
-                $scoringSimulationError = 'Regel-JSON ungültig: ' . $e->getMessage();
+                $scoringSimulationError = t('classes.validation.rule_json_invalid', ['message' => $e->getMessage()]);
             }
         }
         if (!$resolvedRule && $classId) {
@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $scoringSimulation = scoring_simulate($resolvedRule, $count);
             } catch (\Throwable $e) {
-                $scoringSimulationError = 'Simulation fehlgeschlagen: ' . $e->getMessage();
+                $scoringSimulationError = t('classes.validation.simulation_failed', ['message' => $e->getMessage()]);
             }
         }
         if ($classId && !$editClass) {
@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($classId) {
                 $class = db_first('SELECT event_id FROM classes WHERE id = :id', ['id' => $classId]);
                 if (!$class || !event_accessible($user, (int) $class['event_id'])) {
-                    flash('error', 'Keine Berechtigung für dieses Turnier.');
+                    flash('error', t('classes.validation.no_permission_event'));
                     header('Location: classes.php');
                     exit;
                 }
@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db_execute('DELETE FROM entries WHERE class_id = :id', ['id' => $classId]);
                 db_execute('DELETE FROM schedule_shifts WHERE class_id = :id', ['id' => $classId]);
                 db_execute('DELETE FROM classes WHERE id = :id', ['id' => $classId]);
-                flash('success', 'Prüfung gelöscht.');
+                flash('success', t('classes.flash.deleted'));
             }
             header('Location: classes.php');
             exit;
@@ -201,13 +201,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $startNumberRuleRaw = trim((string) ($_POST['start_number_rules'] ?? ''));
 
         if (!$eventId || $label === '') {
-            flash('error', 'Event und Bezeichnung angeben.');
+            flash('error', t('classes.validation.event_label_required'));
             header('Location: classes.php');
             exit;
         }
 
         if (!event_accessible($user, $eventId)) {
-            flash('error', 'Keine Berechtigung für dieses Turnier.');
+            flash('error', t('classes.validation.no_permission_event'));
             header('Location: classes.php');
             exit;
         }
@@ -217,19 +217,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $decodedRule = json_decode($rulesRaw, true, 512, JSON_THROW_ON_ERROR);
             } catch (\JsonException $e) {
-                flash('error', 'Scoring-Regeln ungültig: ' . $e->getMessage());
+                flash('error', t('classes.validation.scoring_invalid', ['message' => $e->getMessage()]));
                 header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
                 exit;
             }
             if (!is_array($decodedRule)) {
-                flash('error', 'Scoring-Regeln müssen ein JSON-Objekt sein.');
+                flash('error', t('classes.validation.scoring_object'));
                 header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
                 exit;
             }
             try {
                 RuleManager::validate($decodedRule);
             } catch (\Throwable $e) {
-                flash('error', 'Scoring-Regeln ungültig: ' . $e->getMessage());
+                flash('error', t('classes.validation.scoring_invalid', ['message' => $e->getMessage()]));
                 header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
                 exit;
             }
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $resolvedRule = RuleManager::mergeDefaults($resolvedRule);
             $rulesSnapshotJson = json_encode($resolvedRule, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
-            flash('error', 'Scoring-Regel ungültig: ' . $e->getMessage());
+            flash('error', t('classes.validation.scoring_rule_invalid', ['message' => $e->getMessage()]));
             header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
             exit;
         }
@@ -254,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $decodedStartRule = json_decode($startNumberRuleRaw, true, 512, JSON_THROW_ON_ERROR);
                 $startNumberRule = json_encode($decodedStartRule, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             } catch (\JsonException $e) {
-                flash('error', 'Startnummern-Regel ungültig: ' . $e->getMessage());
+                flash('error', t('classes.validation.start_rule_invalid', ['message' => $e->getMessage()]));
                 header('Location: classes.php' . ($classId ? '?edit=' . $classId : ''));
                 exit;
             }
@@ -279,13 +279,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'UPDATE classes SET event_id = :event_id, label = :label, arena = :arena, start_time = :start_time, end_time = :end_time, max_starters = :max_starters, judge_assignments = :judge_assignments, rules_json = :rules_json, tiebreaker_json = :tiebreaker_json, start_number_rules = :start_number_rules, scoring_rule_snapshot = :scoring_rule_snapshot WHERE id = :id',
                 $data + ['id' => $classId]
             );
-            flash('success', 'Prüfung aktualisiert.');
+            flash('success', t('classes.flash.updated'));
         } else {
             db_execute(
                 'INSERT INTO classes (event_id, label, arena, start_time, end_time, max_starters, judge_assignments, rules_json, tiebreaker_json, start_number_rules, scoring_rule_snapshot) VALUES (:event_id, :label, :arena, :start_time, :end_time, :max_starters, :judge_assignments, :rules_json, :tiebreaker_json, :start_number_rules, :scoring_rule_snapshot)',
                 $data
             );
-            flash('success', 'Prüfung angelegt.');
+            flash('success', t('classes.flash.created'));
         }
 
         header('Location: classes.php');
@@ -346,7 +346,7 @@ if ($editClass) {
 }
 
 render_page('classes.tpl', [
-    'title' => 'Prüfungen',
+    'title' => t('classes.title'),
     'page' => 'classes',
     'events' => $events,
     'classes' => $classes,
