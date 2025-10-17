@@ -683,6 +683,81 @@ return [
             'custom_option' => '{value} (custom)',
         ],
     ],
+    'startlist' => [
+        'title' => 'Start lists',
+        'heading' => 'Start list',
+        'validation' => [
+            'forbidden_event' => 'No permission for this event.',
+            'csrf_invalid' => 'CSRF invalid.',
+        ],
+        'flash' => [
+            'no_entries' => 'No entries available.',
+            'generated' => 'Start list generated.',
+            'status_updated' => 'Status updated.',
+            'time_updated' => 'Start updated.',
+            'item_removed' => 'Entry removed from list.',
+            'number_locked' => 'Start number is locked.',
+            'number_reassigned' => 'Start number reassigned.',
+            'number_gate' => 'Start number will be assigned at the gate.',
+        ],
+        'actions' => [
+            'generate' => 'Generate start list',
+            'withdraw' => 'Withdraw',
+            'reactivate' => 'Reactivate',
+            'reassign_number' => 'Reassign',
+        ],
+        'conflicts' => [
+            'title' => 'Note',
+            'description' => 'The following horses start very close together:',
+            'item' => '{first_horse} (no. {first_position}) & {second_horse} (no. {second_position})',
+        ],
+        'table' => [
+            'columns' => [
+                'position' => '#',
+                'start_number' => 'Start no.',
+                'rider' => 'Rider',
+                'horse' => 'Horse',
+                'planned_start_note' => 'Planned start & note',
+                'status' => 'Status',
+                'actions' => 'Actions',
+            ],
+            'note_placeholder' => 'Note',
+            'empty' => 'No starts available.',
+        ],
+        'status' => [
+            'scheduled' => 'Scheduled',
+            'withdrawn' => 'Withdrawn',
+            'running' => 'On course',
+            'completed' => 'Finished',
+        ],
+        'confirm' => [
+            'delete' => 'Remove start permanently?',
+        ],
+    ],
+    'display' => [
+        'title' => 'Live display',
+        'headings' => [
+            'current' => 'Current starter',
+            'upcoming' => 'Next starters',
+            'top' => 'Top 3 standings',
+            'ticker' => 'Ticker',
+        ],
+        'labels' => [
+            'start_number_prefix' => 'Start no.',
+            'no_current' => 'No starter yet',
+            'horse_prefix' => 'Horse:',
+            'class_prefix' => 'Class:',
+            'position_prefix' => 'No.',
+        ],
+        'empty' => [
+            'next' => 'No further starters.',
+            'results' => 'No results yet.',
+            'shift' => 'No schedule shifts.',
+        ],
+        'defaults' => [
+            'sponsor' => 'Sponsor: Local partner',
+        ],
+    ],
     'schedule' => [
         'title' => 'Schedule',
         'validation' => [

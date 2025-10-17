@@ -3,13 +3,17 @@
 /** @var array $next */
 /** @var array $top */
 /** @var string $sponsor */
+/** @var string $title */
+/** @var string $locale */
+$pageTitle = $title ?? t('display.title');
+$pageLocale = $locale ?? current_locale();
 ?>
 <!DOCTYPE html>
-<html lang="de">
+<html lang="<?= htmlspecialchars($pageLocale, ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Live-Anzeige</title>
+    <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="stylesheet" href="public/assets/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="public/assets/css/styles.css">
     <style>
@@ -25,26 +29,26 @@
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-body">
-                    <h2 class="h4">Aktueller Starter</h2>
+                    <h2 class="h4"><?= htmlspecialchars(t('display.headings.current'), ENT_QUOTES, 'UTF-8') ?></h2>
                     <p class="display-5" data-ticker-current>
                         <?php if (!empty($current['start_number_display'])): ?>
-                            <span class="badge bg-primary text-light me-2">Startnr. <?= htmlspecialchars($current['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <span class="badge bg-primary text-light me-2"><?= htmlspecialchars(t('display.labels.start_number_prefix'), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($current['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                         <?php endif; ?>
-                        <?= htmlspecialchars($current['rider'] ?? 'Noch kein Start', ENT_QUOTES, 'UTF-8') ?>
+                        <?= htmlspecialchars($current['rider'] ?? t('display.labels.no_current'), ENT_QUOTES, 'UTF-8') ?>
                     </p>
-                    <p class="h4">Pferd: <?= htmlspecialchars($current['horse'] ?? '–', ENT_QUOTES, 'UTF-8') ?></p>
-                    <p class="text-muted">Prüfung: <?= htmlspecialchars($current['label'] ?? '–', ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="h4"><?= htmlspecialchars(t('display.labels.horse_prefix'), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($current['horse'] ?? t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="text-muted"><?= htmlspecialchars(t('display.labels.class_prefix'), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($current['label'] ?? t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
             </div>
         </div>
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-body">
-                    <h2 class="h4">Nächste Starter</h2>
+                    <h2 class="h4"><?= htmlspecialchars(t('display.headings.upcoming'), ENT_QUOTES, 'UTF-8') ?></h2>
                     <ul class="list-unstyled" data-ticker-upcoming>
                         <?php foreach ($next as $entry): ?>
                             <li class="py-1">
-                                Nr. <?= (int) $entry['position'] ?>
+                                <?= htmlspecialchars(t('display.labels.position_prefix'), ENT_QUOTES, 'UTF-8') ?> <?= (int) $entry['position'] ?>
                                 <?php if (!empty($entry['start_number_display'])): ?>
                                     <span class="badge bg-primary text-light ms-1"><?= htmlspecialchars($entry['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
@@ -52,7 +56,7 @@
                             </li>
                         <?php endforeach; ?>
                         <?php if (!$next): ?>
-                            <li class="text-muted">Keine weiteren Starter.</li>
+                            <li class="text-muted"><?= htmlspecialchars(t('display.empty.next'), ENT_QUOTES, 'UTF-8') ?></li>
                         <?php endif; ?>
                     </ul>
                 </div>
@@ -63,13 +67,13 @@
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-body">
-                    <h2 class="h4">Zwischenstand Top 3</h2>
+                    <h2 class="h4"><?= htmlspecialchars(t('display.headings.top'), ENT_QUOTES, 'UTF-8') ?></h2>
                     <ol class="mb-0">
                         <?php foreach ($top as $result): ?>
                             <li class="py-1"><?= htmlspecialchars($result['rider'], ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(number_format((float) $result['total'], 2), ENT_QUOTES, 'UTF-8') ?></li>
                         <?php endforeach; ?>
                         <?php if (!$top): ?>
-                            <li class="text-muted">Noch keine Ergebnisse.</li>
+                            <li class="text-muted"><?= htmlspecialchars(t('display.empty.results'), ENT_QUOTES, 'UTF-8') ?></li>
                         <?php endif; ?>
                     </ol>
                 </div>
@@ -77,8 +81,8 @@
         </div>
         <div class="col-lg-6">
             <div class="ticker h-100">
-                <div class="text-uppercase text-muted small">Ticker</div>
-                <div class="fs-3" data-ticker-shift>Keine aktuellen Verschiebungen.</div>
+                <div class="text-uppercase text-muted small"><?= htmlspecialchars(t('display.headings.ticker'), ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="fs-3" data-ticker-shift><?= htmlspecialchars(t('display.empty.shift'), ENT_QUOTES, 'UTF-8') ?></div>
                 <div class="mt-3" data-ticker-result><?= htmlspecialchars($sponsor, ENT_QUOTES, 'UTF-8') ?></div>
             </div>
         </div>

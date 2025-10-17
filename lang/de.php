@@ -683,6 +683,81 @@ return [
             'custom_option' => '{value} (benutzerdefiniert)',
         ],
     ],
+    'startlist' => [
+        'title' => 'Startlisten',
+        'heading' => 'Startliste',
+        'validation' => [
+            'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
+            'csrf_invalid' => 'CSRF ungültig.',
+        ],
+        'flash' => [
+            'no_entries' => 'Keine Nennungen vorhanden.',
+            'generated' => 'Startliste generiert.',
+            'status_updated' => 'Status angepasst.',
+            'time_updated' => 'Start aktualisiert.',
+            'item_removed' => 'Start aus der Liste entfernt.',
+            'number_locked' => 'Startnummer ist gesperrt.',
+            'number_reassigned' => 'Startnummer neu vergeben.',
+            'number_gate' => 'Startnummer wird am Gate vergeben.',
+        ],
+        'actions' => [
+            'generate' => 'Startliste generieren',
+            'withdraw' => 'Abmelden',
+            'reactivate' => 'Reaktivieren',
+            'reassign_number' => 'Neu zuweisen',
+        ],
+        'conflicts' => [
+            'title' => 'Hinweis',
+            'description' => 'Folgende Pferde starten sehr dicht hintereinander:',
+            'item' => '{first_horse} (Nr. {first_position}) & {second_horse} (Nr. {second_position})',
+        ],
+        'table' => [
+            'columns' => [
+                'position' => '#',
+                'start_number' => 'Startnr.',
+                'rider' => 'Reiter',
+                'horse' => 'Pferd',
+                'planned_start_note' => 'Geplanter Start & Notiz',
+                'status' => 'Status',
+                'actions' => 'Aktionen',
+            ],
+            'note_placeholder' => 'Notiz',
+            'empty' => 'Keine Starts vorhanden.',
+        ],
+        'status' => [
+            'scheduled' => 'Geplant',
+            'withdrawn' => 'Abgemeldet',
+            'running' => 'Im Ritt',
+            'completed' => 'Beendet',
+        ],
+        'confirm' => [
+            'delete' => 'Start endgültig entfernen?',
+        ],
+    ],
+    'display' => [
+        'title' => 'Live-Anzeige',
+        'headings' => [
+            'current' => 'Aktueller Starter',
+            'upcoming' => 'Nächste Starter',
+            'top' => 'Zwischenstand Top 3',
+            'ticker' => 'Ticker',
+        ],
+        'labels' => [
+            'start_number_prefix' => 'Startnr.',
+            'no_current' => 'Noch kein Start',
+            'horse_prefix' => 'Pferd:',
+            'class_prefix' => 'Prüfung:',
+            'position_prefix' => 'Nr.',
+        ],
+        'empty' => [
+            'next' => 'Keine weiteren Starter.',
+            'results' => 'Noch keine Ergebnisse.',
+            'shift' => 'Keine aktuellen Verschiebungen.',
+        ],
+        'defaults' => [
+            'sponsor' => 'Sponsor: Lokaler Partner',
+        ],
+    ],
     'schedule' => [
         'title' => 'Zeitplan',
         'validation' => [

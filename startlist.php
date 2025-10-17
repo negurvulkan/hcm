@@ -17,7 +17,7 @@ if (!$isAdmin) {
 }
 if (!$classes) {
     render_page('startlist.tpl', [
-        'title' => 'Startlisten',
+        'title' => t('startlist.title'),
         'page' => 'startlist',
         'classes' => [],
         'selectedClass' => null,
@@ -33,9 +33,9 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     $classId = (int) $classes[0]['id'];
     $selectedClass = db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]);
     if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
-        flash('error', 'Keine Berechtigung für dieses Turnier.');
+        flash('error', t('startlist.validation.forbidden_event'));
         render_page('startlist.tpl', [
-            'title' => 'Startlisten',
+            'title' => t('startlist.title'),
             'page' => 'startlist',
             'classes' => [],
             'selectedClass' => null,
@@ -56,7 +56,7 @@ $startNumberRule = getStartNumberRule($startNumberContext);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('startlist.validation.csrf_invalid'));
         header('Location: startlist.php?class_id=' . $classId);
         exit;
     }
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'generate') {
         $entries = db_all('SELECT e.id, p.name AS rider, h.name AS horse, p.club_id FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE e.class_id = :class_id AND e.status IN ("open", "paid")', ['class_id' => $classId]);
         if (!$entries) {
-            flash('error', 'Keine Nennungen vorhanden.');
+            flash('error', t('startlist.flash.no_entries'));
             header('Location: startlist.php?class_id=' . $classId);
             exit;
         }
@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
-        flash('success', 'Startliste generiert.');
+        flash('success', t('startlist.flash.generated'));
         header('Location: startlist.php?class_id=' . $classId);
         exit;
     }
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'startlist_id' => $itemId,
                 ]);
             }
-            flash('success', 'Status angepasst.');
+            flash('success', t('startlist.flash.status_updated'));
         }
         header('Location: startlist.php?class_id=' . $classId);
         exit;
@@ -179,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
             audit_log('startlist_items', $itemId, 'time_update', $before, $after);
-            flash('success', 'Start aktualisiert.');
+            flash('success', t('startlist.flash.time_updated'));
         }
         header('Location: startlist.php?class_id=' . $classId);
         exit;
@@ -199,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
             db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
             audit_log('startlist_items', $itemId, 'delete', $item, null);
-            flash('success', 'Start aus der Liste entfernt.');
+            flash('success', t('startlist.flash.item_removed'));
         }
         header('Location: startlist.php?class_id=' . $classId);
         exit;
@@ -238,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($item) {
             $assignment = $item['start_number_assignment_id'] ? db_first('SELECT * FROM start_number_assignments WHERE id = :id', ['id' => (int) $item['start_number_assignment_id']]) : null;
             if ($assignment && !empty($assignment['locked_at'])) {
-                flash('error', 'Startnummer ist gesperrt.');
+                flash('error', t('startlist.flash.number_locked'));
             } else {
                 if ($assignment) {
                     releaseStartNumber([
@@ -252,9 +252,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'entry_id' => (int) $item['entry_id'],
                         'startlist_id' => $itemId,
                     ]);
-                    flash('success', 'Startnummer neu vergeben.');
+                    flash('success', t('startlist.flash.number_reassigned'));
                 } else {
-                    flash('info', 'Startnummer wird am Gate vergeben.');
+                    flash('info', t('startlist.flash.number_gate'));
                 }
             }
         }
@@ -277,7 +277,7 @@ foreach ($startlist as $index => $item) {
 }
 
 render_page('startlist.tpl', [
-    'title' => 'Startlisten',
+    'title' => t('startlist.title'),
     'page' => 'startlist',
     'classes' => $classes,
     'selectedClass' => $selectedClass,

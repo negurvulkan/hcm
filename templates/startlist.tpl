@@ -5,14 +5,14 @@
 /** @var array $conflicts */
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Startliste</h1>
+    <h1 class="h4 mb-0"><?= htmlspecialchars(t('startlist.heading'), ENT_QUOTES, 'UTF-8') ?></h1>
     <form method="get" class="d-flex gap-2">
         <select name="class_id" class="form-select">
             <?php foreach ($classes as $class): ?>
                 <option value="<?= (int) $class['id'] ?>" <?= (int) $selectedClass['id'] === (int) $class['id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['title'] . ' · ' . $class['label'], ENT_QUOTES, 'UTF-8') ?></option>
             <?php endforeach; ?>
         </select>
-        <button class="btn btn-outline-secondary" type="submit">Wechseln</button>
+        <button class="btn btn-outline-secondary" type="submit"><?= htmlspecialchars(t('common.actions.switch'), ENT_QUOTES, 'UTF-8') ?></button>
     </form>
 </div>
 
@@ -21,16 +21,21 @@
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="generate">
         <input type="hidden" name="class_id" value="<?= (int) $selectedClass['id'] ?>">
-        <button class="btn btn-accent" type="submit">Startliste generieren</button>
+        <button class="btn btn-accent" type="submit"><?= htmlspecialchars(t('startlist.actions.generate'), ENT_QUOTES, 'UTF-8') ?></button>
     </form>
 </div>
 
 <?php if ($conflicts): ?>
     <div class="alert alert-warning">
-        <strong>Hinweis:</strong> Folgende Pferde starten sehr dicht hintereinander:
+        <strong><?= htmlspecialchars(t('startlist.conflicts.title'), ENT_QUOTES, 'UTF-8') ?>:</strong> <?= htmlspecialchars(t('startlist.conflicts.description'), ENT_QUOTES, 'UTF-8') ?>
         <ul class="mb-0">
             <?php foreach ($conflicts as [$first, $second]): ?>
-                <li><?= htmlspecialchars($first['horse'], ENT_QUOTES, 'UTF-8') ?> (Nr. <?= (int) $first['position'] ?>) &amp; <?= htmlspecialchars($second['horse'], ENT_QUOTES, 'UTF-8') ?> (Nr. <?= (int) $second['position'] ?>)</li>
+                <li><?= htmlspecialchars(t('startlist.conflicts.item', [
+                    'first_horse' => $first['horse'],
+                    'first_position' => $first['position'],
+                    'second_horse' => $second['horse'],
+                    'second_position' => $second['position'],
+                ]), ENT_QUOTES, 'UTF-8') ?></li>
             <?php endforeach; ?>
         </ul>
     </div>
@@ -42,13 +47,13 @@
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                 <tr>
-                    <th>#</th>
-                    <th>Startnr.</th>
-                    <th>Reiter</th>
-                    <th>Pferd</th>
-                    <th>Geplanter Start &amp; Notiz</th>
-                    <th>Status</th>
-                    <th>Aktionen</th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.position'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.start_number'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.planned_start_note'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <th><?= htmlspecialchars(t('startlist.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -59,7 +64,7 @@
                             <?php if (!empty($item['start_number_display'])): ?>
                                 <span class="badge bg-primary text-light"><?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                             <?php else: ?>
-                                <span class="text-muted">–</span>
+                                <span class="text-muted"><?= htmlspecialchars(t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></span>
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -71,14 +76,14 @@
                                 <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
                                 <div class="d-flex gap-2">
                                     <input type="datetime-local" class="form-control form-control-sm" name="planned_start" value="<?= htmlspecialchars($item['planned_start'] ? date('Y-m-d\TH:i', strtotime($item['planned_start'])) : '', ENT_QUOTES, 'UTF-8') ?>">
-                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Speichern</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit"><?= htmlspecialchars(t('common.actions.save'), ENT_QUOTES, 'UTF-8') ?></button>
                                 </div>
-                                <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Notiz"><?= htmlspecialchars($item['note'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                                <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="<?= htmlspecialchars(t('startlist.table.note_placeholder'), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($item['note'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                             </form>
                         </td>
                         <td>
                             <span class="badge <?= $item['state'] === 'withdrawn' ? 'bg-danger' : 'bg-success' ?>">
-                                <?= htmlspecialchars($item['state'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(t('startlist.status.' . ($item['state'] ?? 'scheduled')), ENT_QUOTES, 'UTF-8') ?>
                             </span>
                         </td>
                         <td class="text-nowrap">
@@ -101,24 +106,29 @@
                                 <input type="hidden" name="action" value="toggle_state">
                                 <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
                                 <button class="btn btn-sm <?= $item['state'] === 'withdrawn' ? 'btn-outline-success' : 'btn-outline-warning' ?>" type="submit">
-                                    <?= $item['state'] === 'withdrawn' ? 'Reaktivieren' : 'Abmelden' ?>
+                                    <?= htmlspecialchars($item['state'] === 'withdrawn' ? t('startlist.actions.reactivate') : t('startlist.actions.withdraw'), ENT_QUOTES, 'UTF-8') ?>
                                 </button>
                             </form>
                             <form method="post" class="d-inline">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="reassign_number">
                                 <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-                                <button class="btn btn-sm btn-outline-primary" type="submit" <?= !empty($item['start_number_locked_at']) ? 'disabled' : '' ?>>Neu zuweisen</button>
+                                <button class="btn btn-sm btn-outline-primary" type="submit" <?= !empty($item['start_number_locked_at']) ? 'disabled' : '' ?>><?= htmlspecialchars(t('startlist.actions.reassign_number'), ENT_QUOTES, 'UTF-8') ?></button>
                             </form>
-                            <form method="post" class="d-inline" onsubmit="return confirm('Start endgültig entfernen?')">
+                            <form method="post" class="d-inline" onsubmit="return confirm(<?= json_encode(t('startlist.confirm.delete')) ?>)">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete_item">
                                 <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-                                <button class="btn btn-sm btn-outline-danger" type="submit">Löschen</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit"><?= htmlspecialchars(t('common.actions.delete'), ENT_QUOTES, 'UTF-8') ?></button>
                             </form>
                         </td>
                     </tr>
                 <?php endforeach; ?>
+                <?php if (!$startlist): ?>
+                    <tr>
+                        <td colspan="7" class="text-muted"><?= htmlspecialchars(t('startlist.table.empty'), ENT_QUOTES, 'UTF-8') ?></td>
+                    </tr>
+                <?php endif; ?>
                 </tbody>
             </table>
         </div>
