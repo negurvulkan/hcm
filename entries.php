@@ -9,6 +9,7 @@ $activeEvent = event_active();
 $partyRepository = new PartyRepository(app_pdo());
 $persons = $partyRepository->personOptions();
 $horses = db_all('SELECT id, name FROM horses ORDER BY name');
+$clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
 $classesSql = 'SELECT c.id, c.label, e.title FROM classes c JOIN events e ON e.id = c.event_id';
 if (!$isAdmin) {
     if (!$activeEvent) {
@@ -34,6 +35,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_write_access('entries');
 
     $action = $_POST['action'] ?? 'create';
+
+    if ($action === 'create_person') {
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $phone = trim((string) ($_POST['phone'] ?? ''));
+        $clubId = (int) ($_POST['club_id'] ?? 0) ?: null;
+
+        if ($name === '') {
+            flash('error', t('entries.validation.person_name_required'));
+        } else {
+            try {
+                $personId = $partyRepository->createPerson($name, $email ?: null, $phone ?: null, $clubId, ['participant']);
+                $_SESSION['entries_person_preselect'] = $personId;
+                $_SESSION['entries_owner_preselect'] = $personId;
+                flash('success', t('entries.flash.person_created'));
+            } catch (\RuntimeException $exception) {
+                flash('error', t('entries.flash.person_failed'));
+            }
+        }
+
+        header('Location: entries.php');
+        exit;
+    }
+
+    if ($action === 'create_horse') {
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $ownerId = (int) ($_POST['owner_id'] ?? 0) ?: null;
+        $documentsOk = isset($_POST['documents_ok']) ? 1 : 0;
+        $notes = trim((string) ($_POST['notes'] ?? ''));
+
+        if ($name === '') {
+            flash('error', t('entries.validation.horse_name_required'));
+        } else {
+            try {
+                db_execute(
+                    'INSERT INTO horses (name, owner_party_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
+                    [
+                        'name' => $name,
+                        'owner' => $ownerId,
+                        'ok' => $documentsOk,
+                        'notes' => $notes !== '' ? $notes : null,
+                    ]
+                );
+                $horseId = (int) app_pdo()->lastInsertId();
+                $_SESSION['entries_horse_preselect'] = $horseId;
+                if ($ownerId) {
+                    $_SESSION['entries_owner_preselect'] = $ownerId;
+                }
+                flash('success', t('entries.flash.horse_created'));
+            } catch (\Throwable $exception) {
+                flash('error', t('entries.flash.horse_failed'));
+            }
+        }
+
+        header('Location: entries.php');
+        exit;
+    }
 
     if ($action === 'create') {
         $personId = (int) ($_POST['person_id'] ?? 0);
@@ -356,11 +414,21 @@ $importHeader = $importRows ? $importRows[0] : [];
 $importPreview = $importRows ? array_slice($importRows, 0, min(6, count($importRows))) : [];
 $importPreviewRemaining = $importRows ? max(count($importRows) - count($importPreview), 0) : 0;
 
+$selectedPersonId = (int) ($_SESSION['entries_person_preselect'] ?? 0);
+$selectedHorseId = (int) ($_SESSION['entries_horse_preselect'] ?? 0);
+$defaultHorseOwnerId = (int) ($_SESSION['entries_owner_preselect'] ?? 0);
+unset(
+    $_SESSION['entries_person_preselect'],
+    $_SESSION['entries_horse_preselect'],
+    $_SESSION['entries_owner_preselect']
+);
+
 render_page('entries.tpl', [
     'titleKey' => 'pages.entries.title',
     'page' => 'entries',
     'persons' => $persons,
     'horses' => $horses,
+    'clubs' => $clubs,
     'classes' => $classesList,
     'entries' => $entries,
     'importToken' => $importToken,
@@ -368,5 +436,8 @@ render_page('entries.tpl', [
     'importPreview' => $importPreview,
     'importPreviewRemaining' => $importPreviewRemaining,
     'editEntry' => $editEntry,
+    'selectedPersonId' => $selectedPersonId,
+    'selectedHorseId' => $selectedHorseId,
+    'defaultHorseOwnerId' => $defaultHorseOwnerId,
     'extraScripts' => ['public/assets/js/entries.js'],
 ]);
