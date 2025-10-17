@@ -328,8 +328,14 @@ return [
             'all_roles' => 'Alle',
             'submit' => 'Filtern',
         ],
+        'tabs' => [
+            'staff' => 'Personal',
+            'participants' => 'Teilnehmer',
+        ],
         'list' => [
             'title' => 'Übersicht',
+            'empty_staff' => 'Noch kein Personal erfasst.',
+            'empty_participants' => 'Noch keine Teilnehmer erfasst.',
         ],
         'table' => [
             'name' => 'Name',
