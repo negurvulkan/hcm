@@ -11,7 +11,9 @@
 | Vereinsverwaltung | ✅ | Formulare, Filter und Tabellenaktionen lokalisiert. |
 | Turnierverwaltung & Startnummern | ✅ | Turnierformulare, Templates und Startnummern-Designer (JS) nutzen nun Übersetzungen. |
 | Klassenverwaltung & Designer | ✅ | Klassenformular, Startnummernmodal und Regel-Designer wurden vollständig lokalisiert. |
-| Weitere Module | ⏳ | Weitere Bereiche (z. B. Zeitplan, Ergebnisse) folgen schrittweise. |
+| Zeitplan | ✅ | Zeitplanverwaltung, Verschiebungen und Verlaufslisten lokalisiert. |
+| Ergebnisse | ✅ | Ergebnisübersicht, Statuswechsel und Audit-Log übersetzt. |
+| Weitere Module | ⏳ | Weitere Bereiche (z. B. Startlisten, Anzeige) folgen schrittweise. |
 
 ## English (en)
 
@@ -24,4 +26,6 @@
 | Club management | ✅ | Forms, filters, and table actions localized. |
 | Events & start numbers | ✅ | Event forms, templates, and start-number designer JS now pull translations. |
 | Classes & rule designer | ✅ | Class form, modal, and rule designer JavaScript are fully localized. |
-| Remaining modules | ⏳ | Additional modules (e.g., schedule, results) will be localized next. |
+| Schedule | ✅ | Schedule management, shift controls, and history have been localized. |
+| Results | ✅ | Results overview, status actions, and audit log translated. |
+| Remaining modules | ⏳ | Additional modules (e.g., start lists, display) will be localized next. |

@@ -17,7 +17,7 @@ if (!$isAdmin) {
 }
 if (!$classes) {
     render_page('schedule.tpl', [
-        'title' => 'Zeitplan',
+        'title' => t('schedule.title'),
         'page' => 'schedule',
         'classes' => [],
         'selectedClass' => null,
@@ -33,9 +33,9 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     $classId = (int) $classes[0]['id'];
     $selectedClass = db_first('SELECT c.*, e.title AS event_title FROM classes c JOIN events e ON e.id = c.event_id WHERE c.id = :id', ['id' => $classId]);
     if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id'])) {
-        flash('error', 'Keine Berechtigung für dieses Turnier.');
+        flash('error', t('schedule.validation.forbidden_event'));
         render_page('schedule.tpl', [
-            'title' => 'Zeitplan',
+            'title' => t('schedule.title'),
             'page' => 'schedule',
             'classes' => [],
             'selectedClass' => null,
@@ -48,7 +48,7 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
-        flash('error', 'CSRF ungültig.');
+        flash('error', t('schedule.validation.csrf_invalid'));
         header('Location: schedule.php?class_id=' . $classId);
         exit;
     }
@@ -87,11 +87,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'type' => 'schedule_shift',
                 'payload' => json_encode([
                     'class_id' => $classId,
-                    'message' => ($minutes > 0 ? '+' : '') . $minutes . ' Minuten für ' . $selectedClass['label'],
+                    'message' => t('schedule.notifications.shift', [
+                        'minutes' => ($minutes > 0 ? '+' : '') . $minutes,
+                        'class' => $selectedClass['label'] ?? '',
+                    ]),
                 ], JSON_THROW_ON_ERROR),
                 'created' => (new \DateTimeImmutable())->format('c'),
             ]);
-            flash('success', 'Zeitplan verschoben.');
+            flash('success', t('schedule.flash.shifted'));
         }
         header('Location: schedule.php?class_id=' . $classId);
         exit;
@@ -110,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
             audit_log('startlist_items', $itemId, 'time_update', $before, $after);
-            flash('success', 'Slot aktualisiert.');
+            flash('success', t('schedule.flash.slot_updated'));
         }
         header('Location: schedule.php?class_id=' . $classId);
         exit;
@@ -130,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
             db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
             audit_log('startlist_items', $itemId, 'delete', $item, null);
-            flash('success', 'Slot entfernt.');
+            flash('success', t('schedule.flash.slot_deleted'));
         }
         header('Location: schedule.php?class_id=' . $classId);
         exit;
@@ -141,7 +144,7 @@ $items = db_all('SELECT si.id, si.position, si.planned_start, si.start_number_di
 $shifts = db_all('SELECT shift_minutes, created_at FROM schedule_shifts WHERE class_id = :class_id ORDER BY id DESC LIMIT 10', ['class_id' => $classId]);
 
 render_page('schedule.tpl', [
-    'title' => 'Zeitplan',
+    'title' => t('schedule.title'),
     'page' => 'schedule',
     'classes' => $classes,
     'selectedClass' => $selectedClass,
