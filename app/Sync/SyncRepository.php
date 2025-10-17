@@ -262,13 +262,13 @@ class SyncRepository
             $definition = $this->definitionFor($scope);
             if ($definition === null || ($definition['table'] ?? null) === null) {
                 foreach ($records as $record) {
-                    $report->addIssue($scope, $record['id'], 'INVALID_SCOPE', 'Scope wird nicht unterstützt.');
+                    $report->addIssue($scope, $record['id'], 'INVALID_SCOPE', \t('sync.api.errors.scope_not_supported'));
                 }
                 continue;
             }
             foreach ($records as $record) {
                 if (!is_array($record['data'])) {
-                    $report->addIssue($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', 'Datensatz enthält keine Daten.');
+                    $report->addIssue($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.record_missing_data'));
                     continue;
                 }
 
@@ -278,7 +278,7 @@ class SyncRepository
                         continue;
                     }
                     if ($allowed && !in_array($key, $allowed, true)) {
-                        $report->addIssue($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', sprintf('Feld %s ist nicht erlaubt.', $key));
+                        $report->addIssue($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.field_not_allowed', ['field' => $key]));
                     }
                 }
             }
@@ -294,7 +294,7 @@ class SyncRepository
             $definition = $this->definitionFor($scope);
             if ($definition === null || ($definition['table'] ?? null) === null) {
                 foreach ($changeSet->forScope($scope) as $record) {
-                    $report->addRejected($scope, $record['id'], 'INVALID_SCOPE', 'Scope wird nicht synchronisiert.');
+                    $report->addRejected($scope, $record['id'], 'INVALID_SCOPE', \t('sync.api.errors.scope_not_synchronised'));
                 }
                 continue;
             }
@@ -302,7 +302,7 @@ class SyncRepository
             foreach ($changeSet->forScope($scope) as $record) {
                 $data = $record['data'];
                 if (!is_array($data)) {
-                    $report->addRejected($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', 'Datensatz enthält keine Daten.');
+                    $report->addRejected($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.record_missing_data'));
                     continue;
                 }
 
@@ -422,7 +422,7 @@ class SyncRepository
         if (isset($definition['alias_of'])) {
             $definition = $this->definitionFor($definition['alias_of']);
             if ($definition === null) {
-                throw new SyncException('INVALID_SCOPE', 'Alias verweist auf unbekannten Scope.');
+                throw new SyncException('INVALID_SCOPE', \t('sync.api.errors.alias_unknown_scope'));
             }
         }
 
@@ -444,7 +444,7 @@ class SyncRepository
             $existingEpoch = (int) $existingState['version_epoch'];
             if ($incomingCursor->epoch() < $existingEpoch) {
                 if (!$this->shouldAcceptOlder($origin, $incomingCursor->epoch(), $existingEpoch)) {
-                    throw new SyncException('CONFLICT_POLICY_VIOLATION', 'Änderung veraltet im Vergleich zur lokalen Version.');
+                    throw new SyncException('CONFLICT_POLICY_VIOLATION', \t('sync.api.errors.change_outdated'));
                 }
             }
 
@@ -484,7 +484,7 @@ class SyncRepository
                 continue;
             }
             if (!$this->existsInTable($dependency['table'], $dependency['reference'], $data[$column])) {
-                throw new SyncException('FOREIGN_KEY_MISSING', sprintf('Abhängigkeit %s (%s) fehlt.', $column, $data[$column]));
+                throw new SyncException('FOREIGN_KEY_MISSING', \t('sync.api.errors.dependency_missing', ['column' => $column, 'value' => $data[$column]]));
             }
         }
     }

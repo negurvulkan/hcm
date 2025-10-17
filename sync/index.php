@@ -18,12 +18,12 @@ header('Content-Type: application/json');
 
 try {
     if (!App::has('instance') || !App::has('pdo')) {
-        throw new SyncException('SERVICE_UNAVAILABLE', 'Instanz nicht initialisiert.', 503);
+        throw new SyncException('SERVICE_UNAVAILABLE', t('sync.api.errors.instance_not_initialised'), 503);
     }
 
     $instance = App::get('instance');
     if (!$instance instanceof InstanceConfiguration) {
-        throw new SyncException('SERVICE_UNAVAILABLE', 'Konfiguration fehlt.', 503);
+        throw new SyncException('SERVICE_UNAVAILABLE', t('sync.api.errors.configuration_missing'), 503);
     }
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -35,7 +35,7 @@ try {
     }
 
     if ($method !== 'POST') {
-        throw new SyncException('NOT_FOUND', 'Endpunkt nicht gefunden.', 404);
+        throw new SyncException('NOT_FOUND', t('sync.api.errors.endpoint_not_found'), 404);
     }
 
     enforce_token($instance);
@@ -62,7 +62,7 @@ try {
             respond(200, $response);
             return;
         default:
-            throw new SyncException('NOT_FOUND', 'Endpunkt nicht gefunden.', 404);
+            throw new SyncException('NOT_FOUND', t('sync.api.errors.endpoint_not_found'), 404);
     }
 } catch (SyncException $exception) {
     http_response_code($exception->getStatus());
@@ -107,7 +107,7 @@ function parse_json_body(): array
 
     $decoded = json_decode($raw, true);
     if (!is_array($decoded)) {
-        throw new SyncException('SCHEMA_VALIDATION_FAILED', 'Ungültiger JSON-Body.');
+        throw new SyncException('SCHEMA_VALIDATION_FAILED', t('sync.api.errors.invalid_json_body'));
     }
 
     return $decoded;
@@ -141,7 +141,7 @@ function enforce_token(InstanceConfiguration $instance): void
     }
 
     if (!$provided || !hash_equals($required, (string) $provided)) {
-        throw new SyncException('UNAUTHORIZED', 'Peer-Token ungültig.', 401);
+        throw new SyncException('UNAUTHORIZED', t('sync.api.errors.invalid_peer_token'), 401);
     }
 }
 
@@ -180,7 +180,7 @@ function handle_diff(array $payload, InstanceConfiguration $instance): array
     $changes = exportChanges($since, $scopes);
     $duration = (int) ((microtime(true) - $start) * 1000);
 
-    sync_log_operation('outbound', 'diff', $scopes->toArray(), 'completed', 'Diff ausgeführt.', [
+    sync_log_operation('outbound', 'diff', $scopes->toArray(), 'completed', t('sync.api.messages.diff_executed'), [
         'entities' => array_map(static fn (array $items) => count($items), $changes->all()),
     ], $duration);
 
@@ -191,14 +191,14 @@ function handle_pull(array $payload, InstanceConfiguration $instance): array
 {
     $scopes = $payload['entities'] ?? [];
     if (!is_array($scopes)) {
-        throw new SyncException('SCHEMA_VALIDATION_FAILED', 'entities muss ein Objekt sein.');
+        throw new SyncException('SCHEMA_VALIDATION_FAILED', t('sync.api.errors.entities_must_be_object'));
     }
 
     $start = microtime(true);
     $changeSet = sync_pull_entities($scopes);
     $duration = (int) ((microtime(true) - $start) * 1000);
 
-    sync_log_operation('outbound', 'pull', array_keys($scopes), 'completed', 'Pull ausgeliefert.', [
+    sync_log_operation('outbound', 'pull', array_keys($scopes), 'completed', t('sync.api.messages.pull_delivered'), [
         'entities' => array_map(static fn (array $items) => count($items), $changeSet->all()),
     ], $duration);
 
@@ -224,7 +224,7 @@ function handle_push(array $payload, InstanceConfiguration $instance): array
     $rejected = array_sum(array_map('count', $report->toArray()['rejected'] ?? []));
     $transactionId = sync_create_transaction('inbound', 'push', $scopes, $report->toArray());
 
-    sync_log_operation('inbound', 'push', $scopes, $report->hasErrors() ? 'error' : 'completed', 'Push verarbeitet.', [
+    sync_log_operation('inbound', 'push', $scopes, $report->hasErrors() ? 'error' : 'completed', t('sync.api.messages.push_processed'), [
         'accepted' => $accepted,
         'rejected' => $rejected,
     ], $duration, $transactionId);
@@ -239,11 +239,11 @@ function handle_ack(array $payload): array
 {
     $transactionId = (string) ($payload['transaction_id'] ?? '');
     if ($transactionId === '') {
-        throw new SyncException('INVALID_CURSOR', 'transaction_id fehlt.');
+        throw new SyncException('INVALID_CURSOR', t('sync.api.errors.transaction_id_missing'));
     }
 
     $acknowledged = sync_acknowledge($transactionId);
-    sync_log_operation('inbound', 'ack', [$transactionId], $acknowledged ? 'completed' : 'skipped', 'Transaktion bestätigt.', [], null, $transactionId);
+    sync_log_operation('inbound', 'ack', [$transactionId], $acknowledged ? 'completed' : 'skipped', t('sync.api.messages.transaction_acknowledged'), [], null, $transactionId);
 
     return ['acknowledged' => $acknowledged];
 }
@@ -253,7 +253,7 @@ function rate_limit(string $operation): void
     $actor = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     $limiter = new RateLimiter('sync:' . $operation . ':' . $actor, 20, 60);
     if ($limiter->tooManyAttempts()) {
-        throw new SyncException('RATE_LIMITED', 'Zu viele Aufrufe.', 429);
+        throw new SyncException('RATE_LIMITED', t('sync.api.errors.rate_limited'), 429);
     }
     $limiter->hit();
 }

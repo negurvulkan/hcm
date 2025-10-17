@@ -20,7 +20,7 @@ class SyncService
         $pdo = App::get('pdo');
         $config = App::get('instance');
         if (!$pdo || !$config instanceof InstanceConfiguration) {
-            throw new SyncException('SERVICE_UNAVAILABLE', 'Synchronisation nicht initialisiert.', 503);
+            throw new SyncException('SERVICE_UNAVAILABLE', \t('sync.api.errors.sync_not_initialised'), 503);
         }
 
         $repository = new SyncRepository($pdo, $config);
@@ -60,21 +60,21 @@ class SyncService
         $role = $this->config->get('instance_role');
 
         if ($this->config->get('instance_role') === InstanceConfiguration::ROLE_MIRROR && $request->isWrite()) {
-            throw new SyncException('READ_ONLY_MODE', 'Mirror-Instanzen sind read-only.', 423);
+            throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_mirror'), 423);
         }
 
         if ($request->isWrite()) {
             if (!$this->config->canWrite()) {
-                throw new SyncException('READ_ONLY_MODE', 'Diese Instanz ist derzeit schreibgeschützt.', 423);
+                throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_instance'), 423);
             }
 
             if ($mode === InstanceConfiguration::MODE_POST_TOURNAMENT && $role === InstanceConfiguration::ROLE_LOCAL) {
-                throw new SyncException('READ_ONLY_MODE', 'Lokale Instanz im Archiv-Modus ist schreibgeschützt.', 423);
+                throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_archive'), 423);
             }
         }
 
         if ($mode === InstanceConfiguration::MODE_PRE_TOURNAMENT && $role === InstanceConfiguration::ROLE_LOCAL) {
-            throw new SyncException('READ_ONLY_MODE', 'Lokale Instanz ist vor dem Turnier inaktiv.', 423);
+            throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_pre_tournament'), 423);
         }
     }
 

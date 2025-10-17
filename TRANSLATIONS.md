@@ -16,7 +16,7 @@
 | Startlisten | ✅ | Startlisten-Ansicht inkl. Aktionen, Konflikthinweisen und Statusmeldungen übersetzt. |
 | Anzeige | ✅ | Live-Anzeige mit aktuellen Startern, Ticker und Sponsor-Text lokalisiert. |
 | Druck & Export | ✅ | Seiten, CSV/JSON-Downloads sowie Druck-PDFs lokalisiert. |
-| Weitere Module | ⏳ | Offene Bereiche betreffen verbleibende Admin-Werkzeuge (z. B. Sync/Notify). |
+| Weitere Module | ✅ | Sync-Admin-UI, API-Rückmeldungen und verbleibende Admin-Werkzeuge lokalisiert. |
 
 ## English (en)
 
@@ -34,4 +34,4 @@
 | Start lists | ✅ | Start list overview, conflicts, and status/number actions localized. |
 | Display | ✅ | Live display with ticker messaging and sponsor fallback translated. |
 | Print & export | ✅ | Pages, download flows, and PDF templates localized. |
-| Remaining modules | ⏳ | Outstanding areas cover additional admin tools (e.g. sync/notify). |
+| Remaining modules | ✅ | Sync admin UI, API responses, and remaining admin tools localized. |
