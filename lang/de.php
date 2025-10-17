@@ -140,6 +140,39 @@ return [
             ],
         ],
     ],
+    'horses' => [
+        'form' => [
+            'create_title' => 'Pferd erfassen',
+            'edit_title' => 'Pferd bearbeiten',
+            'name' => 'Name',
+            'owner' => 'Besitzer / Reiter',
+            'documents_ok' => 'Dokumente geprüft',
+            'notes' => 'Notiz',
+            'submit' => 'Speichern',
+            'cancel' => 'Abbrechen',
+        ],
+        'filters' => [
+            'name' => 'Name',
+            'owner' => 'Besitzer',
+            'all_owners' => 'Alle',
+            'submit' => 'Filtern',
+        ],
+        'list' => [
+            'title' => 'Übersicht',
+        ],
+        'table' => [
+            'name' => 'Name',
+            'owner' => 'Besitzer',
+            'status' => 'Status',
+            'notes' => 'Notiz',
+            'actions' => 'Aktionen',
+            'edit' => 'Bearbeiten',
+            'delete' => 'Löschen',
+            'confirm_delete' => 'Eintrag wirklich löschen?',
+            'status_documents_ok' => 'Dokumente ok',
+            'status_pending' => 'Prüfung offen',
+        ],
+    ],
     'persons' => [
         'form' => [
             'create_title' => 'Person anlegen',
