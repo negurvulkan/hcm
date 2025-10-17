@@ -226,6 +226,40 @@ return [
             'email_taken' => 'E-Mail wird bereits von einem anderen Benutzer verwendet.',
         ],
     ],
+    'clubs' => [
+        'form' => [
+            'create_title' => 'Verein anlegen',
+            'edit_title' => 'Verein bearbeiten',
+            'name' => 'Name',
+            'short_name' => 'Kürzel',
+            'submit' => 'Speichern',
+            'cancel' => 'Abbrechen',
+        ],
+        'filters' => [
+            'search' => 'Suche',
+            'submit' => 'Filtern',
+        ],
+        'list' => [
+            'title' => 'Übersicht',
+        ],
+        'table' => [
+            'name' => 'Name',
+            'short_name' => 'Kürzel',
+            'actions' => 'Aktionen',
+            'edit' => 'Bearbeiten',
+            'delete' => 'Löschen',
+            'confirm_delete' => 'Eintrag wirklich löschen?',
+        ],
+        'flash' => [
+            'deleted' => 'Verein gelöscht.',
+            'updated' => 'Verein aktualisiert.',
+            'created' => 'Verein gespeichert.',
+        ],
+        'validation' => [
+            'csrf_invalid' => 'CSRF ungültig.',
+            'name_short_required' => 'Name und Kürzel angeben.',
+        ],
+    ],
     'tests' => [
         'items' => [
             'one' => '{count} Element',

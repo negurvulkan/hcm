@@ -226,6 +226,40 @@ return [
             'email_taken' => 'Email is already used by another user.',
         ],
     ],
+    'clubs' => [
+        'form' => [
+            'create_title' => 'Create club',
+            'edit_title' => 'Edit club',
+            'name' => 'Name',
+            'short_name' => 'Abbreviation',
+            'submit' => 'Save',
+            'cancel' => 'Cancel',
+        ],
+        'filters' => [
+            'search' => 'Search',
+            'submit' => 'Filter',
+        ],
+        'list' => [
+            'title' => 'Overview',
+        ],
+        'table' => [
+            'name' => 'Name',
+            'short_name' => 'Abbreviation',
+            'actions' => 'Actions',
+            'edit' => 'Edit',
+            'delete' => 'Delete',
+            'confirm_delete' => 'Delete this entry?',
+        ],
+        'flash' => [
+            'deleted' => 'Club deleted.',
+            'updated' => 'Club updated.',
+            'created' => 'Club created.',
+        ],
+        'validation' => [
+            'csrf_invalid' => 'Invalid CSRF token.',
+            'name_short_required' => 'Enter name and abbreviation.',
+        ],
+    ],
     'tests' => [
         'items' => [
             'one' => '{count} item',
