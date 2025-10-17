@@ -13,7 +13,9 @@
 | Klassenverwaltung & Designer | ✅ | Klassenformular, Startnummernmodal und Regel-Designer wurden vollständig lokalisiert. |
 | Zeitplan | ✅ | Zeitplanverwaltung, Verschiebungen und Verlaufslisten lokalisiert. |
 | Ergebnisse | ✅ | Ergebnisübersicht, Statuswechsel und Audit-Log übersetzt. |
-| Weitere Module | ⏳ | Weitere Bereiche (z. B. Startlisten, Anzeige) folgen schrittweise. |
+| Startlisten | ✅ | Startlisten-Ansicht inkl. Aktionen, Konflikthinweisen und Statusmeldungen übersetzt. |
+| Anzeige | ✅ | Live-Anzeige mit aktuellen Startern, Ticker und Sponsor-Text lokalisiert. |
+| Weitere Module | ⏳ | Ausstehend sind z. B. Druck, Export und weitere Adminbereiche. |
 
 ## English (en)
 
@@ -28,4 +30,6 @@
 | Classes & rule designer | ✅ | Class form, modal, and rule designer JavaScript are fully localized. |
 | Schedule | ✅ | Schedule management, shift controls, and history have been localized. |
 | Results | ✅ | Results overview, status actions, and audit log translated. |
-| Remaining modules | ⏳ | Additional modules (e.g., start lists, display) will be localized next. |
+| Start lists | ✅ | Start list overview, conflicts, and status/number actions localized. |
+| Display | ✅ | Live display with ticker messaging and sponsor fallback translated. |
+| Remaining modules | ⏳ | Outstanding areas include print, export, and other administrative tools. |

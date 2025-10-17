@@ -17,8 +17,10 @@ $sponsor = db_first('SELECT payload FROM notifications WHERE type = "sponsor" OR
 
 $view = app_view();
 echo $view->render('display.tpl', [
+    'title' => t('display.title'),
+    'locale' => current_locale(),
     'current' => $current,
     'next' => $next,
     'top' => $top,
-    'sponsor' => $sponsor ? json_decode($sponsor['payload'], true, 512, JSON_THROW_ON_ERROR)['text'] ?? '' : 'Sponsor: Lokaler Partner',
+    'sponsor' => $sponsor ? json_decode($sponsor['payload'], true, 512, JSON_THROW_ON_ERROR)['text'] ?? '' : t('display.defaults.sponsor'),
 ]);
