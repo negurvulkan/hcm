@@ -1180,6 +1180,8 @@ return [
             'invalid_role' => 'Selected instance role is invalid.',
             'invalid_mode' => 'Selected operation mode is invalid.',
             'peer_url_invalid' => 'Peer URL is not valid.',
+            'peer_base_required' => 'Provide the peer base URL for the local instance.',
+            'peer_base_local_only' => 'Only the local instance may set the peer base URL in tournament mode.',
             'peer_turnier_id_required' => 'Provide peer event ID.',
             'peer_token_required' => 'This mode requires an API token.',
             'checklist_required' => 'Confirm the checklist before switching modes.',

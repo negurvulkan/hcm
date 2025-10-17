@@ -62,15 +62,15 @@ $modes = InstanceConfiguration::modes();
                 <div class="card-body">
                     <h2 class="h5 mb-3">Peer / Mirror</h2>
                     <div class="row g-3">
-                        <div class="col-md-8">
+                        <div class="col-md-8" data-peer-base-field>
                             <label class="form-label">Peer-Basis-URL</label>
                             <input type="url" class="form-control" name="peer_base_url" placeholder="https://scores.mein-turnier.de" value="<?= htmlspecialchars($form['peer_base_url'], ENT_QUOTES, 'UTF-8') ?>">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4" data-peer-event-field>
                             <label class="form-label">Peer Turnier-ID</label>
                             <input type="text" class="form-control" name="peer_turnier_id" value="<?= htmlspecialchars($form['peer_turnier_id'], ENT_QUOTES, 'UTF-8') ?>">
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-8" data-peer-token-field>
                             <label class="form-label">API-Token</label>
                             <input type="password" class="form-control" name="peer_api_token" placeholder="<?= $hasPeerToken ? 'Token hinterlegt – neues Token eingeben um zu ersetzen' : 'Token eingeben' ?>">
                             <?php if ($hasPeerToken): ?>
@@ -183,6 +183,10 @@ $modes = InstanceConfiguration::modes();
     const roleSelect = document.querySelector('[name="instance_role"]');
     const modeSelect = document.querySelector('[name="operation_mode"]');
     const peerSection = document.querySelector('[data-peer-section]');
+    const peerBaseField = document.querySelector('[data-peer-base-field]');
+    const peerBaseInput = peerBaseField ? peerBaseField.querySelector('input') : null;
+    const peerEventInput = document.querySelector('[name="peer_turnier_id"]');
+    const peerTokenInput = document.querySelector('[name="peer_api_token"]');
 
     function togglePeer() {
         if (!peerSection || !modeSelect || !roleSelect) {
@@ -192,6 +196,28 @@ $modes = InstanceConfiguration::modes();
         const role = roleSelect.value;
         const shouldShow = mode !== '<?= InstanceConfiguration::MODE_PRE_TOURNAMENT ?>' || role === '<?= InstanceConfiguration::ROLE_MIRROR ?>';
         peerSection.classList.toggle('d-none', !shouldShow);
+
+        const allowBase = mode !== '<?= InstanceConfiguration::MODE_TOURNAMENT ?>'
+            || role === '<?= InstanceConfiguration::ROLE_LOCAL ?>'
+            || role === '<?= InstanceConfiguration::ROLE_MIRROR ?>';
+        if (peerBaseField) {
+            peerBaseField.classList.toggle('d-none', !allowBase);
+        }
+        if (peerBaseInput) {
+            peerBaseInput.disabled = !allowBase;
+            if (!allowBase) {
+                peerBaseInput.value = '';
+            }
+        }
+
+        const requirePeerCredentials = mode === '<?= InstanceConfiguration::MODE_TOURNAMENT ?>'
+            && (role === '<?= InstanceConfiguration::ROLE_LOCAL ?>' || role === '<?= InstanceConfiguration::ROLE_ONLINE ?>');
+        if (peerEventInput) {
+            peerEventInput.required = requirePeerCredentials;
+        }
+        if (peerTokenInput) {
+            peerTokenInput.required = requirePeerCredentials;
+        }
     }
 
     roleSelect?.addEventListener('change', togglePeer);
