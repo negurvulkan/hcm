@@ -1,10 +1,13 @@
 <?php
 require __DIR__ . '/auth.php';
 
+use App\Party\PartyRepository;
+
 $user = auth_require('entries');
 $isAdmin = auth_is_admin($user);
 $activeEvent = event_active();
-$persons = db_all('SELECT id, name FROM persons ORDER BY name');
+$partyRepository = new PartyRepository(app_pdo());
+$persons = $partyRepository->personOptions();
 $horses = db_all('SELECT id, name FROM horses ORDER BY name');
 $classesSql = 'SELECT c.id, c.label, e.title FROM classes c JOIN events e ON e.id = c.event_id';
 if (!$isAdmin) {
@@ -46,11 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('error', t('entries.validation.forbidden_event'));
             } else {
                 db_execute(
-                    'INSERT INTO entries (event_id, class_id, person_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :person_id, :horse_id, :status, :paid_at, :created)',
+                    'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :paid_at, :created)',
                     [
                         'event_id' => (int) $class['event_id'],
                         'class_id' => $classId,
-                        'person_id' => $personId,
+                        'party_id' => $personId,
                         'horse_id' => $horseId,
                         'status' => $status,
                         'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
@@ -91,11 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('error', t('entries.validation.class_unavailable'));
             } else {
                 db_execute(
-                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, person_id = :person_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
+                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, party_id = :party_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
                     [
                         'event_id' => $class['event_id'],
                         'class_id' => $classId,
-                        'person_id' => $personId,
+                        'party_id' => $personId,
                         'horse_id' => $horseId,
                         'status' => $status,
                         'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
@@ -212,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 continue;
             }
 
-            $person = db_first('SELECT id FROM persons WHERE name = :name', ['name' => $personName]);
+            $person = db_first('SELECT id FROM parties WHERE party_type = "person" AND display_name = :name', ['name' => $personName]);
             $horse = db_first('SELECT id FROM horses WHERE name = :name', ['name' => $horseName]);
             $class = db_first('SELECT id, event_id FROM classes WHERE label = :label', ['label' => $classLabel]);
 
@@ -221,11 +224,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             db_execute(
-                'INSERT INTO entries (event_id, class_id, person_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :person_id, :horse_id, :status, :paid_at, :created)',
+                'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :paid_at, :created)',
                 [
                     'event_id' => $class['event_id'],
                     'class_id' => $class['id'],
-                    'person_id' => $person['id'],
+                    'party_id' => $person['id'],
                     'horse_id' => $horse['id'],
                     'status' => $status,
                     'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
@@ -258,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$entriesSql = 'SELECT e.id, e.status, e.person_id, e.horse_id, e.class_id, p.name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
+$entriesSql = 'SELECT e.id, e.status, e.party_id, e.horse_id, e.class_id, pr.display_name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
 $entriesOrder = ' ORDER BY e.created_at DESC LIMIT 100';
 if (!$isAdmin) {
     if (!$activeEvent) {

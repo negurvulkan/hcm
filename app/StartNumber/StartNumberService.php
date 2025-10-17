@@ -705,7 +705,7 @@ class StartNumberService
                 throw new RuntimeException('Pair benötigt rider_id und horse_id.');
             }
             if ($clubId === null) {
-                $person = \db_first('SELECT club_id FROM persons WHERE id = :id', ['id' => $riderId]);
+                $person = \db_first('SELECT club_id FROM person_profiles WHERE party_id = :id', ['id' => $riderId]);
                 $clubId = $person && $person['club_id'] ? (int) $person['club_id'] : null;
             }
             return [
@@ -723,7 +723,7 @@ class StartNumberService
 
     private function loadEntry(int $entryId): array
     {
-        $row = \db_first('SELECT e.*, p.club_id, p.id AS rider_id, h.id AS horse_id FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE e.id = :id', ['id' => $entryId]);
+        $row = \db_first('SELECT e.*, profile.club_id, pr.id AS rider_id, h.id AS horse_id FROM entries e JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id JOIN horses h ON h.id = e.horse_id WHERE e.id = :id', ['id' => $entryId]);
         if (!$row) {
             throw new RuntimeException('Nennung nicht gefunden.');
         }

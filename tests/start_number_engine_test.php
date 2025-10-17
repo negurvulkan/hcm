@@ -73,13 +73,14 @@ function expectException(callable $callback, string $contains): void
 
 $pdo->exec('CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, start_number_rules TEXT)');
 $pdo->exec('CREATE TABLE classes (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, label TEXT, arena TEXT, start_time TEXT, division TEXT, tags TEXT, start_number_rules TEXT)');
-$pdo->exec('CREATE TABLE persons (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, club_id INTEGER)');
+$pdo->exec('CREATE TABLE parties (id INTEGER PRIMARY KEY AUTOINCREMENT, party_type TEXT, display_name TEXT, sort_name TEXT, created_at TEXT, updated_at TEXT)');
+$pdo->exec('CREATE TABLE person_profiles (party_id INTEGER PRIMARY KEY, club_id INTEGER, preferred_locale TEXT, updated_at TEXT)');
 $pdo->exec('CREATE TABLE horses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
 $pdo->exec('CREATE TABLE entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER,
     class_id INTEGER,
-    person_id INTEGER,
+    party_id INTEGER,
     horse_id INTEGER,
     status TEXT,
     start_number_assignment_id INTEGER,
@@ -135,7 +136,15 @@ $pdo->exec('CREATE TABLE start_number_assignments (
 )');
 
 // Seed shared data
-$pdo->exec("INSERT INTO persons (id, name, club_id) VALUES (1, 'Rider One', 10), (2, 'Rider Two', 20)");
+$nowSeed = (new DateTimeImmutable())->format('c');
+db_execute('INSERT INTO parties (id, party_type, display_name, sort_name, created_at, updated_at) VALUES (1, "person", :name1, :sort1, :created, :created), (2, "person", :name2, :sort2, :created, :created)', [
+    'name1' => 'Rider One',
+    'sort1' => strtolower('rider one'),
+    'name2' => 'Rider Two',
+    'sort2' => strtolower('rider two'),
+    'created' => $nowSeed,
+]);
+db_execute('INSERT INTO person_profiles (party_id, club_id, preferred_locale, updated_at) VALUES (1, 10, NULL, :updated), (2, 20, NULL, :updated)', ['updated' => $nowSeed]);
 $pdo->exec("INSERT INTO horses (id, name) VALUES (1, 'Horse A'), (2, 'Horse B')");
 
 $classicRule = [
@@ -157,9 +166,9 @@ $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, divisio
 $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, division) VALUES (2, 1, 'Class B', 'Arena 2', '2024-08-18T09:00:00', 'Youth')");
 
 $now = (new DateTimeImmutable())->format('c');
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (1, 1, 1, 1, 1, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (2, 1, 1, 2, 2, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (3, 1, 2, 1, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (1, 1, 1, 1, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (2, 1, 1, 2, 2, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (3, 1, 2, 1, 1, "open", :created)', ['created' => $now]);
 
 $classOverrideRule = [
     'mode' => 'classic',
@@ -205,9 +214,9 @@ db_execute(
     ]
 );
 
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (7, 1, 5, 2, 1, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (8, 1, 6, 1, 2, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (9, 1, 6, 2, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (7, 1, 5, 2, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (8, 1, 6, 1, 2, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (9, 1, 6, 2, 1, "open", :created)', ['created' => $now]);
 
 $contextA = ['eventId' => 1, 'classId' => 1, 'user' => ['name' => 'Test']];
 assignStartNumber($contextA, ['entry_id' => 1]);
@@ -222,7 +231,7 @@ assertSame('start', $entry1['start_number_allocation_entity']);
 assertTrue(!empty($entry1['start_number_rule_snapshot']), 'Rule snapshot must be stored for exports.');
 
 expectException(function () use ($contextA) {
-    db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (4, 1, 1, 1, 2, "open", :created)', ['created' => (new DateTimeImmutable())->format('c')]);
+    db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (4, 1, 1, 1, 2, "open", :created)', ['created' => (new DateTimeImmutable())->format('c')]);
     assignStartNumber($contextA, ['entry_id' => 4]);
 }, 'Startnummernbereich erschöpft');
 
@@ -278,8 +287,8 @@ db_execute('INSERT INTO events (id, title, start_number_rules) VALUES (2, "Weste
 $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, division) VALUES (3, 2, 'Trail Youth', 'Trail', '2024-08-17T10:00:00', 'Youth')");
 $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, division) VALUES (4, 2, 'Pleasure Open', 'Arena 3', '2024-08-18T11:00:00', 'Open')");
 
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (5, 2, 3, 1, 1, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (6, 2, 4, 1, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (5, 2, 3, 1, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (6, 2, 4, 1, 1, "open", :created)', ['created' => $now]);
 
 $contextTrail = ['eventId' => 2, 'classId' => 3, 'user' => ['name' => 'Test']];
 $contextPleasure = ['eventId' => 2, 'classId' => 4, 'user' => ['name' => 'Test']];

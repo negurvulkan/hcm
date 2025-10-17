@@ -32,7 +32,7 @@ if (isset($_GET['download'])) {
 
     switch ($type) {
         case 'startlist':
-            $data = db_all('SELECT si.position, si.start_number_display, si.start_number_raw, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+            $data = db_all('SELECT si.position, si.start_number_display, si.start_number_raw, pr.display_name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
             $html = $view->render('print/startlist.tpl', ['items' => $data]);
             $filename = t('print.files.startlist');
             break;
@@ -42,7 +42,7 @@ if (isset($_GET['download'])) {
             $filename = t('print.files.judge');
             break;
         case 'results':
-            $rows = db_all('SELECT r.id, r.total, r.rank, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, r.status, p.name AS rider, h.name AS horse, si.start_number_display, si.start_number_raw FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
+            $rows = db_all('SELECT r.id, r.total, r.rank, r.penalties, r.breakdown_json, r.rule_snapshot, r.engine_version, r.tiebreak_path, r.eliminated, r.status, pr.display_name AS rider, h.name AS horse, si.start_number_display, si.start_number_raw FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
             foreach ($rows as &$row) {
                 try {
                     $row['breakdown'] = $row['breakdown_json'] ? json_decode($row['breakdown_json'], true, 512, JSON_THROW_ON_ERROR) : [];
@@ -80,7 +80,7 @@ if (isset($_GET['download'])) {
             $filename = t('print.files.results');
             break;
         case 'certificate':
-            $data = db_first('SELECT p.name AS rider, h.name AS horse, r.total FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.total DESC LIMIT 1', ['class_id' => $classId]);
+            $data = db_first('SELECT pr.display_name AS rider, h.name AS horse, r.total FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.total DESC LIMIT 1', ['class_id' => $classId]);
             $html = $view->render('print/certificate.tpl', ['winner' => $data]);
             $filename = t('print.files.certificate');
             break;

@@ -20,7 +20,7 @@
                         <select name="owner_id" class="form-select">
                             <option value="">–</option>
                             <?php foreach ($owners as $owner): ?>
-                                <option value="<?= (int) $owner['id'] ?>" <?= $editHorse && (int) ($editHorse['owner_id'] ?? 0) === (int) $owner['id'] ? 'selected' : '' ?>><?= htmlspecialchars($owner['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $owner['id'] ?>" <?= $editHorse && (int) ($editHorse['owner_party_id'] ?? 0) === (int) $owner['id'] ? 'selected' : '' ?>><?= htmlspecialchars($owner['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

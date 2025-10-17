@@ -10,13 +10,13 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->exec('CREATE TABLE system_settings (setting_key TEXT PRIMARY KEY, value TEXT, updated_at TEXT NOT NULL)');
 $pdo->exec('CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, is_active INTEGER)');
 $pdo->exec('CREATE TABLE classes (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, label TEXT)');
-$pdo->exec('CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, class_id INTEGER, person_id INTEGER, horse_id INTEGER, status TEXT, created_at TEXT)');
+$pdo->exec('CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, class_id INTEGER, party_id INTEGER, horse_id INTEGER, status TEXT, created_at TEXT)');
 $pdo->exec('CREATE TABLE startlist_items (id INTEGER PRIMARY KEY AUTOINCREMENT, class_id INTEGER, entry_id INTEGER)');
 $pdo->exec('CREATE TABLE results (id INTEGER PRIMARY KEY AUTOINCREMENT, startlist_id INTEGER)');
 
 $pdo->exec("INSERT INTO events (id, title, is_active) VALUES (1, 'Demo', 1)");
 $pdo->exec("INSERT INTO classes (id, event_id, label) VALUES (1, 1, 'Test')");
-$pdo->exec("INSERT INTO entries (id, event_id, class_id, person_id, horse_id, status, created_at) VALUES (1, 1, 1, 1, 1, 'open', 'now')");
+$pdo->exec("INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (1, 1, 1, 1, 1, 'open', 'now')");
 $pdo->exec("INSERT INTO startlist_items (id, class_id, entry_id) VALUES (1, 1, 1)");
 $pdo->exec("INSERT INTO results (id, startlist_id) VALUES (1, 1)");
 

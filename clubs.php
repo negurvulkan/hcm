@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/auth.php';
 
+use DateTimeImmutable;
+
 $user = auth_require('clubs');
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
@@ -20,7 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $clubId = (int) ($_POST['club_id'] ?? 0);
         if ($clubId) {
-            db_execute('DELETE FROM clubs WHERE id = :id', ['id' => $clubId]);
+            $club = db_first('SELECT party_id FROM clubs WHERE id = :id', ['id' => $clubId]);
+            if ($club) {
+                $partyId = (int) ($club['party_id'] ?? 0);
+                db_execute('DELETE FROM clubs WHERE id = :id', ['id' => $clubId]);
+                if ($partyId) {
+                    db_execute('DELETE FROM organization_profiles WHERE party_id = :party', ['party' => $partyId]);
+                    db_execute('DELETE FROM parties WHERE id = :id AND party_type = :type', ['id' => $partyId, 'type' => 'organization']);
+                }
+            }
             flash('success', t('clubs.flash.deleted'));
         }
         header('Location: clubs.php');
@@ -34,17 +44,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '' || $short === '') {
         flash('error', t('clubs.validation.name_short_required'));
     } else {
+        $now = (new DateTimeImmutable())->format('c');
         if ($action === 'update' && $clubId > 0) {
-            db_execute('UPDATE clubs SET name = :name, short_name = :short WHERE id = :id', [
+            $club = db_first('SELECT party_id FROM clubs WHERE id = :id', ['id' => $clubId]);
+            $partyId = $club ? (int) ($club['party_id'] ?? 0) : 0;
+            if ($partyId) {
+                db_execute('UPDATE parties SET display_name = :name, sort_name = :sort, updated_at = :updated WHERE id = :id AND party_type = :type', [
+                    'name' => $name,
+                    'sort' => mb_strtolower($name),
+                    'updated' => $now,
+                    'id' => $partyId,
+                    'type' => 'organization',
+                ]);
+                db_execute('UPDATE organization_profiles SET short_name = :short, updated_at = :updated WHERE party_id = :party', [
+                    'short' => $short,
+                    'updated' => $now,
+                    'party' => $partyId,
+                ]);
+            }
+            db_execute('UPDATE clubs SET name = :name, short_name = :short, updated_at = :updated WHERE id = :id', [
                 'name' => $name,
                 'short' => $short,
+                'updated' => $now,
                 'id' => $clubId,
             ]);
             flash('success', t('clubs.flash.updated'));
         } else {
-            db_execute('INSERT INTO clubs (name, short_name) VALUES (:name, :short)', [
+            db_execute('INSERT INTO parties (party_type, display_name, sort_name, created_at, updated_at) VALUES (:type, :name, :sort, :created, :updated)', [
+                'type' => 'organization',
+                'name' => $name,
+                'sort' => mb_strtolower($name),
+                'created' => $now,
+                'updated' => $now,
+            ]);
+            $partyId = (int) app_pdo()->lastInsertId();
+            db_execute('INSERT INTO organization_profiles (party_id, category, short_name, updated_at) VALUES (:party, :category, :short, :updated)', [
+                'party' => $partyId,
+                'category' => 'club',
+                'short' => $short,
+                'updated' => $now,
+            ]);
+            db_execute('INSERT INTO clubs (party_id, name, short_name, updated_at) VALUES (:party, :name, :short, :updated)', [
+                'party' => $partyId,
                 'name' => $name,
                 'short' => $short,
+                'updated' => $now,
             ]);
             flash('success', t('clubs.flash.created'));
         }

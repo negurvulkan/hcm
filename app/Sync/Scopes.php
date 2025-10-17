@@ -4,6 +4,9 @@ namespace App\Sync;
 class Scopes
 {
     public const ALL = [
+        'parties',
+        'person_profiles',
+        'party_roles',
         'persons',
         'horses',
         'clubs',

@@ -61,7 +61,7 @@ $startNumberContext = [
 ];
 $startNumberRule = getStartNumberRule($startNumberContext);
 
-$starts = db_all('SELECT si.id, si.position, si.state, si.start_number_display, si.start_number_assignment_id, e.id AS entry_id, p.name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$starts = db_all('SELECT si.id, si.position, si.state, si.start_number_display, si.start_number_assignment_id, e.id AS entry_id, pr.display_name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 if (!$starts) {
     render_page('judge.tpl', [
         'titleKey' => 'pages.judge.title',
@@ -135,7 +135,7 @@ if ($start && $start['state'] !== 'running' && $start['state'] !== 'withdrawn') 
     if (!empty($assignmentIdRow['start_number_assignment_id']) && ($startNumberRule['allocation']['lock_after'] ?? 'start_called') === 'start_called') {
         lockStartNumber((int) $assignmentIdRow['start_number_assignment_id'], 'start_called');
     }
-    $upcoming = db_all('SELECT si.position, p.name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id WHERE si.class_id = :class AND si.state = "scheduled" ORDER BY si.planned_start ASC, si.position ASC LIMIT 5', ['class' => $classId]);
+    $upcoming = db_all('SELECT si.position, pr.display_name AS rider FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id WHERE si.class_id = :class AND si.state = "scheduled" ORDER BY si.planned_start ASC, si.position ASC LIMIT 5', ['class' => $classId]);
     db_execute('INSERT INTO notifications (type, payload, created_at) VALUES (:type, :payload, :created)', [
         'type' => 'next_starter',
         'payload' => json_encode([

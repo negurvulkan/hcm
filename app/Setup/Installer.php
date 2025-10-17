@@ -83,17 +83,48 @@ class Installer
     {
         $now = (new DateTimeImmutable());
 
-        $pdo->exec('DELETE FROM events');
-        $pdo->exec('DELETE FROM classes');
-        $pdo->exec('DELETE FROM persons');
+        $pdo->exec('DELETE FROM entries');
+        $pdo->exec('DELETE FROM startlist_items');
+        $pdo->exec('DELETE FROM helper_shifts');
         $pdo->exec('DELETE FROM horses');
+        $pdo->exec('DELETE FROM classes');
+        $pdo->exec('DELETE FROM events');
+        $pdo->exec('DELETE FROM party_roles');
+        $pdo->exec('DELETE FROM person_profiles');
+        $pdo->exec('DELETE FROM organization_profiles');
         $pdo->exec('DELETE FROM clubs');
+        $pdo->exec('DELETE FROM parties');
 
-        $clubStmt = $pdo->prepare('INSERT INTO clubs (name, short_name) VALUES (:name, :short)');
-        $clubStmt->execute(['name' => 'Reitverein Sonnental', 'short' => 'RVS']);
-        $clubId = (int) $pdo->lastInsertId();
+        $partyStmt = $pdo->prepare('INSERT INTO parties (party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES (:type, :display, :sort, :email, :phone, :created, :updated)');
+        $orgProfileStmt = $pdo->prepare('INSERT INTO organization_profiles (party_id, category, short_name, metadata, updated_at) VALUES (:party_id, :category, :short_name, NULL, :updated)');
+        $clubStmt = $pdo->prepare('INSERT INTO clubs (party_id, name, short_name, updated_at) VALUES (:party_id, :name, :short, :updated)');
 
-        $personStmt = $pdo->prepare('INSERT INTO persons (name, email, phone, roles, club_id, created_at) VALUES (:name, :email, :phone, :roles, :club, :created)');
+        $partyStmt->execute([
+            'type' => 'organization',
+            'display' => 'Reitverein Sonnental',
+            'sort' => mb_strtolower('Reitverein Sonnental'),
+            'email' => null,
+            'phone' => null,
+            'created' => $now->format('c'),
+            'updated' => $now->format('c'),
+        ]);
+        $clubPartyId = (int) $pdo->lastInsertId();
+        $orgProfileStmt->execute([
+            'party_id' => $clubPartyId,
+            'category' => 'club',
+            'short_name' => 'RVS',
+            'updated' => $now->format('c'),
+        ]);
+        $clubStmt->execute([
+            'party_id' => $clubPartyId,
+            'name' => 'Reitverein Sonnental',
+            'short' => 'RVS',
+            'updated' => $now->format('c'),
+        ]);
+
+        $partyStmtPerson = $pdo->prepare('INSERT INTO parties (party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES ("person", :display, :sort, :email, :phone, :created, :updated)');
+        $profileStmt = $pdo->prepare('INSERT INTO person_profiles (party_id, club_id, preferred_locale, updated_at) VALUES (:party_id, :club_id, NULL, :updated)');
+        $roleStmt = $pdo->prepare('INSERT INTO party_roles (party_id, role, context, assigned_at, updated_at) VALUES (:party_id, :role, :context, :assigned, :updated)');
         $demoPersons = [
             ['name' => 'Anna Richter', 'roles' => ['judge']],
             ['name' => 'Lena Office', 'roles' => ['office']],
@@ -102,18 +133,34 @@ class Installer
         ];
         $personIds = [];
         foreach ($demoPersons as $person) {
-            $personStmt->execute([
-                'name' => $person['name'],
-                'email' => strtolower(str_replace(' ', '.', $person['name'])) . '@demo.local',
+            $email = strtolower(str_replace(' ', '.', $person['name'])) . '@demo.local';
+            $partyStmtPerson->execute([
+                'display' => $person['name'],
+                'sort' => mb_strtolower($person['name']),
+                'email' => $email,
                 'phone' => '+49 170 1234567',
-                'roles' => json_encode($person['roles'], JSON_THROW_ON_ERROR),
-                'club' => $clubId,
                 'created' => $now->format('c'),
+                'updated' => $now->format('c'),
             ]);
-            $personIds[$person['roles'][0]] = (int) $pdo->lastInsertId();
+            $partyId = (int) $pdo->lastInsertId();
+            $profileStmt->execute([
+                'party_id' => $partyId,
+                'club_id' => $clubPartyId,
+                'updated' => $now->format('c'),
+            ]);
+            foreach ($person['roles'] as $role) {
+                $roleStmt->execute([
+                    'party_id' => $partyId,
+                    'role' => $role,
+                    'context' => 'system',
+                    'assigned' => $now->format('c'),
+                    'updated' => $now->format('c'),
+                ]);
+            }
+            $personIds[$person['roles'][0]] = $partyId;
         }
 
-        $horseStmt = $pdo->prepare('INSERT INTO horses (name, owner_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)');
+        $horseStmt = $pdo->prepare('INSERT INTO horses (name, owner_party_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)');
         $horseStmt->execute([
             'name' => 'Flashlight',
             'owner' => $personIds['participant'] ?? null,

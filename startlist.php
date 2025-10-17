@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'generate') {
-        $entries = db_all('SELECT e.id, p.name AS rider, h.name AS horse, p.club_id FROM entries e JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE e.class_id = :class_id AND e.status IN ("open", "paid")', ['class_id' => $classId]);
+        $entries = db_all('SELECT e.id, pr.display_name AS rider, h.name AS horse, profile.club_id FROM entries e JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id JOIN horses h ON h.id = e.horse_id WHERE e.class_id = :class_id AND e.status IN ("open", "paid")', ['class_id' => $classId]);
         if (!$entries) {
             flash('error', t('startlist.flash.no_entries'));
             header('Location: startlist.php?class_id=' . $classId);
@@ -263,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$startlist = db_all('SELECT si.*, e.status, p.name AS rider, h.name AS horse, h.id AS horse_id, p.club_id FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN persons p ON p.id = e.person_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$startlist = db_all('SELECT si.*, e.status, pr.display_name AS rider, h.name AS horse, h.id AS horse_id, profile.club_id FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 
 $conflicts = [];
 foreach ($startlist as $index => $item) {

@@ -24,7 +24,7 @@
                         <select name="person_id" class="form-select">
                             <option value=""><?= htmlspecialchars(t('helpers.form.person_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
                             <?php foreach ($persons as $person): ?>
-                                <option value="<?= (int) $person['id'] ?>" <?= $editShift && (int) ($editShift['person_id'] ?? 0) === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= (int) $person['id'] ?>" <?= $editShift && (int) ($editShift['party_id'] ?? 0) === (int) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

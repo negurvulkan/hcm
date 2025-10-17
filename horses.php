@@ -1,8 +1,11 @@
 <?php
 require __DIR__ . '/auth.php';
 
+use App\Party\PartyRepository;
+
 $user = auth_require('horses');
-$owners = db_all('SELECT id, name FROM persons ORDER BY name');
+$partyRepository = new PartyRepository(app_pdo());
+$owners = $partyRepository->personOptions();
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editHorse = $editId ? db_first('SELECT * FROM horses WHERE id = :id', ['id' => $editId]) : null;
@@ -39,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         if ($action === 'update' && $horseId > 0) {
             db_execute(
-                'UPDATE horses SET name = :name, owner_id = :owner, documents_ok = :ok, notes = :notes WHERE id = :id',
+                'UPDATE horses SET name = :name, owner_party_id = :owner, documents_ok = :ok, notes = :notes WHERE id = :id',
                 [
                     'name' => $name,
                     'owner' => $ownerId,
@@ -51,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('success', t('horses.flash.updated'));
         } else {
             db_execute(
-                'INSERT INTO horses (name, owner_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
+                'INSERT INTO horses (name, owner_party_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
                 [
                     'name' => $name,
                     'owner' => $ownerId,
@@ -70,14 +73,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $filterName = trim((string) ($_GET['q'] ?? ''));
 $filterOwner = (int) ($_GET['owner'] ?? 0);
 
-$sql = 'SELECT h.*, p.name AS owner_name FROM horses h LEFT JOIN persons p ON p.id = h.owner_id WHERE 1=1';
+$sql = 'SELECT h.*, pr.display_name AS owner_name FROM horses h LEFT JOIN parties pr ON pr.id = h.owner_party_id WHERE 1=1';
 $params = [];
 if ($filterName !== '') {
     $sql .= ' AND h.name LIKE :name';
     $params['name'] = '%' . $filterName . '%';
 }
 if ($filterOwner) {
-    $sql .= ' AND h.owner_id = :owner';
+    $sql .= ' AND h.owner_party_id = :owner';
     $params['owner'] = $filterOwner;
 }
 $sql .= ' ORDER BY h.name LIMIT 100';
