@@ -847,6 +847,156 @@ return [
             'empty' => 'Keine Änderungen protokolliert.',
         ],
     ],
+    'print' => [
+        'title' => 'Druck',
+        'heading' => 'Druck & PDFs',
+        'description' => 'Wähle eine Prüfung und lade das gewünschte Dokument herunter. Dompdf muss lokal vorhanden sein.',
+        'form' => [
+            'class_label' => 'Prüfung',
+            'document_label' => 'Dokument',
+            'submit' => 'Download',
+        ],
+        'documents' => [
+            'startlist' => 'Startliste (A4)',
+            'judge' => 'Richterbogen',
+            'results' => 'Ergebnisliste',
+            'certificate' => 'Urkunde',
+        ],
+        'validation' => [
+            'class_required' => 'Prüfung auswählen.',
+            'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
+            'unknown_type' => 'Unbekannter Typ.',
+        ],
+        'errors' => [
+            'dompdf_missing' => 'Dompdf ist nicht verfügbar. Bitte lokal installieren.',
+        ],
+        'files' => [
+            'startlist' => 'startliste.pdf',
+            'judge' => 'richterbogen.pdf',
+            'results' => 'ergebnisliste.pdf',
+            'certificate' => 'urkunde.pdf',
+        ],
+        'pdf' => [
+            'startlist' => [
+                'title' => 'Startliste',
+                'table' => [
+                    'position' => '#',
+                    'start_number' => 'Startnr.',
+                    'rider' => 'Reiter',
+                    'horse' => 'Pferd',
+                ],
+            ],
+            'judge' => [
+                'title' => 'Richterbogen',
+                'heading' => 'Richterbogen – {class}',
+                'table' => [
+                    'movement' => 'Aufgabe',
+                    'score' => 'Note',
+                    'comment' => 'Bemerkung',
+                ],
+                'jumping' => [
+                    'time' => 'Zeit',
+                    'penalties' => 'Fehlerpunkte',
+                ],
+                'footer' => 'Richter: ____________________________',
+            ],
+            'results' => [
+                'title' => 'Ergebnisliste',
+                'heading' => 'Ergebnisliste',
+                'heading_with_class' => 'Ergebnisliste: {class}',
+                'event_label' => 'Turnier:',
+                'table' => [
+                    'rank' => 'Platz',
+                    'start_number' => 'Startnr.',
+                    'rider' => 'Reiter',
+                    'horse' => 'Pferd',
+                    'total' => 'Gesamt',
+                ],
+                'badges' => [
+                    'eliminated' => 'ELIM',
+                ],
+                'sections' => [
+                    'penalties' => 'Strafpunkte:',
+                    'penalties_none' => 'keine',
+                    'time' => 'Zeit:',
+                    'components' => 'Komponenten:',
+                    'tiebreak' => 'Tiebreak:',
+                    'rule' => 'Regel:',
+                ],
+                'penalties' => [
+                    'default_label' => 'Strafe',
+                    'elimination_label' => 'Eliminierung',
+                ],
+                'time_details' => [
+                    'target' => 'Soll',
+                    'faults' => 'Fehler',
+                    'bonus' => 'Bonus',
+                ],
+                'rule_engine_prefix' => 'Engine',
+                'empty' => 'Keine Ergebnisse vorhanden.',
+            ],
+            'certificate' => [
+                'title' => 'Urkunde',
+                'heading' => 'Urkunde',
+                'body' => [
+                    'awarded_to' => 'Diese Urkunde wird verliehen an',
+                    'with_horse' => 'mit dem Pferd',
+                    'for_score' => 'für den Sieg mit {points} Punkten.',
+                    'signature' => 'Turnierleitung',
+                ],
+            ],
+        ],
+    ],
+    'export' => [
+        'title' => 'Export',
+        'heading' => 'Export',
+        'description' => 'CSV- und JSON-Export für Meldestelle und Auswertung.',
+        'buttons' => [
+            'entries_csv' => 'CSV: Nennungen',
+            'starters_csv' => 'CSV Startliste',
+            'results_json' => 'JSON Ergebnisse',
+        ],
+        'form' => [
+            'class_select' => 'Prüfung auswählen',
+        ],
+        'validation' => [
+            'class_required' => 'Klasse wählen.',
+            'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
+        ],
+        'csv' => [
+            'entries' => [
+                'filename' => 'entries.csv',
+                'headers' => [
+                    'id' => 'ID',
+                    'rider' => 'Reiter',
+                    'horse' => 'Pferd',
+                    'class' => 'Prüfung',
+                    'status' => 'Status',
+                    'start_number_raw' => 'Startnummer (Raw)',
+                    'start_number_display' => 'Startnummer (Display)',
+                    'allocation' => 'Zuteilung',
+                    'rule_snapshot' => 'Regel-Snapshot',
+                ],
+            ],
+            'starters' => [
+                'filename' => 'starters.csv',
+                'headers' => [
+                    'position' => 'Pos',
+                    'rider' => 'Reiter',
+                    'horse' => 'Pferd',
+                    'start_number_raw' => 'Startnummer (Raw)',
+                    'start_number_display' => 'Startnummer (Display)',
+                    'allocation' => 'Zuteilung',
+                    'rule_snapshot' => 'Regel-Snapshot',
+                ],
+            ],
+        ],
+        'json' => [
+            'results' => [
+                'filename' => 'results.json',
+            ],
+        ],
+    ],
     'tests' => [
         'items' => [
             'one' => '{count} Element',

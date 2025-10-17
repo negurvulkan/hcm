@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="<?= htmlspecialchars(current_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
-    <title>Ergebnisliste</title>
+    <title><?= htmlspecialchars(t('print.pdf.results.title'), ENT_QUOTES, 'UTF-8') ?></title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; }
@@ -14,24 +14,44 @@
 /** @var array $items */
 /** @var array|null $class */
 
-function print_number(mixed $value, int $decimals = 2): string
-{
-    return number_format((float) $value, $decimals, ',', '.');
-}
-
+$heading = !empty($class['label'])
+    ? t('print.pdf.results.heading_with_class', ['class' => $class['label']])
+    : t('print.pdf.results.heading');
+$eventLabel = t('print.pdf.results.event_label');
+$strings = [
+    'position' => t('print.pdf.results.table.rank'),
+    'start_number' => t('print.pdf.results.table.start_number'),
+    'rider' => t('print.pdf.results.table.rider'),
+    'horse' => t('print.pdf.results.table.horse'),
+    'total' => t('print.pdf.results.table.total'),
+    'eliminated' => t('print.pdf.results.badges.eliminated'),
+    'penalties' => t('print.pdf.results.sections.penalties'),
+    'penalties_none' => t('print.pdf.results.sections.penalties_none'),
+    'penalty_default' => t('print.pdf.results.penalties.default_label'),
+    'penalty_elimination' => t('print.pdf.results.penalties.elimination_label'),
+    'time' => t('print.pdf.results.sections.time'),
+    'time_target' => t('print.pdf.results.time_details.target'),
+    'time_faults' => t('print.pdf.results.time_details.faults'),
+    'time_bonus' => t('print.pdf.results.time_details.bonus'),
+    'components' => t('print.pdf.results.sections.components'),
+    'tiebreak' => t('print.pdf.results.sections.tiebreak'),
+    'rule' => t('print.pdf.results.sections.rule'),
+    'rule_engine' => t('print.pdf.results.rule_engine_prefix'),
+    'empty' => t('print.pdf.results.empty'),
+];
 ?>
-<h1>Ergebnisliste<?= isset($class['label']) ? ': ' . htmlspecialchars($class['label'], ENT_QUOTES, 'UTF-8') : '' ?></h1>
+<h1><?= htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') ?></h1>
 <?php if (!empty($class['event_title'])): ?>
-    <p><strong>Turnier:</strong> <?= htmlspecialchars($class['event_title'], ENT_QUOTES, 'UTF-8') ?></p>
+    <p><strong><?= htmlspecialchars($eventLabel, ENT_QUOTES, 'UTF-8') ?></strong> <?= htmlspecialchars($class['event_title'], ENT_QUOTES, 'UTF-8') ?></p>
 <?php endif; ?>
 <table>
     <thead>
     <tr>
-        <th>Platz</th>
-        <th>Startnr.</th>
-        <th>Reiter</th>
-        <th>Pferd</th>
-        <th>Gesamt</th>
+        <th><?= htmlspecialchars($strings['position'], ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars($strings['start_number'], ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars($strings['rider'], ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars($strings['horse'], ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars($strings['total'], ENT_QUOTES, 'UTF-8') ?></th>
     </tr>
     </thead>
     <tbody>
@@ -52,68 +72,68 @@ function print_number(mixed $value, int $decimals = 2): string
             <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
             <td>
-                <?= htmlspecialchars(print_number($item['total'] ?? 0), ENT_QUOTES, 'UTF-8') ?><?= $unit ? ' ' . htmlspecialchars($unit, ENT_QUOTES, 'UTF-8') : '' ?>
+                <?= htmlspecialchars(format_number($item['total'] ?? 0, 2), ENT_QUOTES, 'UTF-8') ?><?= $unit ? ' ' . htmlspecialchars($unit, ENT_QUOTES, 'UTF-8') : '' ?>
                 <?php if (!empty($item['eliminated'])): ?>
-                    <strong style="margin-left: 6px; color: #c00;">ELIM</strong>
+                    <strong style="margin-left: 6px; color: #c00;"><?= htmlspecialchars($strings['eliminated'], ENT_QUOTES, 'UTF-8') ?></strong>
                 <?php endif; ?>
             </td>
         </tr>
         <tr>
             <td colspan="5">
                 <?php $applied = $penalties['applied'] ?? []; ?>
-                <div><strong>Penalties:</strong>
+                <div><strong><?= htmlspecialchars($strings['penalties'], ENT_QUOTES, 'UTF-8') ?></strong>
                     <?php if ($applied): ?>
-                        <?= htmlspecialchars(print_number($penalties['total'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                        <?= htmlspecialchars(format_number($penalties['total'] ?? 0, 2), ENT_QUOTES, 'UTF-8') ?>
                         <?php
                         $penaltyTexts = [];
                         foreach ($applied as $penalty) {
                             if (!empty($penalty['eliminate'])) {
-                                $penaltyTexts[] = ($penalty['label'] ?? 'Elimination');
+                                $penaltyTexts[] = ($penalty['label'] ?? $strings['penalty_elimination']);
                             } elseif (isset($penalty['points'])) {
-                                $penaltyTexts[] = ($penalty['label'] ?? 'Penalty') . ' (' . print_number($penalty['points'], 2) . ')';
+                                $penaltyTexts[] = ($penalty['label'] ?? $strings['penalty_default']) . ' (' . format_number($penalty['points'], 2) . ')';
                             }
                         }
                         if ($penaltyTexts): ?>
                             – <?= htmlspecialchars(implode(', ', $penaltyTexts), ENT_QUOTES, 'UTF-8') ?>
                         <?php endif; ?>
                     <?php else: ?>
-                        keine
+                        <?= htmlspecialchars($strings['penalties_none'], ENT_QUOTES, 'UTF-8') ?>
                     <?php endif; ?>
                 </div>
-                <div><strong>Zeit:</strong>
+                <div><strong><?= htmlspecialchars($strings['time'], ENT_QUOTES, 'UTF-8') ?></strong>
                     <?php if (isset($timeInfo['seconds'])): ?>
-                        <?= htmlspecialchars(print_number($timeInfo['seconds'], 2), ENT_QUOTES, 'UTF-8') ?> s<?php if (isset($timeInfo['allowed'])): ?> (Soll: <?= htmlspecialchars(print_number($timeInfo['allowed'], 2), ENT_QUOTES, 'UTF-8') ?> s)<?php endif; ?><?php if (!empty($timeInfo['faults'])): ?>, Faults: <?= htmlspecialchars(print_number($timeInfo['faults'], 2), ENT_QUOTES, 'UTF-8') ?><?php endif; ?><?php if (!empty($timeInfo['bonus'])): ?>, Bonus: <?= htmlspecialchars(print_number($timeInfo['bonus'], 2), ENT_QUOTES, 'UTF-8') ?><?php endif; ?>
+                        <?= htmlspecialchars(format_number($timeInfo['seconds'], 2), ENT_QUOTES, 'UTF-8') ?> s<?php if (isset($timeInfo['allowed'])): ?> (<?= htmlspecialchars($strings['time_target'], ENT_QUOTES, 'UTF-8') ?>: <?= htmlspecialchars(format_number($timeInfo['allowed'], 2), ENT_QUOTES, 'UTF-8') ?> s)<?php endif; ?><?php if (!empty($timeInfo['faults'])): ?>, <?= htmlspecialchars($strings['time_faults'], ENT_QUOTES, 'UTF-8') ?>: <?= htmlspecialchars(format_number($timeInfo['faults'], 2), ENT_QUOTES, 'UTF-8') ?><?php endif; ?><?php if (!empty($timeInfo['bonus'])): ?>, <?= htmlspecialchars($strings['time_bonus'], ENT_QUOTES, 'UTF-8') ?>: <?= htmlspecialchars(format_number($timeInfo['bonus'], 2), ENT_QUOTES, 'UTF-8') ?><?php endif; ?>
                     <?php else: ?>
                         –
                     <?php endif; ?>
                 </div>
                 <?php if ($components): ?>
-                    <div><strong>Komponenten:</strong>
+                    <div><strong><?= htmlspecialchars($strings['components'], ENT_QUOTES, 'UTF-8') ?></strong>
                         <?php
                         $componentTexts = [];
                         foreach ($components as $componentId => $componentData) {
-                            $componentTexts[] = $componentId . ': ' . print_number($componentData['score'] ?? 0, 2);
+                            $componentTexts[] = $componentId . ': ' . format_number($componentData['score'] ?? 0, 2);
                         }
                         ?>
                         <?= htmlspecialchars(implode(', ', $componentTexts), ENT_QUOTES, 'UTF-8') ?>
                     </div>
                 <?php endif; ?>
                 <?php if (!empty($item['tiebreak_path'])): ?>
-                    <div><strong>Tiebreak:</strong> <?= htmlspecialchars(implode(' → ', $item['tiebreak_path']), ENT_QUOTES, 'UTF-8') ?></div>
+                    <div><strong><?= htmlspecialchars($strings['tiebreak'], ENT_QUOTES, 'UTF-8') ?></strong> <?= htmlspecialchars(implode(' → ', $item['tiebreak_path']), ENT_QUOTES, 'UTF-8') ?></div>
                 <?php endif; ?>
-                <div><strong>Regel:</strong>
+                <div><strong><?= htmlspecialchars($strings['rule'], ENT_QUOTES, 'UTF-8') ?></strong>
                     <?php if (!empty($item['rule_snapshot']['hash'])): ?>
                         <?= htmlspecialchars(substr($item['rule_snapshot']['hash'], 0, 12), ENT_QUOTES, 'UTF-8') ?><?php if (!empty($item['rule_snapshot']['id'])): ?> (<?= htmlspecialchars($item['rule_snapshot']['id'], ENT_QUOTES, 'UTF-8') ?><?= !empty($item['rule_snapshot']['version']) ? ' v' . htmlspecialchars($item['rule_snapshot']['version'], ENT_QUOTES, 'UTF-8') : '' ?>)<?php endif; ?>
                     <?php else: ?>
                         –
                     <?php endif; ?>
-                    <?php if (!empty($item['engine_version'])): ?> · Engine <?= htmlspecialchars($item['engine_version'], ENT_QUOTES, 'UTF-8') ?><?php endif; ?>
+                    <?php if (!empty($item['engine_version'])): ?> · <?= htmlspecialchars($strings['rule_engine'], ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($item['engine_version'], ENT_QUOTES, 'UTF-8') ?><?php endif; ?>
                 </div>
             </td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>
-        <tr><td colspan="5">Keine Ergebnisse vorhanden.</td></tr>
+        <tr><td colspan="5"><?= htmlspecialchars($strings['empty'], ENT_QUOTES, 'UTF-8') ?></td></tr>
     <?php endif; ?>
     </tbody>
 </table>

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="<?= htmlspecialchars(current_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
-    <title>Startliste</title>
+    <title><?= htmlspecialchars(t('print.pdf.startlist.title'), ENT_QUOTES, 'UTF-8') ?></title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; }
@@ -10,14 +10,14 @@
     </style>
 </head>
 <body>
-<h1>Startliste</h1>
+<h1><?= htmlspecialchars(t('print.pdf.startlist.title'), ENT_QUOTES, 'UTF-8') ?></h1>
 <table>
     <thead>
     <tr>
-        <th>#</th>
-        <th>Startnr.</th>
-        <th>Reiter</th>
-        <th>Pferd</th>
+        <th><?= htmlspecialchars(t('print.pdf.startlist.table.position'), ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars(t('print.pdf.startlist.table.start_number'), ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars(t('print.pdf.startlist.table.rider'), ENT_QUOTES, 'UTF-8') ?></th>
+        <th><?= htmlspecialchars(t('print.pdf.startlist.table.horse'), ENT_QUOTES, 'UTF-8') ?></th>
     </tr>
     </thead>
     <tbody>
