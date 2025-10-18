@@ -1316,6 +1316,12 @@ return [
             'diff_success' => 'Dry-Run erfolgreich ausgeführt.',
             'pull_queued' => 'Pull-Vorgang wurde vorbereitet.',
             'push_queued' => 'Push-Vorgang wurde vorbereitet.',
+            'push_success' => 'Push abgeschlossen. Übertragene Datensätze: {count}',
+            'push_nothing' => 'Keine Änderungen zum Übertragen.',
+            'push_failed' => 'Push konnte nicht vollständig abgeschlossen werden.',
+            'push_ack_failed' => 'Transaktionsbestätigung beim Peer fehlgeschlagen.',
+            'peer_missing' => 'Peer-Konfiguration unvollständig. Basis-URL fehlt.',
+            'peer_request_failed' => 'Peer-Anfrage fehlgeschlagen: {message}',
             'action_unavailable' => 'Aktion nicht verfügbar.',
         ],
         'logs' => [
