@@ -470,4 +470,24 @@ if ($legacyChecksumRemaining !== 0) {
     throw new RuntimeException('Legacy-Instanz mit leerem Checksum-Flag sollte Datensatz nach Löschung entfernen.');
 }
 
+$missingId = '9999';
+$missingStateInsert = $pdo->prepare('INSERT INTO sync_state (scope, entity_id, version, version_epoch, checksum, payload_meta, updated_at) VALUES (:scope, :entity, :version, :epoch, NULL, NULL, :updated)');
+$missingStateInsert->execute([
+    'scope' => 'parties',
+    'entity' => $missingId,
+    'version' => '2024-07-10T00:00:00+00:00',
+    'epoch' => (new DateTimeImmutable('2024-07-10T00:00:00+00:00'))->format('U'),
+    'updated' => '2024-07-10T00:00:00+00:00',
+]);
+
+$localDeletionDiff = exportChanges(new Since('2024-07-15T00:00:00+00:00'), new Scopes(['parties']));
+$missingRecords = array_values(array_filter($localDeletionDiff->forScope('parties'), static fn ($record) => ($record['id'] ?? '') === $missingId));
+if (count($missingRecords) !== 1) {
+    throw new RuntimeException('Lokale Löschungen ohne Datensatz sollten exportiert werden.');
+}
+$missingRecord = $missingRecords[0];
+if (($missingRecord['meta']['deleted'] ?? false) !== true) {
+    throw new RuntimeException('Lokaler Löschungseintrag sollte als deleted markiert werden.');
+}
+
 echo "SyncService tests passed\n";
