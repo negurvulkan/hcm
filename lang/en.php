@@ -2,7 +2,7 @@
 return [
     'app' => [
         'title_suffix' => '{name}',
-        'footer_notice' => 'Tournament Management V2 · Works offline · Vendors bundled locally.',
+        'footer_notice' => 'Turniermanagement · 2025 Hanjo Winter',
     ],
     'layout' => [
         'default_title' => 'Tournament Management',
