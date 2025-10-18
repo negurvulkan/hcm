@@ -7,6 +7,9 @@ use PDO;
 use PDOException;
 use RuntimeException;
 
+use function app_uuid;
+use function mb_strtoupper;
+
 class PartyRepository
 {
     private const ROLE_CONTEXT = 'system';
@@ -18,7 +21,7 @@ class PartyRepository
     public function findPerson(int $id): ?array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT p.id, p.display_name, p.sort_name, p.email, p.phone, p.created_at, p.updated_at, profile.club_id, c.name AS club_name
+            'SELECT p.id, p.uuid, p.display_name, p.sort_name, p.given_name, p.family_name, p.date_of_birth, p.nationality, p.email, p.phone, p.status, p.created_at, p.updated_at, profile.club_id, c.name AS club_name
              FROM parties p
              LEFT JOIN person_profiles profile ON profile.party_id = p.id
              LEFT JOIN clubs c ON c.id = profile.club_id
@@ -33,14 +36,13 @@ class PartyRepository
 
         $roles = $this->fetchRoles([$id]);
         $row['role_list'] = $roles[$id] ?? [];
-        $row['name'] = $row['display_name'];
 
-        return $row;
+        return $this->preparePersonRow($row);
     }
 
-    public function searchPersons(?string $name = null, ?string $role = null, int $limit = 100): array
+    public function searchPersons(?string $name = null, ?string $role = null, ?string $status = null, int $limit = 100): array
     {
-        $sql = 'SELECT p.id, p.display_name, p.sort_name, p.email, p.phone, p.created_at, p.updated_at, profile.club_id, c.name AS club_name
+        $sql = 'SELECT p.id, p.uuid, p.display_name, p.sort_name, p.given_name, p.family_name, p.date_of_birth, p.nationality, p.email, p.phone, p.status, p.created_at, p.updated_at, profile.club_id, c.name AS club_name
                 FROM parties p
                 LEFT JOIN person_profiles profile ON profile.party_id = p.id
                 LEFT JOIN clubs c ON c.id = profile.club_id
@@ -56,6 +58,11 @@ class PartyRepository
             $sql .= ' AND EXISTS (SELECT 1 FROM party_roles pr WHERE pr.party_id = p.id AND pr.role = :role AND pr.context = :context)';
             $params['role'] = $role;
             $params['context'] = self::ROLE_CONTEXT;
+        }
+
+        if ($status !== null && $status !== '') {
+            $sql .= ' AND COALESCE(p.status, :status) = :status';
+            $params['status'] = $this->normalizeStatus($status);
         }
 
         $sql .= ' ORDER BY p.sort_name ASC LIMIT ' . (int) $limit;
@@ -74,7 +81,7 @@ class PartyRepository
         foreach ($rows as &$row) {
             $id = (int) $row['id'];
             $row['role_list'] = $roles[$id] ?? [];
-            $row['name'] = $row['display_name'];
+            $row = $this->preparePersonRow($row);
         }
 
         return $rows;
@@ -82,8 +89,8 @@ class PartyRepository
 
     public function personOptions(?string $role = null): array
     {
-        $sql = 'SELECT p.id, p.display_name FROM parties p WHERE p.party_type = :type';
-        $params = ['type' => 'person'];
+        $sql = 'SELECT p.id, p.uuid, p.display_name, p.given_name, p.family_name, p.status FROM parties p WHERE p.party_type = :type AND (p.status IS NULL OR p.status != :archived)';
+        $params = ['type' => 'person', 'archived' => 'archived'];
         if ($role !== null && $role !== '') {
             $sql .= ' AND EXISTS (SELECT 1 FROM party_roles pr WHERE pr.party_id = p.id AND pr.role = :role AND pr.context = :context)';
             $params['role'] = $role;
@@ -95,27 +102,50 @@ class PartyRepository
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-        return array_map(static function (array $row): array {
+        return array_map(function (array $row): array {
+            $prepared = $this->preparePersonRow($row);
             return [
-                'id' => (int) $row['id'],
-                'name' => $row['display_name'],
+                'id' => (int) $prepared['id'],
+                'name' => $prepared['name'],
+                'uuid' => $prepared['uuid'],
+                'status' => $prepared['status'],
             ];
         }, $rows);
     }
 
-    public function createPerson(string $name, ?string $email, ?string $phone, ?int $clubId, array $roles): int
+    public function createPerson(
+        string $givenName,
+        string $familyName,
+        ?string $email,
+        ?string $phone,
+        ?int $clubId,
+        array $roles,
+        ?string $dateOfBirth,
+        ?string $nationality,
+        string $status = 'active',
+        ?string $uuid = null
+    ): int
     {
         $this->pdo->beginTransaction();
         try {
             $now = (new DateTimeImmutable())->format('c');
-            $sortName = $this->normalizeSortName($name);
-            $insertParty = $this->pdo->prepare('INSERT INTO parties (party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES (:type, :display, :sort, :email, :phone, :created, :updated)');
+            $status = $this->normalizeStatus($status);
+            $displayName = $this->buildDisplayName($givenName, $familyName, null);
+            $sortName = $this->buildSortName($givenName, $familyName, $displayName);
+            $uuid = $uuid ?: app_uuid();
+            $insertParty = $this->pdo->prepare('INSERT INTO parties (party_type, uuid, display_name, sort_name, given_name, family_name, date_of_birth, nationality, email, phone, status, created_at, updated_at) VALUES (:type, :uuid, :display, :sort, :given, :family, :dob, :nation, :email, :phone, :status, :created, :updated)');
             $insertParty->execute([
                 'type' => 'person',
-                'display' => $name,
+                'uuid' => $uuid,
+                'display' => $displayName,
                 'sort' => $sortName,
+                'given' => $givenName !== '' ? $givenName : null,
+                'family' => $familyName !== '' ? $familyName : null,
+                'dob' => $dateOfBirth ?: null,
+                'nation' => $nationality !== null && $nationality !== '' ? mb_strtoupper($nationality) : null,
                 'email' => $email ?: null,
                 'phone' => $phone ?: null,
+                'status' => $status,
                 'created' => $now,
                 'updated' => $now,
             ]);
@@ -132,18 +162,38 @@ class PartyRepository
         }
     }
 
-    public function updatePerson(int $id, string $name, ?string $email, ?string $phone, ?int $clubId, array $roles): void
+    public function updatePerson(
+        int $id,
+        string $givenName,
+        string $familyName,
+        ?string $email,
+        ?string $phone,
+        ?int $clubId,
+        array $roles,
+        ?string $dateOfBirth,
+        ?string $nationality,
+        string $status = 'active',
+        ?string $uuid = null
+    ): void
     {
         $this->pdo->beginTransaction();
         try {
             $now = (new DateTimeImmutable())->format('c');
-            $sortName = $this->normalizeSortName($name);
-            $updateParty = $this->pdo->prepare('UPDATE parties SET display_name = :display, sort_name = :sort, email = :email, phone = :phone, updated_at = :updated WHERE id = :id AND party_type = :type');
+            $status = $this->normalizeStatus($status);
+            $displayName = $this->buildDisplayName($givenName, $familyName, null);
+            $sortName = $this->buildSortName($givenName, $familyName, $displayName);
+            $updateParty = $this->pdo->prepare('UPDATE parties SET uuid = COALESCE(uuid, :uuid), display_name = :display, sort_name = :sort, given_name = :given, family_name = :family, date_of_birth = :dob, nationality = :nation, email = :email, phone = :phone, status = :status, updated_at = :updated WHERE id = :id AND party_type = :type');
             $updateParty->execute([
-                'display' => $name,
+                'uuid' => $uuid ?: app_uuid(),
+                'display' => $displayName,
                 'sort' => $sortName,
+                'given' => $givenName !== '' ? $givenName : null,
+                'family' => $familyName !== '' ? $familyName : null,
+                'dob' => $dateOfBirth ?: null,
+                'nation' => $nationality !== null && $nationality !== '' ? mb_strtoupper($nationality) : null,
                 'email' => $email ?: null,
                 'phone' => $phone ?: null,
+                'status' => $status,
                 'updated' => $now,
                 'id' => $id,
                 'type' => 'person',
@@ -259,9 +309,72 @@ class PartyRepository
         return $result;
     }
 
+    private function preparePersonRow(array $row): array
+    {
+        $given = trim((string) ($row['given_name'] ?? ''));
+        $family = trim((string) ($row['family_name'] ?? ''));
+
+        if ($given === '' && $family === '') {
+            $display = trim((string) ($row['display_name'] ?? ''));
+            if ($display !== '') {
+                $parts = preg_split('/\s+/', $display) ?: [];
+                if (count($parts) > 1) {
+                    $family = array_pop($parts) ?: '';
+                    $given = implode(' ', $parts);
+                } else {
+                    $given = $display;
+                }
+            }
+        }
+
+        $displayName = $this->buildDisplayName($given, $family, $row['display_name'] ?? '');
+
+        $row['given_name'] = $given;
+        $row['family_name'] = $family;
+        $row['name'] = $displayName;
+        $row['status'] = $this->normalizeStatus((string) ($row['status'] ?? 'active'));
+        $row['uuid'] = ($row['uuid'] ?? '') !== '' ? (string) $row['uuid'] : null;
+        $row['date_of_birth'] = ($row['date_of_birth'] ?? null) ?: null;
+        $row['nationality'] = ($row['nationality'] ?? null) ? mb_strtoupper((string) $row['nationality']) : null;
+
+        return $row;
+    }
+
     private function normalizeSortName(string $name): string
     {
         $normalized = preg_replace('/\s+/', ' ', trim($name));
         return mb_strtolower($normalized ?? '');
+    }
+
+    private function buildDisplayName(string $givenName, string $familyName, ?string $fallback): string
+    {
+        $parts = array_filter([trim($givenName), trim($familyName)], static fn ($value): bool => $value !== '');
+        if ($parts) {
+            return trim(implode(' ', $parts));
+        }
+
+        $fallback = trim((string) $fallback);
+        return $fallback;
+    }
+
+    private function buildSortName(string $givenName, string $familyName, string $displayName): string
+    {
+        if ($familyName !== '') {
+            return $this->normalizeSortName($familyName . ', ' . $givenName);
+        }
+
+        if ($givenName !== '') {
+            return $this->normalizeSortName($givenName);
+        }
+
+        return $this->normalizeSortName($displayName);
+    }
+
+    private function normalizeStatus(string $status): string
+    {
+        $status = trim($status);
+        $allowed = ['active', 'blocked', 'archived'];
+
+        return in_array($status, $allowed, true) ? $status : 'active';
     }
 }

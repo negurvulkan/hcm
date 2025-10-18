@@ -37,16 +37,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'create';
 
     if ($action === 'create_person') {
-        $name = trim((string) ($_POST['name'] ?? ''));
+        $givenName = trim((string) ($_POST['given_name'] ?? ''));
+        $familyName = trim((string) ($_POST['family_name'] ?? ''));
         $email = trim((string) ($_POST['email'] ?? ''));
         $phone = trim((string) ($_POST['phone'] ?? ''));
         $clubId = (int) ($_POST['club_id'] ?? 0) ?: null;
+        $dateOfBirth = trim((string) ($_POST['date_of_birth'] ?? ''));
+        $nationality = trim((string) ($_POST['nationality'] ?? ''));
 
-        if ($name === '') {
-            flash('error', t('entries.validation.person_name_required'));
+        $errors = [];
+
+        if ($givenName === '') {
+            $errors[] = t('entries.validation.person_given_name_required');
+        }
+
+        if ($familyName === '') {
+            $errors[] = t('entries.validation.person_family_name_required');
+        }
+
+        if ($email === '' && $phone === '') {
+            $errors[] = t('entries.validation.person_contact_required');
+        }
+
+        if ($dateOfBirth !== '') {
+            $dob = DateTimeImmutable::createFromFormat('Y-m-d', $dateOfBirth);
+            if (!$dob || $dob->format('Y-m-d') !== $dateOfBirth) {
+                $errors[] = t('entries.validation.person_date_of_birth_invalid');
+            }
+        } else {
+            $dateOfBirth = null;
+        }
+
+        if ($nationality !== '' && !preg_match('/^[A-Za-z]{2,3}$/', $nationality)) {
+            $errors[] = t('entries.validation.person_nationality_invalid');
+        } elseif ($nationality === '') {
+            $nationality = null;
+        }
+
+        if ($errors) {
+            foreach ($errors as $message) {
+                flash('error', $message);
+            }
         } else {
             try {
-                $personId = $partyRepository->createPerson($name, $email ?: null, $phone ?: null, $clubId, ['participant']);
+                $personId = $partyRepository->createPerson(
+                    $givenName,
+                    $familyName,
+                    $email ?: null,
+                    $phone ?: null,
+                    $clubId,
+                    ['participant'],
+                    $dateOfBirth,
+                    $nationality,
+                    'active'
+                );
                 $_SESSION['entries_person_preselect'] = $personId;
                 $_SESSION['entries_owner_preselect'] = $personId;
                 flash('success', t('entries.flash.person_created'));
@@ -64,18 +108,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ownerId = (int) ($_POST['owner_id'] ?? 0) ?: null;
         $documentsOk = isset($_POST['documents_ok']) ? 1 : 0;
         $notes = trim((string) ($_POST['notes'] ?? ''));
+        $lifeNumber = trim((string) ($_POST['life_number'] ?? ''));
+        $microchip = trim((string) ($_POST['microchip'] ?? ''));
+        $sex = in_array($_POST['sex'] ?? 'unknown', ['unknown', 'mare', 'gelding', 'stallion'], true) ? ($_POST['sex'] ?? 'unknown') : 'unknown';
+        $birthYearRaw = trim((string) ($_POST['birth_year'] ?? ''));
+        $birthYear = null;
+
+        $errors = [];
 
         if ($name === '') {
-            flash('error', t('entries.validation.horse_name_required'));
+            $errors[] = t('entries.validation.horse_name_required');
+        }
+
+        if ($lifeNumber === '' && $microchip === '') {
+            $errors[] = t('entries.validation.horse_identification_required');
+        }
+
+        if ($birthYearRaw !== '') {
+            if (!preg_match('/^\d{4}$/', $birthYearRaw)) {
+                $errors[] = t('entries.validation.horse_birth_year_invalid');
+            } else {
+                $birthYear = (int) $birthYearRaw;
+                $currentYear = (int) (new DateTimeImmutable())->format('Y');
+                if ($birthYear < 1900 || $birthYear > $currentYear) {
+                    $errors[] = t('entries.validation.horse_birth_year_invalid');
+                }
+            }
+        }
+
+        if ($errors) {
+            foreach ($errors as $message) {
+                flash('error', $message);
+            }
         } else {
             try {
                 db_execute(
-                    'INSERT INTO horses (name, owner_party_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
+                    'INSERT INTO horses (uuid, name, owner_party_id, documents_ok, notes, life_number, microchip, sex, birth_year) VALUES (:uuid, :name, :owner, :ok, :notes, :life, :chip, :sex, :birth)',
                     [
+                        'uuid' => app_uuid(),
                         'name' => $name,
                         'owner' => $ownerId,
                         'ok' => $documentsOk,
                         'notes' => $notes !== '' ? $notes : null,
+                        'life' => $lifeNumber !== '' ? $lifeNumber : null,
+                        'chip' => $microchip !== '' ? $microchip : null,
+                        'sex' => $sex,
+                        'birth' => $birthYear,
                     ]
                 );
                 $horseId = (int) app_pdo()->lastInsertId();
