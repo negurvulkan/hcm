@@ -1316,6 +1316,12 @@ return [
             'diff_success' => 'Dry-run completed successfully.',
             'pull_queued' => 'Pull operation has been queued.',
             'push_queued' => 'Push operation has been queued.',
+            'push_success' => 'Push completed. Records transferred: {count}',
+            'push_nothing' => 'No changes to transfer.',
+            'push_failed' => 'Push could not be completed successfully.',
+            'push_ack_failed' => 'Failed to acknowledge the transaction on the peer.',
+            'peer_missing' => 'Peer configuration incomplete. Base URL is missing.',
+            'peer_request_failed' => 'Peer request failed: {message}',
             'action_unavailable' => 'Action not available.',
         ],
         'logs' => [

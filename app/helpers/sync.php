@@ -161,3 +161,203 @@ if (!function_exists('sync_log_failure')) {
         }
     }
 }
+
+if (!function_exists('sync_resolve_push_cursor')) {
+    function sync_resolve_push_cursor(ChangeSet $changeSet, ImportReport $report): ?SyncCursor
+    {
+        $explicit = $changeSet->cursor();
+        if ($explicit !== null) {
+            try {
+                return new SyncCursor($explicit);
+            } catch (SyncException) {
+                // ignore invalid explicit cursor and fall back to accepted records
+            }
+        }
+
+        $summary = $report->toArray();
+        $accepted = $summary['accepted'] ?? [];
+        if ($accepted === [] || $accepted === null) {
+            return null;
+        }
+
+        $acceptedIds = [];
+        foreach ($accepted as $scope => $entries) {
+            foreach ($entries as $entry) {
+                $id = (string) ($entry['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $acceptedIds[$scope][$id] = true;
+            }
+        }
+
+        if ($acceptedIds === []) {
+            return null;
+        }
+
+        $bestCursor = null;
+        foreach ($changeSet->all() as $scope => $records) {
+            if (!isset($acceptedIds[$scope])) {
+                continue;
+            }
+            foreach ($records as $record) {
+                $id = (string) ($record['id'] ?? '');
+                if ($id === '' || !isset($acceptedIds[$scope][$id])) {
+                    continue;
+                }
+                $version = (string) ($record['version'] ?? '');
+                if ($version === '') {
+                    continue;
+                }
+                try {
+                    $candidate = new SyncCursor($version);
+                } catch (SyncException) {
+                    continue;
+                }
+
+                if ($bestCursor === null || $candidate->epoch() > $bestCursor->epoch()) {
+                    $bestCursor = $candidate;
+                }
+            }
+        }
+
+        return $bestCursor;
+    }
+}
+
+if (!function_exists('sync_highest_cursor')) {
+    function sync_highest_cursor(ChangeSet $changeSet): ?SyncCursor
+    {
+        $bestCursor = null;
+        foreach ($changeSet->all() as $records) {
+            foreach ($records as $record) {
+                $version = (string) ($record['version'] ?? '');
+                if ($version === '') {
+                    continue;
+                }
+
+                try {
+                    $candidate = new SyncCursor($version);
+                } catch (SyncException) {
+                    continue;
+                }
+
+                if ($bestCursor === null || $candidate->epoch() > $bestCursor->epoch()) {
+                    $bestCursor = $candidate;
+                }
+            }
+        }
+
+        return $bestCursor;
+    }
+}
+
+if (!function_exists('sync_hydrate_change_set')) {
+    function sync_hydrate_change_set(ChangeSet $changeSet): ?ChangeSet
+    {
+        $entries = $changeSet->all();
+        if ($entries === []) {
+            return null;
+        }
+
+        $scopeMap = [];
+        foreach ($entries as $scope => $records) {
+            $ids = [];
+            foreach ($records as $record) {
+                $id = (string) ($record['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $ids[$id] = $id;
+            }
+            if ($ids !== []) {
+                $scopeMap[$scope] = ['ids' => array_values($ids)];
+            }
+        }
+
+        if ($scopeMap === []) {
+            return null;
+        }
+
+        $fullSet = sync_pull_entities($scopeMap);
+        $cursor = sync_highest_cursor($changeSet);
+        $cursorValue = $cursor?->value();
+        $hydrated = new ChangeSet([], $fullSet->origin(), $cursorValue);
+
+        foreach ($fullSet->all() as $scope => $records) {
+            $diffMeta = [];
+            foreach ($entries[$scope] ?? [] as $record) {
+                $id = (string) ($record['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $meta = $record['meta'] ?? [];
+                if (is_array($meta)) {
+                    $diffMeta[$id] = $meta;
+                }
+            }
+
+            foreach ($records as $record) {
+                $id = (string) ($record['id'] ?? '');
+                if ($id !== '' && isset($diffMeta[$id])) {
+                    $record['meta'] = array_merge($diffMeta[$id], is_array($record['meta'] ?? null) ? $record['meta'] : []);
+                }
+                $hydrated->add($scope, $record);
+            }
+        }
+
+        return $hydrated;
+    }
+}
+
+if (!function_exists('sync_import_report_from_array')) {
+    function sync_import_report_from_array(array $report): ImportReport
+    {
+        $importReport = new ImportReport();
+
+        foreach ($report['accepted'] ?? [] as $scope => $items) {
+            if (!is_array($items)) {
+                continue;
+            }
+            foreach ($items as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $id = (string) ($item['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $importReport->addAccepted($scope, $id, (string) ($item['message'] ?? 'applied'));
+            }
+        }
+
+        foreach ($report['rejected'] ?? [] as $scope => $items) {
+            if (!is_array($items)) {
+                continue;
+            }
+            foreach ($items as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $id = (string) ($item['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $reason = (string) ($item['reason'] ?? 'UNKNOWN');
+                $message = (string) ($item['message'] ?? '');
+                $importReport->addRejected($scope, $id, $reason, $message);
+            }
+        }
+
+        foreach ($report['errors'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $code = (string) ($item['code'] ?? 'UNKNOWN');
+            $message = (string) ($item['message'] ?? '');
+            $importReport->addError($code, $message);
+        }
+
+        return $importReport;
+    }
+}

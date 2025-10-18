@@ -122,6 +122,16 @@ if ($initialMessage !== 'inserted') {
     throw new RuntimeException('Initialer Import sollte als insert gelten.');
 }
 
+$resolvedCursor = sync_resolve_push_cursor($changeSet, $report);
+if (!$resolvedCursor instanceof SyncCursor) {
+    throw new RuntimeException('Push sollte Cursor ableiten.');
+}
+setSyncCursor($resolvedCursor);
+$storedCursor = getSyncCursor();
+if ($storedCursor->value() !== $resolvedCursor->value()) {
+    throw new RuntimeException('Cursor sollte gespeichert werden.');
+}
+
 $diff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));
 if (count($diff->forScope('parties')) !== 1) {
     throw new RuntimeException('Diff sollte aktualisierte Partei melden.');
@@ -131,6 +141,37 @@ $pull = sync_pull_entities(['parties' => ['ids' => [1]]]);
 $pulled = $pull->forScope('parties')[0]['data'] ?? [];
 if (($pulled['display_name'] ?? null) !== 'Anna Mustermann') {
     throw new RuntimeException('Pull sollte vollständige Partei liefern.');
+}
+
+$skeleton = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));
+$hydrated = sync_hydrate_change_set($skeleton);
+if (!$hydrated instanceof ChangeSet) {
+    throw new RuntimeException('Hydrierter ChangeSet sollte erzeugt werden.');
+}
+$hydratedParties = $hydrated->forScope('parties')[0]['data'] ?? null;
+if (!is_array($hydratedParties) || ($hydratedParties['display_name'] ?? null) !== 'Anna Mustermann') {
+    throw new RuntimeException('Hydrierter ChangeSet sollte Daten enthalten.');
+}
+$expectedCursor = sync_highest_cursor($skeleton);
+if ($expectedCursor instanceof SyncCursor && $hydrated->cursor() !== $expectedCursor->value()) {
+    throw new RuntimeException('Hydrierter ChangeSet sollte höchsten Cursor übernehmen.');
+}
+
+$arrayReport = [
+    'accepted' => ['parties' => [['id' => '1', 'message' => 'updated']]],
+    'rejected' => ['clubs' => [['id' => '2', 'reason' => 'INVALID', 'message' => 'Missing club']]],
+    'errors' => [['code' => 'E_INTERNAL', 'message' => 'boom']],
+];
+$convertedReport = sync_import_report_from_array($arrayReport);
+$convertedArray = $convertedReport->toArray();
+if (($convertedArray['accepted']['parties'][0]['message'] ?? null) !== 'updated') {
+    throw new RuntimeException('Konvertierter Report sollte Accepted übernehmen.');
+}
+if (($convertedArray['rejected']['clubs'][0]['reason'] ?? null) !== 'INVALID') {
+    throw new RuntimeException('Konvertierter Report sollte Rejected übernehmen.');
+}
+if (($convertedArray['errors'][0]['code'] ?? null) !== 'E_INTERNAL') {
+    throw new RuntimeException('Konvertierter Report sollte Errors übernehmen.');
 }
 
 $reportSecond = importChanges($changeSet);

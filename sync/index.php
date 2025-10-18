@@ -249,6 +249,13 @@ function handle_push(array $payload, InstanceConfiguration $instance): array
     $rejected = array_sum(array_map('count', $report->toArray()['rejected'] ?? []));
     $transactionId = sync_create_transaction('inbound', 'push', $scopes, $report->toArray());
 
+    if (!$report->hasErrors()) {
+        $cursor = sync_resolve_push_cursor($changeSet, $report);
+        if ($cursor instanceof SyncCursor) {
+            setSyncCursor($cursor);
+        }
+    }
+
     sync_log_operation('inbound', 'push', $scopes, $report->hasErrors() ? 'error' : 'completed', t('sync.api.messages.push_processed'), [
         'accepted' => $accepted,
         'rejected' => $rejected,
