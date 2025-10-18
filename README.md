@@ -78,3 +78,7 @@ Ein webbasierter Werkzeugkasten für Reitturnier-Organisator:innen. Die Anwendun
 
 ## Lizenz
 Dieses Projekt steht unter der **GNU Affero General Public License v3.0 (AGPL-3.0)**. Siehe [`LICENSE`](LICENSE) für den vollständigen Text.
+
+This software includes third-party components:
+- Bootstrap (MIT License)
+- Smarty (LGPL v3)
