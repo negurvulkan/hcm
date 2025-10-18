@@ -61,7 +61,7 @@ $startNumberContext = [
 ];
 $startNumberRule = getStartNumberRule($startNumberContext);
 
-$starts = db_all('SELECT si.id, si.position, si.state, si.start_number_display, si.start_number_assignment_id, e.id AS entry_id, pr.display_name AS rider, h.name AS horse FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$starts = db_all('SELECT si.id, si.position, si.state, si.start_number_display, si.start_number_assignment_id, e.id AS entry_id, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.id AS horse_id, h.name AS horse, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 if (!$starts) {
     render_page('judge.tpl', [
         'titleKey' => 'pages.judge.title',
@@ -74,7 +74,7 @@ if (!$starts) {
         'result' => null,
         'starts' => [],
         'startStateCounts' => [],
-        'extraScripts' => ['public/assets/js/judge.js'],
+        'extraScripts' => ['public/assets/js/entity-info.js', 'public/assets/js/judge.js'],
     ]);
     exit;
 }
@@ -310,7 +310,7 @@ render_page('judge.tpl', [
     'judgeKey' => $judgeKey,
     'startNumberRule' => $startNumberRule,
     'startStateCounts' => $startStateCounts,
-    'extraScripts' => ['public/assets/js/judge.js'],
+    'extraScripts' => ['public/assets/js/entity-info.js', 'public/assets/js/judge.js'],
 ]);
 
 function judge_identifier(array $user): string

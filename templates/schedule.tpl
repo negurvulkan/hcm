@@ -3,6 +3,16 @@
 /** @var array $selectedClass */
 /** @var array $items */
 /** @var array $shifts */
+
+if (!function_exists('schedule_prepare_entity_fields')) {
+    function schedule_prepare_entity_fields(array $fields): array
+    {
+        return array_values(array_filter($fields, static function (array $field): bool {
+            $value = $field['value'] ?? null;
+            return $value !== null && $value !== '';
+        }));
+    }
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0"><?= htmlspecialchars(t('schedule.title'), ENT_QUOTES, 'UTF-8') ?></h1>
@@ -72,8 +82,63 @@
                                 <span class="text-muted"><?= htmlspecialchars(t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></span>
                             <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <?php
+                            $riderDate = !empty($item['rider_date_of_birth']) ? date('d.m.Y', strtotime($item['rider_date_of_birth'])) : null;
+                            $riderFields = schedule_prepare_entity_fields([
+                                ['label' => t('entity_info.labels.name'), 'value' => $item['rider'] ?? null],
+                                ['label' => t('entity_info.labels.club'), 'value' => $item['rider_club_name'] ?? null],
+                                ['label' => t('entity_info.labels.email'), 'value' => $item['rider_email'] ?? null],
+                                ['label' => t('entity_info.labels.phone'), 'value' => $item['rider_phone'] ?? null],
+                                ['label' => t('entity_info.labels.date_of_birth'), 'value' => $riderDate],
+                                ['label' => t('entity_info.labels.nationality'), 'value' => $item['rider_nationality'] ?? null],
+                            ]);
+                            $riderInfo = [
+                                'title' => t('entity_info.title.rider', ['name' => $item['rider'] ?? '']),
+                                'fields' => $riderFields,
+                                'emptyMessage' => t('entity_info.empty'),
+                            ];
+                            ?>
+                            <div class="d-flex align-items-center gap-2">
+                                <span><?= htmlspecialchars($item['rider'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <button type="button"
+                                        class="entity-info-trigger"
+                                        data-entity-info="<?= htmlspecialchars(json_encode($riderInfo, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>"
+                                        aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
+                                    <span aria-hidden="true">&#9432;</span>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <?php
+                            $documentsOk = $item['horse_documents_ok'];
+                            $documentsValue = $documentsOk === null ? null : ($documentsOk ? t('common.labels.yes') : t('common.labels.no'));
+                            $horseFields = schedule_prepare_entity_fields([
+                                ['label' => t('entity_info.labels.name'), 'value' => $item['horse'] ?? null],
+                                ['label' => t('entity_info.labels.owner'), 'value' => $item['horse_owner_name'] ?? null],
+                                ['label' => t('entity_info.labels.life_number'), 'value' => $item['horse_life_number'] ?? null],
+                                ['label' => t('entity_info.labels.microchip'), 'value' => $item['horse_microchip'] ?? null],
+                                ['label' => t('entity_info.labels.sex'), 'value' => $item['horse_sex'] ? t('horses.sex.' . $item['horse_sex']) : null],
+                                ['label' => t('entity_info.labels.birth_year'), 'value' => $item['horse_birth_year'] ? (string) $item['horse_birth_year'] : null],
+                                ['label' => t('entity_info.labels.documents'), 'value' => $documentsValue],
+                                ['label' => t('entity_info.labels.notes'), 'value' => $item['horse_notes'] ?? null, 'multiline' => true],
+                            ]);
+                            $horseInfo = [
+                                'title' => t('entity_info.title.horse', ['name' => $item['horse'] ?? '']),
+                                'fields' => $horseFields,
+                                'emptyMessage' => t('entity_info.empty'),
+                            ];
+                            ?>
+                            <div class="d-flex align-items-center gap-2">
+                                <span><?= htmlspecialchars($item['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <button type="button"
+                                        class="entity-info-trigger"
+                                        data-entity-info="<?= htmlspecialchars(json_encode($horseInfo, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') ?>"
+                                        aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                                    <span aria-hidden="true">&#9432;</span>
+                                </button>
+                            </div>
+                        </td>
                         <td data-slot-editor data-slot-initial="<?= htmlspecialchars($item['planned_start'] ? date('Y-m-d\TH:i', strtotime($item['planned_start'])) : '', ENT_QUOTES, 'UTF-8') ?>">
                             <?php $plannedDisplay = $item['planned_start'] ? date('H:i', strtotime($item['planned_start'])) : t('schedule.slots.table.no_time'); ?>
                             <div class="d-flex align-items-center gap-2" data-slot-view>
@@ -108,6 +173,8 @@
         </div>
     </div>
 </div>
+
+<?php require __DIR__ . '/partials/entity_info_modal.tpl'; ?>
 
 <div class="card">
     <div class="card-body">
