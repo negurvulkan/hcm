@@ -665,6 +665,33 @@ return [
             'no' => 'no',
         ],
     ],
+    'entity_info' => [
+        'modal_title_default' => 'Details',
+        'title' => [
+            'rider' => 'Rider: {name}',
+            'horse' => 'Horse: {name}',
+        ],
+        'labels' => [
+            'name' => 'Name',
+            'club' => 'Club',
+            'email' => 'Email',
+            'phone' => 'Phone',
+            'date_of_birth' => 'Date of birth',
+            'nationality' => 'Nationality',
+            'owner' => 'Owner',
+            'life_number' => 'Life number',
+            'microchip' => 'Microchip',
+            'sex' => 'Sex',
+            'birth_year' => 'Birth year',
+            'documents' => 'Documents',
+            'notes' => 'Notes',
+        ],
+        'actions' => [
+            'show_rider' => 'Show rider info',
+            'show_horse' => 'Show horse info',
+        ],
+        'empty' => 'No additional information available.',
+    ],
     'scoring_designer' => [
         'title' => 'Scoring designer',
         'header' => [

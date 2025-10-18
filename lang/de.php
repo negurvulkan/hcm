@@ -654,6 +654,33 @@ return [
             'no' => 'nein',
         ],
     ],
+    'entity_info' => [
+        'modal_title_default' => 'Details',
+        'title' => [
+            'rider' => 'Reiter: {name}',
+            'horse' => 'Pferd: {name}',
+        ],
+        'labels' => [
+            'name' => 'Name',
+            'club' => 'Verein',
+            'email' => 'E-Mail',
+            'phone' => 'Telefon',
+            'date_of_birth' => 'Geburtsdatum',
+            'nationality' => 'Nationalität',
+            'owner' => 'Besitzer',
+            'life_number' => 'Lebensnummer',
+            'microchip' => 'Mikrochip',
+            'sex' => 'Geschlecht',
+            'birth_year' => 'Geburtsjahr',
+            'documents' => 'Unterlagen',
+            'notes' => 'Notizen',
+        ],
+        'actions' => [
+            'show_rider' => 'Reiterdetails anzeigen',
+            'show_horse' => 'Pferdedetails anzeigen',
+        ],
+        'empty' => 'Keine weiteren Informationen vorhanden.',
+    ],
     'scoring_designer' => [
         'title' => 'Scoring-Designer',
         'header' => [

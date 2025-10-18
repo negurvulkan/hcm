@@ -13,6 +13,58 @@
 /** @var string $judgeKey */
 /** @var array $startNumberRule */
 /** @var array $startStateCounts */
+
+if (!function_exists('judge_prepare_entity_fields')) {
+    function judge_prepare_entity_fields(array $fields): array
+    {
+        return array_values(array_filter($fields, static function (array $field): bool {
+            $value = $field['value'] ?? null;
+            return $value !== null && $value !== '';
+        }));
+    }
+}
+
+$riderInfoPayload = null;
+$horseInfoPayload = null;
+$riderInfoJson = null;
+$horseInfoJson = null;
+
+if ($start) {
+    $riderDate = !empty($start['rider_date_of_birth']) ? date('d.m.Y', strtotime($start['rider_date_of_birth'])) : null;
+    $riderFields = judge_prepare_entity_fields([
+        ['label' => t('entity_info.labels.name'), 'value' => $start['rider'] ?? null],
+        ['label' => t('entity_info.labels.club'), 'value' => $start['rider_club_name'] ?? null],
+        ['label' => t('entity_info.labels.email'), 'value' => $start['rider_email'] ?? null],
+        ['label' => t('entity_info.labels.phone'), 'value' => $start['rider_phone'] ?? null],
+        ['label' => t('entity_info.labels.date_of_birth'), 'value' => $riderDate],
+        ['label' => t('entity_info.labels.nationality'), 'value' => $start['rider_nationality'] ?? null],
+    ]);
+    $riderInfoPayload = [
+        'title' => t('entity_info.title.rider', ['name' => $start['rider'] ?? '']),
+        'fields' => $riderFields,
+        'emptyMessage' => t('entity_info.empty'),
+    ];
+    $riderInfoJson = htmlspecialchars(json_encode($riderInfoPayload, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8');
+
+    $documentsOk = $start['horse_documents_ok'] ?? null;
+    $documentsValue = $documentsOk === null ? null : ($documentsOk ? t('common.labels.yes') : t('common.labels.no'));
+    $horseFields = judge_prepare_entity_fields([
+        ['label' => t('entity_info.labels.name'), 'value' => $start['horse'] ?? null],
+        ['label' => t('entity_info.labels.owner'), 'value' => $start['horse_owner_name'] ?? null],
+        ['label' => t('entity_info.labels.life_number'), 'value' => $start['horse_life_number'] ?? null],
+        ['label' => t('entity_info.labels.microchip'), 'value' => $start['horse_microchip'] ?? null],
+        ['label' => t('entity_info.labels.sex'), 'value' => $start['horse_sex'] ? t('horses.sex.' . $start['horse_sex']) : null],
+        ['label' => t('entity_info.labels.birth_year'), 'value' => $start['horse_birth_year'] ? (string) $start['horse_birth_year'] : null],
+        ['label' => t('entity_info.labels.documents'), 'value' => $documentsValue],
+        ['label' => t('entity_info.labels.notes'), 'value' => $start['horse_notes'] ?? null, 'multiline' => true],
+    ]);
+    $horseInfoPayload = [
+        'title' => t('entity_info.title.horse', ['name' => $start['horse'] ?? '']),
+        'fields' => $horseFields,
+        'emptyMessage' => t('entity_info.empty'),
+    ];
+    $horseInfoJson = htmlspecialchars(json_encode($horseInfoPayload, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8');
+}
 ?>
 <div class="alert alert-info d-flex justify-content-between align-items-center">
     <div>
@@ -20,7 +72,37 @@
         <?php if (!empty($start['start_number_display'])): ?>
             <span class="badge bg-primary text-light ms-2"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $start['start_number_display']]), ENT_QUOTES, 'UTF-8') ?></span>
         <?php endif; ?>
-        · <?= htmlspecialchars($start['rider'] ?? t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?>
+        <?php if ($start): ?>
+            <span class="mx-2">·</span>
+            <span class="d-inline-flex align-items-center gap-2">
+                <span><?= htmlspecialchars($start['rider'] ?? t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if ($riderInfoJson): ?>
+                    <button type="button"
+                            class="entity-info-trigger"
+                            data-entity-info="<?= $riderInfoJson ?>"
+                            aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
+                        <span aria-hidden="true">&#9432;</span>
+                    </button>
+                <?php endif; ?>
+            </span>
+            <?php if (!empty($start['horse'])): ?>
+                <span class="mx-2">·</span>
+                <span class="d-inline-flex align-items-center gap-2">
+                    <span><?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if ($horseInfoJson): ?>
+                        <button type="button"
+                                class="entity-info-trigger"
+                                data-entity-info="<?= $horseInfoJson ?>"
+                                aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                            <span aria-hidden="true">&#9432;</span>
+                        </button>
+                    <?php endif; ?>
+                </span>
+            <?php endif; ?>
+        <?php else: ?>
+            <span class="mx-2">·</span>
+            <span><?= htmlspecialchars(t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?></span>
+        <?php endif; ?>
         <?php if (!empty($start['state'])): ?>
             <?php
             $stateKey = $start['state'];
@@ -105,7 +187,33 @@
         <?= csrf_field() ?>
         <input type="hidden" name="class_id" value="<?= (int) $selectedClass['id'] ?>">
         <input type="hidden" name="start_id" value="<?= (int) $start['id'] ?>">
-        <h2 class="h5 mb-3"><?= htmlspecialchars(t('judge.form.heading', ['rider' => $start['rider'], 'horse' => $start['horse']]), ENT_QUOTES, 'UTF-8') ?></h2>
+        <h2 class="h5 mb-2"><?= htmlspecialchars(t('judge.form.heading', ['rider' => $start['rider'], 'horse' => $start['horse']]), ENT_QUOTES, 'UTF-8') ?></h2>
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small text-uppercase fw-semibold"><?= htmlspecialchars(t('startlist.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></span>
+                <span class="fw-semibold"><?= htmlspecialchars($start['rider'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if ($riderInfoJson): ?>
+                    <button type="button"
+                            class="entity-info-trigger"
+                            data-entity-info="<?= $riderInfoJson ?>"
+                            aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
+                        <span aria-hidden="true">&#9432;</span>
+                    </button>
+                <?php endif; ?>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small text-uppercase fw-semibold"><?= htmlspecialchars(t('startlist.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></span>
+                <span class="fw-semibold"><?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if ($horseInfoJson): ?>
+                    <button type="button"
+                            class="entity-info-trigger"
+                            data-entity-info="<?= $horseInfoJson ?>"
+                            aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                        <span aria-hidden="true">&#9432;</span>
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
         <?php $fields = $rule['input']['fields'] ?? []; ?>
         <?php if ($fields): ?>
             <div class="mb-4">
@@ -233,4 +341,6 @@
     </div>
 </form>
 <?php endif; ?>
+
+<?php require __DIR__ . '/partials/entity_info_modal.tpl'; ?>
 

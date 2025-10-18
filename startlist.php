@@ -23,6 +23,7 @@ if (!$classes) {
         'selectedClass' => null,
         'startlist' => [],
         'conflicts' => [],
+        'extraScripts' => ['public/assets/js/entity-info.js'],
     ]);
     exit;
 }
@@ -41,6 +42,7 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
             'selectedClass' => null,
             'startlist' => [],
             'conflicts' => [],
+            'extraScripts' => ['public/assets/js/entity-info.js'],
         ]);
         exit;
     }
@@ -263,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$startlist = db_all('SELECT si.*, e.status, pr.display_name AS rider, h.name AS horse, h.id AS horse_id, profile.club_id FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$startlist = db_all('SELECT si.*, e.status, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, pr.status AS rider_status, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.name AS horse, h.id AS horse_id, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 
 $conflicts = [];
 foreach ($startlist as $index => $item) {
@@ -284,4 +286,5 @@ render_page('startlist.tpl', [
     'startlist' => $startlist,
     'conflicts' => $conflicts,
     'startNumberRule' => $startNumberRule,
+    'extraScripts' => ['public/assets/js/entity-info.js'],
 ]);
