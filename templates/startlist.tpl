@@ -80,14 +80,15 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                         <td>
                             <?php
                             $riderDate = !empty($item['rider_date_of_birth']) ? date('d.m.Y', strtotime($item['rider_date_of_birth'])) : null;
-                            $riderFields = startlist_prepare_entity_fields([
+                            $riderCustomFields = $item['rider_custom_fields'] ?? [];
+                            $riderFields = startlist_prepare_entity_fields(array_merge([
                                 ['label' => t('entity_info.labels.name'), 'value' => $item['rider'] ?? null],
                                 ['label' => t('entity_info.labels.club'), 'value' => $item['rider_club_name'] ?? null],
                                 ['label' => t('entity_info.labels.email'), 'value' => $item['rider_email'] ?? null],
                                 ['label' => t('entity_info.labels.phone'), 'value' => $item['rider_phone'] ?? null],
                                 ['label' => t('entity_info.labels.date_of_birth'), 'value' => $riderDate],
                                 ['label' => t('entity_info.labels.nationality'), 'value' => $item['rider_nationality'] ?? null],
-                            ]);
+                            ], $riderCustomFields));
                             $riderInfo = [
                                 'title' => t('entity_info.title.rider', ['name' => $item['rider'] ?? '']),
                                 'fields' => $riderFields,
@@ -108,7 +109,8 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                             <?php
                             $documentsOk = $item['horse_documents_ok'];
                             $documentsValue = $documentsOk === null ? null : ($documentsOk ? t('common.labels.yes') : t('common.labels.no'));
-                            $horseFields = startlist_prepare_entity_fields([
+                            $horseCustomFields = $item['horse_custom_fields'] ?? [];
+                            $horseFields = startlist_prepare_entity_fields(array_merge([
                                 ['label' => t('entity_info.labels.name'), 'value' => $item['horse'] ?? null],
                                 ['label' => t('entity_info.labels.owner'), 'value' => $item['horse_owner_name'] ?? null],
                                 ['label' => t('entity_info.labels.life_number'), 'value' => $item['horse_life_number'] ?? null],
@@ -117,7 +119,7 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                                 ['label' => t('entity_info.labels.birth_year'), 'value' => $item['horse_birth_year'] ? (string) $item['horse_birth_year'] : null],
                                 ['label' => t('entity_info.labels.documents'), 'value' => $documentsValue],
                                 ['label' => t('entity_info.labels.notes'), 'value' => $item['horse_notes'] ?? null, 'multiline' => true],
-                            ]);
+                            ], $horseCustomFields));
                             $horseInfo = [
                                 'title' => t('entity_info.title.horse', ['name' => $item['horse'] ?? '']),
                                 'fields' => $horseFields,

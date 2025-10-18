@@ -31,14 +31,15 @@ $horseInfoJson = null;
 
 if ($start) {
     $riderDate = !empty($start['rider_date_of_birth']) ? date('d.m.Y', strtotime($start['rider_date_of_birth'])) : null;
-    $riderFields = judge_prepare_entity_fields([
+    $riderCustomFields = $start['rider_custom_fields'] ?? [];
+    $riderFields = judge_prepare_entity_fields(array_merge([
         ['label' => t('entity_info.labels.name'), 'value' => $start['rider'] ?? null],
         ['label' => t('entity_info.labels.club'), 'value' => $start['rider_club_name'] ?? null],
         ['label' => t('entity_info.labels.email'), 'value' => $start['rider_email'] ?? null],
         ['label' => t('entity_info.labels.phone'), 'value' => $start['rider_phone'] ?? null],
         ['label' => t('entity_info.labels.date_of_birth'), 'value' => $riderDate],
         ['label' => t('entity_info.labels.nationality'), 'value' => $start['rider_nationality'] ?? null],
-    ]);
+    ], $riderCustomFields));
     $riderInfoPayload = [
         'title' => t('entity_info.title.rider', ['name' => $start['rider'] ?? '']),
         'fields' => $riderFields,
@@ -48,7 +49,8 @@ if ($start) {
 
     $documentsOk = $start['horse_documents_ok'] ?? null;
     $documentsValue = $documentsOk === null ? null : ($documentsOk ? t('common.labels.yes') : t('common.labels.no'));
-    $horseFields = judge_prepare_entity_fields([
+    $horseCustomFields = $start['horse_custom_fields'] ?? [];
+    $horseFields = judge_prepare_entity_fields(array_merge([
         ['label' => t('entity_info.labels.name'), 'value' => $start['horse'] ?? null],
         ['label' => t('entity_info.labels.owner'), 'value' => $start['horse_owner_name'] ?? null],
         ['label' => t('entity_info.labels.life_number'), 'value' => $start['horse_life_number'] ?? null],
@@ -57,7 +59,7 @@ if ($start) {
         ['label' => t('entity_info.labels.birth_year'), 'value' => $start['horse_birth_year'] ? (string) $start['horse_birth_year'] : null],
         ['label' => t('entity_info.labels.documents'), 'value' => $documentsValue],
         ['label' => t('entity_info.labels.notes'), 'value' => $start['horse_notes'] ?? null, 'multiline' => true],
-    ]);
+    ], $horseCustomFields));
     $horseInfoPayload = [
         'title' => t('entity_info.title.horse', ['name' => $start['horse'] ?? '']),
         'fields' => $horseFields,

@@ -3,6 +3,8 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
 require_once __DIR__ . '/app/helpers/scoring.php';
 
+use App\CustomFields\CustomFieldManager;
+use App\CustomFields\CustomFieldRepository;
 use App\Scoring\ScoringEngine;
 
 $user = auth_require('judge');
@@ -53,6 +55,19 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     }
 }
 
+$pdo = app_pdo();
+$customFieldRepository = new CustomFieldRepository($pdo);
+$primaryOrganizationId = instance_primary_organization_id();
+$customFieldContext = [];
+if (!empty($selectedClass['event_id'])) {
+    $customFieldContext['tournament_id'] = (int) $selectedClass['event_id'];
+}
+if ($primaryOrganizationId !== null) {
+    $customFieldContext['organization_id'] = $primaryOrganizationId;
+}
+$riderCustomFieldManager = new CustomFieldManager($customFieldRepository, 'person', $customFieldContext);
+$horseCustomFieldManager = new CustomFieldManager($customFieldRepository, 'horse', $customFieldContext);
+
 $startNumberContext = [
     'eventId' => (int) $selectedClass['event_id'],
     'classId' => $classId,
@@ -78,6 +93,18 @@ if (!$starts) {
     ]);
     exit;
 }
+
+$riderIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['rider_id'] ?? 0), $starts), static fn (int $id): bool => $id > 0));
+$horseIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['horse_id'] ?? 0), $starts), static fn (int $id): bool => $id > 0));
+$riderCustomValues = $customFieldRepository->valuesForMany('person', $riderIds);
+$horseCustomValues = $customFieldRepository->valuesForMany('horse', $horseIds);
+foreach ($starts as &$candidate) {
+    $riderId = (int) ($candidate['rider_id'] ?? 0);
+    $horseId = (int) ($candidate['horse_id'] ?? 0);
+    $candidate['rider_custom_fields'] = $riderCustomFieldManager->entityInfoFields($riderCustomValues[$riderId] ?? []);
+    $candidate['horse_custom_fields'] = $horseCustomFieldManager->entityInfoFields($horseCustomValues[$horseId] ?? []);
+}
+unset($candidate);
 
 $startStateCounts = [];
 foreach ($starts as $candidate) {
