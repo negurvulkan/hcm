@@ -111,15 +111,23 @@ function resolve_action(): string
         $path = '';
     }
 
-    if ($path === '' && isset($_GET['action'])) {
-        return strtolower((string) $_GET['action']);
+    if ($path === 'index.php') {
+        $path = '';
     }
 
     if ($path === '') {
+        if (isset($_GET['action'])) {
+            return strtolower((string) $_GET['action']);
+        }
+
         return '';
     }
 
     $segments = explode('/', $path);
+    if (($segments[0] ?? '') === 'index.php') {
+        array_shift($segments);
+    }
+
     return strtolower((string) ($segments[0] ?? ''));
 }
 
