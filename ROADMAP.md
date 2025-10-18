@@ -45,7 +45,7 @@ Ziel ist der Aufbau einer stabilen, modularen und reitweisenunabhängigen Plattf
 - [ ] Statistiken & Auswertungen (Starterzahlen, Laufzeiten, Ausfälle)
 - [ ] Automatische Sponsorberichte (Laufzeit / Sichtbarkeit)
 - [ ] Erweiterte Druckfunktionen (Sponsoring/Branding auf Startnummern)
-- [ ] Verbesserte Sync-Protokolle (Deltas, Konfliktauflösung, Wiederaufsetzen)
+- [x] Verbesserte Sync-Protokolle (Deltas, Konfliktauflösung, Wiederaufsetzen)
 - [ ] Offene REST-API für externe Systeme
 - [ ] Erste Plugin-Schnittstellen (z. B. externe Wertungslogiken)
 
