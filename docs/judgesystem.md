@@ -23,7 +23,7 @@ Das Scoring-Regel-System beschreibt als JSON-Objekt, wie Richterbewertungen, Zus
     - `method` – `mean`, `median` oder `weighted_mean` (Default: `mean`).
     - `drop_high` / `drop_low` – Anzahl höchster/tiefster Noten, die vor der Aggregation entfernt werden.
     - `weights` – Gewichtung pro Richter-ID für `weighted_mean`.
-- `fields` – zusätzliche Eingabefelder außerhalb der Richterwerte (z. B. Zeit, Fehlerpunkte). Jeder Eintrag enthält `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `time`), optional `required` sowie Grenzen (`min`, `max`). Für `type: "set"` wird zusätzlich ein `options`-Array mit erlaubten Werten erwartet, `number` kann über `step` und `decimals` gesteuert werden. Die Felddaten stehen später im Kontext `fields.<id>` für Formeln und Validierungen bereit.
+- `fields` – zusätzliche Eingabefelder außerhalb der Richterwerte (z. B. Zeit, Fehlerpunkte). Jeder Eintrag enthält `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required` sowie Grenzen (`min`, `max`). Für `type: "set"` wird zusätzlich ein `options`-Array mit erlaubten Werten erwartet, `number` kann über `step` und `decimals` gesteuert werden. Textfelder (`text`) sind einzeilig, mehrzeilige Textfelder (`textarea`) können optional über `rows` in der Höhe angepasst werden. Die Felddaten stehen später im Kontext `fields.<id>` für Formeln und Validierungen bereit.
 - `components` – pro Richter zu erfassende Bewertungskomponenten mit `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Komponenten müssen eindeutige IDs besitzen; sonst schlägt die Validierung fehl.
 
 ### Strafen (`penalties`)
@@ -119,7 +119,7 @@ The scoring rule system uses a JSON object to describe how judge inputs, auxilia
     - `method` – `mean`, `median`, or `weighted_mean` (default: `mean`).
     - `drop_high` / `drop_low` – count of highest/lowest scores to discard before aggregation.
     - `weights` – per-judge weights for `weighted_mean`.
-- `fields` – additional inputs outside judge components (e.g., time, fault points). Each entry carries `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `time`), optional `required`, and numeric bounds (`min`, `max`). For `type: "set"` provide an `options` array of allowed values, while `number` may specify `step` and `decimals`. Collected values are later exposed to formulas and validators via `fields.<id>`.
+- `fields` – additional inputs outside judge components (e.g., time, fault points). Each entry carries `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required`, and numeric bounds (`min`, `max`). For `type: "set"` provide an `options` array of allowed values, while `number` may specify `step` and `decimals`. Single-line text inputs use `type: "text"`, while multi-line inputs use `type: "textarea"` and may optionally define `rows` to control their height. Collected values are later exposed to formulas and validators via `fields.<id>`.
 - `components` – judge-entered components with `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Every component must have a unique `id`; otherwise validation fails.
 
 ### Penalties (`penalties`)

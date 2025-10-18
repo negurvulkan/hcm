@@ -119,6 +119,8 @@ function scoring_fake_field_value(array $field): mixed
         'time' => (float) random_int(30, 120),
         'set' => [],
         'boolean' => (bool) random_int(0, 1),
+        'text' => 'Text ' . random_int(1, 99),
+        'textarea' => "Notiz " . random_int(1, 99) . "\nWeitere Zeile",
         default => null,
     };
 }
