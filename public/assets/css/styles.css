@@ -145,9 +145,55 @@ body {
     flex-direction: column;
 }
 
-.app-sidebar__group-label {
+.app-sidebar__group-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0;
+    margin: 0 0 0.5rem;
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
     letter-spacing: 0.08em;
-    margin-bottom: 0.5rem;
+    text-align: left;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.app-sidebar__group-toggle:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.55);
+    outline-offset: 2px;
+}
+
+.app-sidebar__group-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.app-sidebar__group-caret::before {
+    content: "\25BC";
+    font-size: 0.65rem;
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+
+.app-sidebar__group-toggle[aria-expanded="false"] .app-sidebar__group-caret::before {
+    transform: rotate(-90deg);
+}
+
+.app-sidebar__collapse-group {
+    gap: 0.75rem;
+}
+
+.app-sidebar__collapse-group.show {
+    display: flex;
+    flex-direction: column;
 }
 
 .app-sidebar__list {
