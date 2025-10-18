@@ -595,6 +595,8 @@ return [
             'create_button' => 'Feld anlegen',
             'save_changes' => 'Änderungen speichern',
             'cancel' => 'Abbrechen',
+            'values_title' => 'Zusätzliche Felder',
+            'values_empty' => 'In diesem Kontext sind keine Zusätzlichen Felder vorhanden..',
         ],
         'flash' => [
             'created' => 'Custom-Feld erstellt.',
