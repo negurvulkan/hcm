@@ -32,6 +32,7 @@ class Rbac
         'audit' => ['admin'],
         'instance' => ['admin'],
         'sync' => ['admin'],
+        'custom_fields' => ['admin', 'office'],
     ];
 
     private const MENU = [
@@ -52,6 +53,7 @@ class Rbac
         'export.php' => ['key' => 'export', 'label_key' => 'nav.export', 'group' => 'management'],
         'instance.php' => ['key' => 'instance', 'label_key' => 'nav.instance', 'group' => 'configuration'],
         'sync_admin.php' => ['key' => 'sync', 'label_key' => 'nav.sync', 'group' => 'configuration'],
+        'custom_fields.php' => ['key' => 'custom_fields', 'label_key' => 'nav.custom_fields', 'group' => 'configuration'],
     ];
 
     private const QUICK_ACTIONS = [
