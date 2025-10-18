@@ -11,10 +11,13 @@ use App\Sync\Since;
 use App\Sync\SyncCursor;
 use App\Sync\SyncException;
 use App\Sync\SyncRequest;
-use DateTimeImmutable;
-use Throwable;
 
 header('Content-Type: application/json');
+
+$operation = 'unknown';
+$scopesForLog = [];
+$payload = [];
+$startedAt = microtime(true);
 
 try {
     if (!App::has('instance') || !App::has('pdo')) {
@@ -28,6 +31,7 @@ try {
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $action = resolve_action();
+    $operation = $action !== '' ? $action : ($method === 'GET' ? 'info' : strtolower((string) $method));
 
     if ($action === 'info' && $method === 'GET') {
         respond(200, sync_info_payload($instance));
@@ -44,20 +48,32 @@ try {
 
     switch ($action) {
         case 'diff':
+            if (isset($payload['scopes']) && is_array($payload['scopes'])) {
+                $scopesForLog = array_map(static fn ($scope) => (string) $scope, array_values($payload['scopes']));
+            }
             $response = handle_diff($payload, $instance);
             respond(200, $response);
             return;
         case 'pull':
+            if (isset($payload['entities']) && is_array($payload['entities'])) {
+                $scopesForLog = array_map(static fn ($scope) => (string) $scope, array_keys($payload['entities']));
+            }
             rate_limit('pull');
             $response = handle_pull($payload, $instance);
             respond(200, $response);
             return;
         case 'push':
+            if (isset($payload['entities']) && is_array($payload['entities'])) {
+                $scopesForLog = array_map(static fn ($scope) => (string) $scope, array_keys($payload['entities']));
+            }
             rate_limit('push');
             $response = handle_push($payload, $instance);
             respond(200, $response);
             return;
         case 'ack':
+            if (isset($payload['transaction_id'])) {
+                $scopesForLog = [(string) $payload['transaction_id']];
+            }
             $response = handle_ack($payload);
             respond(200, $response);
             return;
@@ -65,9 +81,18 @@ try {
             throw new SyncException('NOT_FOUND', t('sync.api.errors.endpoint_not_found'), 404);
     }
 } catch (SyncException $exception) {
+    sync_log_failure($operation, $exception->getErrorCode(), $exception->getMessage(), [
+        'scopes' => $scopesForLog,
+        'counts' => ['http_status' => $exception->getStatus()],
+        'duration' => (int) ((microtime(true) - $startedAt) * 1000),
+    ]);
     http_response_code($exception->getStatus());
     echo json_encode($exception->toArray(), JSON_UNESCAPED_UNICODE);
 } catch (Throwable $throwable) {
+    sync_log_failure($operation, 'INTERNAL_ERROR', $throwable->getMessage(), [
+        'scopes' => $scopesForLog,
+        'duration' => (int) ((microtime(true) - $startedAt) * 1000),
+    ]);
     http_response_code(500);
     echo json_encode([
         'status' => 'error',

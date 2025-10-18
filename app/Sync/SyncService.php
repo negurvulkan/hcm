@@ -60,7 +60,7 @@ class SyncService
         $role = $this->config->get('instance_role');
 
         if ($role === InstanceConfiguration::ROLE_MIRROR && $request->isWrite()) {
-            throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_mirror'), 423);
+            throw new SyncException('READ_ONLY_MODE', $this->readOnlyErrorMessage('sync.api.errors.read_only_mirror'), 423);
         }
 
         $allowsTournamentPush = $request->isWrite()
@@ -70,16 +70,16 @@ class SyncService
 
         if ($request->isWrite() && !$allowsTournamentPush) {
             if (!$this->config->canWrite()) {
-                throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_instance'), 423);
+                throw new SyncException('READ_ONLY_MODE', $this->readOnlyErrorMessage('sync.api.errors.read_only_instance'), 423);
             }
 
             if ($mode === InstanceConfiguration::MODE_POST_TOURNAMENT && $role === InstanceConfiguration::ROLE_LOCAL) {
-                throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_archive'), 423);
+                throw new SyncException('READ_ONLY_MODE', $this->readOnlyErrorMessage('sync.api.errors.read_only_archive'), 423);
             }
         }
 
         if ($mode === InstanceConfiguration::MODE_PRE_TOURNAMENT && $role === InstanceConfiguration::ROLE_LOCAL) {
-            throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_pre_tournament'), 423);
+            throw new SyncException('READ_ONLY_MODE', $this->readOnlyErrorMessage('sync.api.errors.read_only_pre_tournament'), 423);
         }
     }
 
@@ -120,5 +120,16 @@ class SyncService
     public function acknowledge(string $transactionId): bool
     {
         return $this->repository->acknowledge($transactionId);
+    }
+
+    private function readOnlyErrorMessage(string $translationKey): string
+    {
+        $message = \t($translationKey);
+        $hint = $this->config->readOnlyMessage('sync');
+        if ($hint !== '') {
+            $message .= ' (' . $hint . ')';
+        }
+
+        return $message;
     }
 }

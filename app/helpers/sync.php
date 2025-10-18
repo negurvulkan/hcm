@@ -131,3 +131,33 @@ if (!function_exists('sync_acknowledge')) {
         return sync_service()->acknowledge($transactionId);
     }
 }
+
+if (!function_exists('sync_log_failure')) {
+    /**
+     * @param array{scopes?: array<int, string>, counts?: array<string, mixed>, duration?: int|null, transaction_id?: string|null} $context
+     */
+    function sync_log_failure(string $operation, string $code, string $message, array $context = []): void
+    {
+        if (!App::has('instance') || !App::has('pdo')) {
+            return;
+        }
+
+        $instance = App::get('instance');
+        $pdo = App::get('pdo');
+        if (!$instance instanceof InstanceConfiguration || $pdo === null) {
+            return;
+        }
+
+        $scopes = array_values($context['scopes'] ?? []);
+        $counts = $context['counts'] ?? [];
+        $counts['error_code'] = $code;
+        $duration = $context['duration'] ?? null;
+        $transactionId = $context['transaction_id'] ?? null;
+
+        try {
+            sync_log_operation('inbound', $operation, $scopes, 'error', $message, $counts, $duration, $transactionId);
+        } catch (\Throwable) {
+            // Logging failures should not bubble up to the API response
+        }
+    }
+}
