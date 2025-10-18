@@ -197,11 +197,8 @@ $instance->save([
 
 try {
     enforceReadWritePolicy(new SyncRequest('push', 'POST', true, ['parties']));
-    throw new RuntimeException('Read-only Policy wurde nicht angewendet.');
 } catch (SyncException $exception) {
-    if ($exception->getErrorCode() !== 'READ_ONLY_MODE') {
-        throw $exception;
-    }
+    throw new RuntimeException('Online-Instanz sollte Pushes im Turnierbetrieb akzeptieren.', 0, $exception);
 }
 
 $instance->save([
