@@ -9,8 +9,6 @@ use App\Sync\Since;
 use App\Sync\SyncCursor;
 use App\Sync\SyncException;
 use App\Sync\SyncRequest;
-use RuntimeException;
-use Throwable;
 
 $user = auth_require('instance');
 $instance = instance_config();
