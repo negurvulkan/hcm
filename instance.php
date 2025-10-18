@@ -146,11 +146,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $statusLabel = $health['status'] ?? 'ok';
                 flash('success', t('instance.flash.connection_success', ['status' => $statusLabel]));
             } else {
-                $infoPath = '/mirror/info';
-                if (!empty($currentSettings['peer_turnier_id'])) {
-                    $infoPath .= '?turnier_id=' . urlencode((string) $currentSettings['peer_turnier_id']);
+                $infoPaths = ['/mirror/info', '/mirror_info.php'];
+                $remote = null;
+                $lastException = null;
+                foreach ($infoPaths as $infoPath) {
+                    $path = $infoPath;
+                    if (!empty($currentSettings['peer_turnier_id'])) {
+                        $path .= (str_contains($path, '?') ? '&' : '?')
+                            . 'turnier_id=' . urlencode((string) $currentSettings['peer_turnier_id']);
+                    }
+
+                    try {
+                        $remote = instance_http_get($baseUrl, $path, $token);
+                        break;
+                    } catch (RuntimeException $exception) {
+                        $lastException = $exception;
+                        if (!str_contains($exception->getMessage(), '404')) {
+                            throw $exception;
+                        }
+                    }
                 }
-                $remote = instance_http_get($baseUrl, $infoPath, $token);
+
+                if ($remote === null) {
+                    throw $lastException ?? new RuntimeException('Peer antwortet nicht auf /mirror/info.');
+                }
                 $remoteCounts = $remote['counts'] ?? [];
                 $localCounts = $instanceConfig->collectLocalCounts();
                 $local = $localCounts['counts'];
