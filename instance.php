@@ -227,6 +227,7 @@ function instance_http_get(string $baseUrl, string $path, ?string $token = null)
     $headers = ['Accept: application/json'];
     if ($token) {
         $headers[] = 'Authorization: Bearer ' . $token;
+        $headers[] = 'X-API-Token: ' . $token;
     }
     $context = stream_context_create([
         'http' => [
