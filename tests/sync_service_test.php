@@ -10,6 +10,8 @@ use App\Sync\Since;
 use App\Sync\SyncCursor;
 use App\Sync\SyncException;
 use App\Sync\SyncRequest;
+use App\Sync\SyncRepository;
+use App\Sync\SyncService;
 
 require __DIR__ . '/../app/Core/App.php';
 require __DIR__ . '/../app/Services/InstanceConfiguration.php';
@@ -319,6 +321,153 @@ $startNumberChange->add('starts', [
 $validation = validateDelta($startNumberChange);
 if (!$validation->isValid()) {
     throw new RuntimeException('Startnummernfelder sollten für den Sync erlaubt sein.');
+}
+
+$deleteChange = new ChangeSet([], InstanceConfiguration::ROLE_LOCAL);
+$deleteChange->add('parties', [
+    'id' => '1',
+    'version' => '2024-07-22T09:00:00+00:00',
+    'meta' => ['deleted' => true],
+]);
+
+$validationDelete = validateDelta($deleteChange);
+if (!$validationDelete->isValid()) {
+    throw new RuntimeException('Löschungen sollten die Validierung bestehen.');
+}
+
+$deleteReport = importChanges($deleteChange);
+$deleteMessage = $deleteReport->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($deleteMessage !== 'deleted') {
+    throw new RuntimeException('Löschungen sollten als deleted markiert werden.');
+}
+
+$countAfterDelete = (int) $pdo->query('SELECT COUNT(*) FROM parties')->fetchColumn();
+if ($countAfterDelete !== 0) {
+    throw new RuntimeException('Gelöschte Datensätze sollten entfernt sein.');
+}
+
+$deleteRepeat = importChanges($deleteChange);
+$repeatMessage = $deleteRepeat->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($repeatMessage !== 'noop') {
+    throw new RuntimeException('Erneute Löschungen sollten noop liefern.');
+}
+
+$deletionDiff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));
+$deletionRecord = $deletionDiff->forScope('parties')[0] ?? null;
+if (!is_array($deletionRecord) || ($deletionRecord['meta']['deleted'] ?? false) !== true) {
+    throw new RuntimeException('Diff sollte Löschungen kennzeichnen.');
+}
+
+$hydratedDeletion = sync_hydrate_change_set($deletionDiff);
+if (!$hydratedDeletion instanceof ChangeSet) {
+    throw new RuntimeException('Hydrierter ChangeSet sollte bei Löschungen erzeugt werden.');
+}
+$hydratedDeletionRecord = $hydratedDeletion->forScope('parties')[0] ?? null;
+if (!is_array($hydratedDeletionRecord) || ($hydratedDeletionRecord['meta']['deleted'] ?? false) !== true) {
+    throw new RuntimeException('Hydrierter ChangeSet sollte Löschungs-Metadaten behalten.');
+}
+if ($hydratedDeletionRecord['data'] !== null) {
+    throw new RuntimeException('Hydrierte Löschungen sollten keinen Datensatz enthalten.');
+}
+
+$roundTrippedPayload = json_decode(json_encode($hydratedDeletion->toArray(), JSON_THROW_ON_ERROR), true);
+if (!is_array($roundTrippedPayload)) {
+    throw new RuntimeException('Serialisierte Löschung sollte rekonstruierbar sein.');
+}
+
+$roundTrippedDeletion = ChangeSet::fromPayload($roundTrippedPayload);
+
+$remotePdo = new PDO('sqlite::memory:');
+$remotePdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+foreach ($schema as $sql) {
+    $remotePdo->exec($sql);
+}
+$remotePdo->exec("INSERT INTO parties (id, party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES (1, 'person', 'Anna Mustermann', 'anna mustermann', 'anna@example.com', '+491234567', '2024-07-19T08:00:00+00:00', '2024-07-20T10:01:00+00:00')");
+
+$remoteInstance = new InstanceConfiguration($remotePdo);
+$remoteInstance->save([
+    'instance_role' => InstanceConfiguration::ROLE_ONLINE,
+    'operation_mode' => InstanceConfiguration::MODE_TOURNAMENT,
+]);
+
+$remoteService = new SyncService(new SyncRepository($remotePdo, $remoteInstance), $remoteInstance);
+$remoteReport = $remoteService->importChanges($roundTrippedDeletion);
+$remoteMessage = $remoteReport->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($remoteMessage !== 'deleted') {
+    throw new RuntimeException('Remote-Import sollte Löschungen anwenden.');
+}
+
+$remainingRemote = (int) $remotePdo->query('SELECT COUNT(*) FROM parties')->fetchColumn();
+if ($remainingRemote !== 0) {
+    throw new RuntimeException('Remote-Instanz sollte Datensatz nach Löschung entfernen.');
+}
+
+$remoteStateMeta = $remotePdo->prepare("SELECT payload_meta FROM sync_state WHERE scope = :scope AND entity_id = :id LIMIT 1");
+$remoteStateMeta->execute(['scope' => 'parties', 'id' => '1']);
+$stateMetaValue = $remoteStateMeta->fetchColumn();
+$decodedStateMeta = $stateMetaValue !== false ? json_decode((string) $stateMetaValue, true) : null;
+if (!is_array($decodedStateMeta) || ($decodedStateMeta['deleted'] ?? false) !== true) {
+    throw new RuntimeException('Remote-Sync-State sollte Löschmarkierung setzen.');
+}
+
+$legacyPayload = $roundTrippedPayload;
+unset($legacyPayload['entities']['parties'][0]['meta']['deleted']);
+$legacyPayload['entities']['parties'][0]['meta'] = [];
+$legacyDeletion = ChangeSet::fromPayload($legacyPayload);
+
+$legacyPdo = new PDO('sqlite::memory:');
+$legacyPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+foreach ($schema as $sql) {
+    $legacyPdo->exec($sql);
+}
+$legacyPdo->exec("INSERT INTO parties (id, party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES (1, 'person', 'Anna Mustermann', 'anna mustermann', 'anna@example.com', '+491234567', '2024-07-19T08:00:00+00:00', '2024-07-20T10:01:00+00:00')");
+
+$legacyInstance = new InstanceConfiguration($legacyPdo);
+$legacyInstance->save([
+    'instance_role' => InstanceConfiguration::ROLE_ONLINE,
+    'operation_mode' => InstanceConfiguration::MODE_TOURNAMENT,
+]);
+
+$legacyService = new SyncService(new SyncRepository($legacyPdo, $legacyInstance), $legacyInstance);
+$legacyReport = $legacyService->importChanges($legacyDeletion);
+$legacyMessage = $legacyReport->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($legacyMessage !== 'deleted') {
+    throw new RuntimeException('Legacy-Import ohne Meta-Flag sollte Löschungen anwenden.');
+}
+
+$legacyRemaining = (int) $legacyPdo->query('SELECT COUNT(*) FROM parties')->fetchColumn();
+if ($legacyRemaining !== 0) {
+    throw new RuntimeException('Legacy-Instanz sollte Datensatz nach Löschung entfernen.');
+}
+
+$legacyChecksumPayload = $roundTrippedPayload;
+unset($legacyChecksumPayload['entities']['parties'][0]['meta']['deleted']);
+$legacyChecksumPayload['entities']['parties'][0]['meta'] = ['checksum' => null];
+$legacyChecksumDeletion = ChangeSet::fromPayload($legacyChecksumPayload);
+
+$legacyChecksumPdo = new PDO('sqlite::memory:');
+$legacyChecksumPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+foreach ($schema as $sql) {
+    $legacyChecksumPdo->exec($sql);
+}
+$legacyChecksumPdo->exec("INSERT INTO parties (id, party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES (1, 'person', 'Anna Mustermann', 'anna mustermann', 'anna@example.com', '+491234567', '2024-07-19T08:00:00+00:00', '2024-07-20T10:01:00+00:00')");
+
+$legacyChecksumInstance = new InstanceConfiguration($legacyChecksumPdo);
+$legacyChecksumInstance->save([
+    'instance_role' => InstanceConfiguration::ROLE_ONLINE,
+    'operation_mode' => InstanceConfiguration::MODE_TOURNAMENT,
+]);
+
+$legacyChecksumService = new SyncService(new SyncRepository($legacyChecksumPdo, $legacyChecksumInstance), $legacyChecksumInstance);
+$legacyChecksumReport = $legacyChecksumService->importChanges($legacyChecksumDeletion);
+$legacyChecksumMessage = $legacyChecksumReport->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($legacyChecksumMessage !== 'deleted') {
+    throw new RuntimeException('Legacy-Import mit leerem Checksum-Flag sollte Löschungen anwenden.');
+}
+
+$legacyChecksumRemaining = (int) $legacyChecksumPdo->query('SELECT COUNT(*) FROM parties')->fetchColumn();
+if ($legacyChecksumRemaining !== 0) {
+    throw new RuntimeException('Legacy-Instanz mit leerem Checksum-Flag sollte Datensatz nach Löschung entfernen.');
 }
 
 echo "SyncService tests passed\n";
