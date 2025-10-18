@@ -147,68 +147,73 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                         <?php
                         $groupItems = $groupData['items'];
                         $groupId = 'navGroup' . preg_replace('/[^a-z0-9]+/i', '', $group);
+                        $groupLabelId = $groupId . 'Label';
+                        $groupCollapseId = $groupId . 'Collapse';
                         $moreId = $groupId . 'More';
                         $primaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'primary');
                         $secondaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'secondary');
                         ?>
                         <div class="app-sidebar__group">
-                            <div class="app-sidebar__group-label text-uppercase small text-muted" id="<?= htmlspecialchars($groupId, ENT_QUOTES, 'UTF-8') ?>Label">
-                                <?= htmlspecialchars(t('nav.groups.' . $group), ENT_QUOTES, 'UTF-8') ?>
-                            </div>
-                            <ul class="app-sidebar__list" aria-labelledby="<?= htmlspecialchars($groupId, ENT_QUOTES, 'UTF-8') ?>Label">
-                                <?php foreach ($primaryItems as $path => $item): ?>
-                                    <?php
-                                    $isActive = $pageKey === ($item['key'] ?? null);
-                                    $shouldHighlight = ($item['priority'] ?? 50) <= 12;
-                                    $tooltipKey = $item['tooltip_key'] ?? null;
-                                    $subtitleKey = $item['subtitle_key'] ?? null;
-                                    $label = t($item['label_key'] ?? $item['key']);
-                                    $tooltip = $tooltipKey ? t($tooltipKey) : $label;
-                                    $initial = $getInitial($label);
-                                    ?>
-                                    <li class="app-sidebar__item">
-                                        <a class="app-sidebar__link <?= $isActive ? 'is-active' : '' ?> <?= $shouldHighlight ? 'is-highlighted' : '' ?>" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
-                                            <span class="app-sidebar__icon" aria-hidden="true"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
-                                            <span class="app-sidebar__text">
-                                                <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
-                                                <?php if ($subtitleKey): ?>
-                                                    <small><?= htmlspecialchars(t($subtitleKey), ENT_QUOTES, 'UTF-8') ?></small>
+                            <button class="app-sidebar__group-toggle text-uppercase small text-muted" id="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="true" aria-controls="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>">
+                                <span><?= htmlspecialchars(t('nav.groups.' . $group), ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="app-sidebar__group-caret" aria-hidden="true"></span>
+                            </button>
+                            <div class="collapse app-sidebar__collapse-group show" id="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-labelledby="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>">
+                                <ul class="app-sidebar__list" aria-labelledby="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>">
+                                    <?php foreach ($primaryItems as $path => $item): ?>
+                                        <?php
+                                        $isActive = $pageKey === ($item['key'] ?? null);
+                                        $shouldHighlight = ($item['priority'] ?? 50) <= 12;
+                                        $tooltipKey = $item['tooltip_key'] ?? null;
+                                        $subtitleKey = $item['subtitle_key'] ?? null;
+                                        $label = t($item['label_key'] ?? $item['key']);
+                                        $tooltip = $tooltipKey ? t($tooltipKey) : $label;
+                                        $initial = $getInitial($label);
+                                        ?>
+                                        <li class="app-sidebar__item">
+                                            <a class="app-sidebar__link <?= $isActive ? 'is-active' : '' ?> <?= $shouldHighlight ? 'is-highlighted' : '' ?>" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
+                                                <span class="app-sidebar__icon" aria-hidden="true"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
+                                                <span class="app-sidebar__text">
+                                                    <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
+                                                    <?php if ($subtitleKey): ?>
+                                                        <small><?= htmlspecialchars(t($subtitleKey), ENT_QUOTES, 'UTF-8') ?></small>
+                                                    <?php endif; ?>
+                                                </span>
+                                                <?php if (in_array($item['key'] ?? '', $navReadOnlyKeys, true)): ?>
+                                                    <span class="app-sidebar__status" data-bs-toggle="tooltip" title="<?= htmlspecialchars(t('nav.hints.read_only'), ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">&#9888;</span>
                                                 <?php endif; ?>
-                                            </span>
-                                            <?php if (in_array($item['key'] ?? '', $navReadOnlyKeys, true)): ?>
-                                                <span class="app-sidebar__status" data-bs-toggle="tooltip" title="<?= htmlspecialchars(t('nav.hints.read_only'), ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">&#9888;</span>
-                                            <?php endif; ?>
-                                        </a>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                            <?php if ($secondaryItems): ?>
-                                <div class="app-sidebar__more">
-                                    <button class="app-sidebar__more-toggle btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($moreId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="false" aria-controls="<?= htmlspecialchars($moreId, ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars(t('nav.more'), ENT_QUOTES, 'UTF-8') ?>
-                                    </button>
-                                    <div class="collapse app-sidebar__collapse" id="<?= htmlspecialchars($moreId, ENT_QUOTES, 'UTF-8') ?>">
-                                        <ul class="app-sidebar__list app-sidebar__list--secondary">
-                                            <?php foreach ($secondaryItems as $path => $item): ?>
-                                                <?php
-                                                $label = t($item['label_key'] ?? $item['key']);
-                                                $tooltipKey = $item['tooltip_key'] ?? null;
-                                                $tooltip = $tooltipKey ? t($tooltipKey) : $label;
-                                                $initial = $getInitial($label);
-                                                ?>
-                                                <li class="app-sidebar__item">
-                                                    <a class="app-sidebar__link app-sidebar__link--secondary" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
-                                                        <span class="app-sidebar__icon" aria-hidden="true"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
-                                                        <span class="app-sidebar__text">
-                                                            <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
-                                                        </span>
-                                                    </a>
-                                                </li>
-                                            <?php endforeach; ?>
-                                        </ul>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                                <?php if ($secondaryItems): ?>
+                                    <div class="app-sidebar__more">
+                                        <button class="app-sidebar__more-toggle btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($moreId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="false" aria-controls="<?= htmlspecialchars($moreId, ENT_QUOTES, 'UTF-8') ?>">
+                                            <?= htmlspecialchars(t('nav.more'), ENT_QUOTES, 'UTF-8') ?>
+                                        </button>
+                                        <div class="collapse app-sidebar__collapse" id="<?= htmlspecialchars($moreId, ENT_QUOTES, 'UTF-8') ?>">
+                                            <ul class="app-sidebar__list app-sidebar__list--secondary">
+                                                <?php foreach ($secondaryItems as $path => $item): ?>
+                                                    <?php
+                                                    $label = t($item['label_key'] ?? $item['key']);
+                                                    $tooltipKey = $item['tooltip_key'] ?? null;
+                                                    $tooltip = $tooltipKey ? t($tooltipKey) : $label;
+                                                    $initial = $getInitial($label);
+                                                    ?>
+                                                    <li class="app-sidebar__item">
+                                                        <a class="app-sidebar__link app-sidebar__link--secondary" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
+                                                            <span class="app-sidebar__icon" aria-hidden="true"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
+                                                            <span class="app-sidebar__text">
+                                                                <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
+                                                            </span>
+                                                        </a>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
                                     </div>
-                                </div>
-                            <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                     </nav>
