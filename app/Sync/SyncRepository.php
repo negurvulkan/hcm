@@ -57,7 +57,7 @@ class SyncRepository
         'clubs' => [
             'table' => 'clubs',
             'id_column' => 'id',
-            'columns' => ['id', 'name', 'short_name', 'updated_at'],
+            'columns' => ['id', 'party_id', 'name', 'short_name', 'updated_at'],
             'version_column' => 'updated_at',
         ],
         'events' => [
@@ -69,7 +69,7 @@ class SyncRepository
         'classes' => [
             'table' => 'classes',
             'id_column' => 'id',
-            'columns' => ['id', 'event_id', 'label', 'arena', 'start_time', 'end_time', 'max_starters', 'judge_assignments', 'rules_json', 'tiebreaker_json', 'scoring_rule_snapshot', 'updated_at'],
+            'columns' => ['id', 'event_id', 'label', 'arena', 'start_time', 'end_time', 'max_starters', 'judge_assignments', 'rules_json', 'tiebreaker_json', 'start_number_rules', 'scoring_rule_snapshot', 'updated_at'],
             'version_column' => 'updated_at',
             'dependencies' => [
                 ['column' => 'event_id', 'table' => 'events', 'reference' => 'id'],
