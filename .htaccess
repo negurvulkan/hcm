@@ -1,0 +1,27 @@
+# Apache configuration for Turniermanagement V2
+# Leitet freundliche URLs auf die entsprechenden PHP-Controller weiter
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Direkten Zugriff auf interne Verzeichnisse verhindern
+    RewriteRule ^(app|config|storage|tests|docs|lang)/ - [F,L]
+
+    # Statische Assets aus dem public-Ordner bedienen
+    RewriteRule ^assets/(.*)$ public/assets/$1 [L,NC]
+
+    # Existierende Dateien oder Ordner normal ausliefern
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # PHP-Controller ohne Dateiendung erreichbar machen
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.+?)/?$ $1.php [L,QSA]
+
+    # Fallback auf den Haupteinstieg
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>
