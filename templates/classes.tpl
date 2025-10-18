@@ -97,158 +97,150 @@
                                                         <button class="btn btn-outline-secondary" type="button" data-action="load-json"><?= htmlspecialchars(t('scoring_designer.toolbar.load_json'), ENT_QUOTES, 'UTF-8') ?></button>
                                                         <button class="btn btn-outline-secondary" type="button" data-action="reset-default"><?= htmlspecialchars(t('scoring_designer.toolbar.reset'), ENT_QUOTES, 'UTF-8') ?></button>
                                                     </div>
-                                                    <div class="btn-group btn-group-sm me-2" role="group">
+                                                    <div class="btn-group btn-group-sm" role="group">
                                                         <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="dressage"><?= htmlspecialchars(t('classes.form.preset_dressage'), ENT_QUOTES, 'UTF-8') ?></button>
                                                         <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="jumping"><?= htmlspecialchars(t('classes.form.preset_jumping'), ENT_QUOTES, 'UTF-8') ?></button>
                                                         <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="western"><?= htmlspecialchars(t('classes.form.preset_western'), ENT_QUOTES, 'UTF-8') ?></button>
                                                     </div>
-                                                    <?php if (!empty($classRuleEventJson)): ?>
-                                                        <div class="btn-group btn-group-sm" role="group">
-                                                            <button class="btn btn-outline-secondary" type="button" data-action="load-event-rule"><?= htmlspecialchars(t('classes.form.use_event_rule'), ENT_QUOTES, 'UTF-8') ?></button>
-                                                        </div>
-                                                    <?php endif; ?>
                                                 </div>
                                             </div>
-                                            <div class="row g-3">
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.fields.mode'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="mode">
-                                                        <option value="classic"><?= htmlspecialchars(t('start_numbers.designer.options.mode.classic'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="western"><?= htmlspecialchars(t('start_numbers.designer.options.mode.western'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="custom"><?= htmlspecialchars(t('start_numbers.designer.options.mode.custom'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.fields.scope'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="scope">
-                                                        <option value="tournament"><?= htmlspecialchars(t('start_numbers.designer.options.scope.tournament'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="class"><?= htmlspecialchars(t('start_numbers.designer.options.scope.class'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="arena"><?= htmlspecialchars(t('start_numbers.designer.options.scope.arena'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="day"><?= htmlspecialchars(t('start_numbers.designer.options.scope.day'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <hr>
-                                            <h4 class="h6"><?= htmlspecialchars(t('start_numbers.designer.sections.sequence.title'), ENT_QUOTES, 'UTF-8') ?></h4>
-                                            <div class="row g-3">
+                                            <div class="row g-3 mb-4">
                                                 <div class="col-sm-4">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.sequence.start'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="sequence.start" min="0">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.fields.version'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="version">
                                                 </div>
                                                 <div class="col-sm-4">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.sequence.step'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="sequence.step" min="1">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.fields.rule_id'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="id">
                                                 </div>
                                                 <div class="col-sm-4">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.sequence.reset'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="sequence.reset">
-                                                        <option value="never"><?= htmlspecialchars(t('start_numbers.designer.options.reset.never'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="per_class"><?= htmlspecialchars(t('start_numbers.designer.options.reset.per_class'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="per_day"><?= htmlspecialchars(t('start_numbers.designer.options.reset.per_day'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.sequence.range_from'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="sequence.range_min" min="0">
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.sequence.range_to'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="sequence.range_max" min="0">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.fields.label'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="label">
                                                 </div>
                                             </div>
-                                            <hr>
-                                            <h4 class="h6"><?= htmlspecialchars(t('start_numbers.designer.sections.format.title'), ENT_QUOTES, 'UTF-8') ?></h4>
-                                            <div class="row g-3">
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.format.prefix'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="text" class="form-control" data-designer-field="format.prefix" maxlength="10">
+                                            <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.judges.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.judges.min'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="input.judges.min" data-type="integer" min="1">
                                                 </div>
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.format.width'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="format.width" min="0">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.judges.max'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="input.judges.max" data-type="integer" min="1">
                                                 </div>
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.format.suffix'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="text" class="form-control" data-designer-field="format.suffix" maxlength="10">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.judges.aggregation'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="input.judges.aggregation">
+                                                        <option value="mean"><?= htmlspecialchars(t('scoring_designer.sections.judges.options.mean'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="sum"><?= htmlspecialchars(t('scoring_designer.sections.judges.options.sum'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="median"><?= htmlspecialchars(t('scoring_designer.sections.judges.options.median'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="best"><?= htmlspecialchars(t('scoring_designer.sections.judges.options.best'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                    </select>
                                                 </div>
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.format.separator'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="text" class="form-control" data-designer-field="format.separator" maxlength="5">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.judges.drop_high'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="integer" data-scoring-path="input.judges.drop_high" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.judges.drop_low'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="integer" data-scoring-path="input.judges.drop_low" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.judges.weights'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="text" class="form-control form-control-sm" data-type="csv-number" data-scoring-path="input.judges.weights">
                                                 </div>
                                             </div>
-                                            <hr>
-                                            <h4 class="h6"><?= htmlspecialchars(t('start_numbers.designer.sections.allocation.title'), ENT_QUOTES, 'UTF-8') ?></h4>
-                                            <div class="row g-3">
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.allocation.entity'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="allocation.entity">
-                                                        <option value="start"><?= htmlspecialchars(t('start_numbers.designer.options.entity.start'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="pair"><?= htmlspecialchars(t('start_numbers.designer.options.entity.pair'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.allocation.time'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="allocation.time">
-                                                        <option value="on_entry"><?= htmlspecialchars(t('start_numbers.designer.options.time.on_entry'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="on_startlist"><?= htmlspecialchars(t('start_numbers.designer.options.time.on_startlist'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="on_gate"><?= htmlspecialchars(t('start_numbers.designer.options.time.on_gate'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.allocation.reuse'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="allocation.reuse">
-                                                        <option value="never"><?= htmlspecialchars(t('start_numbers.designer.options.reset.never'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="after_scratch"><?= htmlspecialchars(t('start_numbers.designer.options.reuse.after_scratch'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="session"><?= htmlspecialchars(t('start_numbers.designer.options.reuse.session'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-sm-3">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.allocation.lock_after'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="allocation.lock_after">
-                                                        <option value="sign_off"><?= htmlspecialchars(t('start_numbers.designer.options.lock_after.sign_off'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="start_called"><?= htmlspecialchars(t('start_numbers.designer.options.lock_after.start_called'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="never"><?= htmlspecialchars(t('start_numbers.designer.options.reset.never'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <hr>
-                                            <h4 class="h6"><?= htmlspecialchars(t('start_numbers.designer.sections.constraints.title'), ENT_QUOTES, 'UTF-8') ?></h4>
-                                            <div class="row g-3">
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.constraints.unique'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <select class="form-select" data-designer-field="constraints.unique_per">
-                                                        <option value="tournament"><?= htmlspecialchars(t('start_numbers.designer.options.scope.tournament'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="class"><?= htmlspecialchars(t('start_numbers.designer.options.scope.class'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                        <option value="day"><?= htmlspecialchars(t('start_numbers.designer.options.scope.day'), ENT_QUOTES, 'UTF-8') ?></option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.constraints.blocked'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="text" class="form-control" data-designer-field="constraints.blocklists" placeholder="13, 666">
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.constraints.club_spacing'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="constraints.club_spacing" min="0">
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <label class="form-label"><?= htmlspecialchars(t('start_numbers.designer.sections.constraints.horse_cooldown'), ENT_QUOTES, 'UTF-8') ?></label>
-                                                    <input type="number" class="form-control" data-designer-field="constraints.horse_cooldown_min" min="0">
-                                                </div>
-                                            </div>
-                                            <hr>
                                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                                <h4 class="h6 mb-0"><?= htmlspecialchars(t('start_numbers.designer.overrides.title'), ENT_QUOTES, 'UTF-8') ?></h4>
-                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-override"><?= htmlspecialchars(t('start_numbers.designer.overrides.add'), ENT_QUOTES, 'UTF-8') ?></button>
+                                                <h4 class="h6 mb-0"><?= htmlspecialchars(t('scoring_designer.sections.fields.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-field"><?= htmlspecialchars(t('scoring_designer.sections.fields.add'), ENT_QUOTES, 'UTF-8') ?></button>
                                             </div>
-                                            <div class="vstack gap-3" data-override-list></div>
-                                            <div class="alert alert-secondary mt-3 mb-0 small">
-                                                <?= htmlspecialchars(t('classes.form.start_rules_note'), ENT_QUOTES, 'UTF-8') ?>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="fields" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.fields.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0"><?= htmlspecialchars(t('scoring_designer.sections.components.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-component"><?= htmlspecialchars(t('scoring_designer.sections.components.add'), ENT_QUOTES, 'UTF-8') ?></button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="components" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.components.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0"><?= htmlspecialchars(t('scoring_designer.sections.penalties.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-penalty"><?= htmlspecialchars(t('scoring_designer.sections.penalties.add'), ENT_QUOTES, 'UTF-8') ?></button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="penalties" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.penalties.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
+                                            <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.time.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.time.mode'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="time.mode">
+                                                        <option value="none"><?= htmlspecialchars(t('scoring_designer.sections.time.options.none'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="faults_from_time"><?= htmlspecialchars(t('scoring_designer.sections.time.options.faults_from_time'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="bonus_from_time"><?= htmlspecialchars(t('scoring_designer.sections.time.options.bonus_from_time'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="best_time"><?= htmlspecialchars(t('scoring_designer.sections.time.options.best_time'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.time.allowed'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.allowed_s" min="0" step="0.01">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.time.faults'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.fault_per_s" step="0.01">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.time.cap'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.cap_s" min="0" step="0.01">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.time.bonus'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="time.bonus_per_s" step="0.01">
+                                                </div>
+                                            </div>
+                                            <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.formulas.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-md-6">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.formulas.per_judge'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <textarea class="form-control font-monospace form-control-sm" rows="2" data-scoring-path="per_judge_formula"></textarea>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.formulas.aggregate'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <textarea class="form-control font-monospace form-control-sm" rows="2" data-scoring-path="aggregate_formula"></textarea>
+                                                </div>
+                                            </div>
+                                            <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.ranking.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.ranking.order'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="ranking.order">
+                                                        <option value="desc"><?= htmlspecialchars(t('scoring_designer.sections.ranking.options.desc'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="asc"><?= htmlspecialchars(t('scoring_designer.sections.ranking.options.asc'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h5 class="h6 mb-0"><?= htmlspecialchars(t('scoring_designer.sections.tiebreakers.title'), ENT_QUOTES, 'UTF-8') ?></h5>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-tiebreak"><?= htmlspecialchars(t('scoring_designer.sections.tiebreakers.add'), ENT_QUOTES, 'UTF-8') ?></button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="tiebreakers" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.tiebreakers.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
+                                            <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.output.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <div class="row g-3">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.output.rounding'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="output.rounding" data-type="integer" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.output.unit'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="output.unit">
+                                                </div>
+                                                <div class="col-sm-4 d-flex align-items-center">
+                                                    <div class="form-check mt-3 mt-sm-0">
+                                                        <input class="form-check-input" type="checkbox" value="1" id="class-scoring-show-breakdown" data-scoring-path="output.show_breakdown" data-type="boolean">
+                                                        <label class="form-check-label" for="class-scoring-show-breakdown"><?= htmlspecialchars(t('scoring_designer.sections.output.breakdown'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
-                                    <small class="text-muted me-auto"><?= htmlspecialchars(t('start_numbers.designer.footer.note'), ENT_QUOTES, 'UTF-8') ?></small>
+                                    <small class="text-muted me-auto"><?= htmlspecialchars(t('scoring_designer.footer.note'), ENT_QUOTES, 'UTF-8') ?></small>
                                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= htmlspecialchars(t('common.actions.close'), ENT_QUOTES, 'UTF-8') ?></button>
                                 </div>
                             </div>
