@@ -59,11 +59,16 @@ class SyncService
         $mode = $this->config->get('operation_mode');
         $role = $this->config->get('instance_role');
 
-        if ($this->config->get('instance_role') === InstanceConfiguration::ROLE_MIRROR && $request->isWrite()) {
+        if ($role === InstanceConfiguration::ROLE_MIRROR && $request->isWrite()) {
             throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_mirror'), 423);
         }
 
-        if ($request->isWrite()) {
+        $allowsTournamentPush = $request->isWrite()
+            && $request->operation() === 'push'
+            && $role === InstanceConfiguration::ROLE_ONLINE
+            && $mode === InstanceConfiguration::MODE_TOURNAMENT;
+
+        if ($request->isWrite() && !$allowsTournamentPush) {
             if (!$this->config->canWrite()) {
                 throw new SyncException('READ_ONLY_MODE', \t('sync.api.errors.read_only_instance'), 423);
             }
