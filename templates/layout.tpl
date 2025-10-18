@@ -22,8 +22,22 @@ $navQuickActions = $navQuickActions ?? [];
 $groupedMenu = [];
 foreach ($menu as $path => $item) {
     $group = $item['group'] ?? 'overview';
-    $groupedMenu[$group][$path] = $item;
+    $groupPriority = $item['group_priority'] ?? null;
+    if (!isset($groupedMenu[$group])) {
+        $groupedMenu[$group] = [
+            'priority' => $groupPriority ?? 999,
+            'items' => [],
+        ];
+    }
+    if ($groupPriority !== null) {
+        $groupedMenu[$group]['priority'] = min($groupedMenu[$group]['priority'], $groupPriority);
+    }
+    $groupedMenu[$group]['items'][$path] = $item;
 }
+uasort($groupedMenu, static function (array $left, array $right): int {
+    return ($left['priority'] ?? 0) <=> ($right['priority'] ?? 0);
+});
+$navReadOnlyKeys = $readOnly ? ['entries', 'schedule', 'startlist', 'helpers', 'results'] : [];
 if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App\I18n\Translator) {
     $candidateKey = 'pages.' . $pageKey . '.title';
     $candidate = $translatorInstance->translate($candidateKey);
@@ -53,35 +67,92 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
         </button>
         <div class="collapse navbar-collapse" id="mainNav">
             <div class="navbar-mega flex-grow-1">
-                <?php foreach ($groupedMenu as $group => $items): ?>
+                <?php foreach ($groupedMenu as $group => $groupData): ?>
+                    <?php
+                    $groupItems = $groupData['items'];
+                    $groupId = 'navGroup' . preg_replace('/[^a-z0-9]+/i', '', $group);
+                    $primaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'primary');
+                    $secondaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'secondary');
+                    ?>
                     <div class="navbar-mega__group">
-                        <div class="navbar-mega__label text-uppercase small fw-semibold text-muted">
-                            <?= htmlspecialchars(t('nav.groups.' . $group), ENT_QUOTES, 'UTF-8') ?>
+                        <button class="navbar-mega__label btn btn-link text-start text-uppercase small fw-semibold text-muted px-0 d-lg-block" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($groupId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="true" aria-controls="<?= htmlspecialchars($groupId, ENT_QUOTES, 'UTF-8') ?>">
+                            <span class="d-inline-flex align-items-center gap-2">
+                                <?= htmlspecialchars(t('nav.groups.' . $group), ENT_QUOTES, 'UTF-8') ?>
+                                <span class="navbar-mega__chevron d-lg-none" aria-hidden="true"></span>
+                            </span>
+                        </button>
+                        <div class="collapse show navbar-mega__collapse" id="<?= htmlspecialchars($groupId, ENT_QUOTES, 'UTF-8') ?>">
+                            <ul class="navbar-nav">
+                                <?php foreach ($primaryItems as $path => $item): ?>
+                                    <?php
+                                    $isActive = $pageKey === ($item['key'] ?? null);
+                                    $shouldHighlight = ($item['priority'] ?? 50) <= 12;
+                                    $tooltipKey = $item['tooltip_key'] ?? null;
+                                    $subtitleKey = $item['subtitle_key'] ?? null;
+                                    $tooltip = $tooltipKey ? t($tooltipKey) : null;
+                                    ?>
+                                    <li class="nav-item">
+                                        <a class="nav-link nav-link--stacked <?= $isActive ? 'active' : '' ?> <?= $shouldHighlight ? 'nav-link--highlight' : '' ?>" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>"<?= $tooltip ? ' title="' . htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') . '" data-bs-toggle="tooltip"' : '' ?>>
+                                            <span class="nav-link__label d-flex align-items-start gap-2">
+                                                <span><?= htmlspecialchars(t($item['label_key'] ?? $item['key']), ENT_QUOTES, 'UTF-8') ?></span>
+                                                <?php if (in_array($item['key'] ?? '', $navReadOnlyKeys, true)): ?>
+                                                    <span class="nav-link__status text-warning" data-bs-toggle="tooltip" title="<?= htmlspecialchars(t('nav.hints.read_only'), ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">&#9888;</span>
+                                                <?php endif; ?>
+                                            </span>
+                                            <?php if ($subtitleKey): ?>
+                                                <small class="nav-link__subtitle text-muted d-block"><?= htmlspecialchars(t($subtitleKey), ENT_QUOTES, 'UTF-8') ?></small>
+                                            <?php endif; ?>
+                                        </a>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <?php if ($secondaryItems): ?>
+                                <div class="navbar-mega__more dropdown mt-2">
+                                    <button class="btn btn-sm btn-outline-light w-100 text-start text-nowrap" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <?= htmlspecialchars(t('nav.more'), ENT_QUOTES, 'UTF-8') ?>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <?php foreach ($secondaryItems as $path => $item): ?>
+                                            <?php
+                                            $tooltipKey = $item['tooltip_key'] ?? null;
+                                            $tooltip = $tooltipKey ? t($tooltipKey) : null;
+                                            ?>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>"<?= $tooltip ? ' title="' . htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') . '"' : '' ?>>
+                                                    <?= htmlspecialchars(t($item['label_key'] ?? $item['key']), ENT_QUOTES, 'UTF-8') ?>
+                                                </a>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
                         </div>
-                        <ul class="navbar-nav">
-                            <?php foreach ($items as $path => $item): ?>
-                                <li class="nav-item">
-                                    <a class="nav-link <?= $pageKey === $item['key'] ? 'active' : '' ?>" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars(t($item['label_key'] ?? $item['key']), ENT_QUOTES, 'UTF-8') ?>
-                                    </a>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
                     </div>
                 <?php endforeach; ?>
             </div>
             <?php if ($navQuickActions): ?>
                 <div class="nav-quick-actions ms-lg-4">
-                    <div class="small text-uppercase text-muted fw-semibold mb-1 d-none d-lg-block">
+                    <div class="small text-uppercase text-muted fw-semibold mb-1 d-none d-lg-flex align-items-center gap-2">
                         <?= htmlspecialchars(t('layout.nav.quick_access'), ENT_QUOTES, 'UTF-8') ?>
+                        <?php if (($user['role'] ?? null) === 'admin'): ?>
+                            <a class="link-light small" href="instance.php#nav-config"><?= htmlspecialchars(t('layout.nav.quick_edit'), ENT_QUOTES, 'UTF-8') ?></a>
+                        <?php endif; ?>
                     </div>
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="nav-quick-actions__list d-flex flex-lg-wrap gap-2 overflow-auto">
                         <?php foreach ($navQuickActions as $action): ?>
-                            <a class="btn btn-sm btn-outline-light" href="<?= htmlspecialchars($action['href'], ENT_QUOTES, 'UTF-8') ?>">
+                            <a class="btn btn-sm btn-outline-light flex-shrink-0" href="<?= htmlspecialchars($action['href'], ENT_QUOTES, 'UTF-8') ?>">
                                 <?= htmlspecialchars(t($action['label_key']), ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         <?php endforeach; ?>
                     </div>
+                </div>
+            <?php elseif (($user['role'] ?? null) === 'admin'): ?>
+                <div class="nav-quick-actions ms-lg-4">
+                    <div class="small text-uppercase text-muted fw-semibold mb-1 d-none d-lg-flex align-items-center gap-2">
+                        <?= htmlspecialchars(t('layout.nav.quick_access'), ENT_QUOTES, 'UTF-8') ?>
+                        <a class="link-light small" href="instance.php#nav-config"><?= htmlspecialchars(t('layout.nav.quick_edit'), ENT_QUOTES, 'UTF-8') ?></a>
+                    </div>
+                    <div class="text-muted small d-none d-lg-block"><?= htmlspecialchars(t('layout.nav.quick_empty_admin'), ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
             <?php endif; ?>
             <div class="navbar-divider d-none d-lg-block ms-4 me-4"></div>
@@ -175,6 +246,13 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                 flash.addEventListener('transitionend', () => flash.remove(), { once: true });
             }, 4000 + index * 600);
         });
+
+        if (window.bootstrap) {
+            const tooltipElements = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipElements.forEach((element) => {
+                window.bootstrap.Tooltip.getInstance(element) ?? new window.bootstrap.Tooltip(element);
+            });
+        }
     });
 </script>
 <script src="public/assets/js/i18n.js"></script>
