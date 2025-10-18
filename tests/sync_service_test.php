@@ -109,10 +109,17 @@ $changeSet->add('party_roles', [
     ],
 ]);
 
+$pdo->exec("INSERT INTO parties (id, party_type, display_name, sort_name, email, phone, created_at, updated_at) VALUES (1, 'person', 'Anna Mustermann', 'anna mustermann', 'anna@example.com', '+491234567', '2024-07-19T08:00:00+00:00', '2024-07-20T10:01:00+00:00')");
+
 $report = importChanges($changeSet);
 $accepted = $report->toArray()['accepted'] ?? [];
 if (count($accepted['clubs'] ?? []) !== 1 || count($accepted['parties'] ?? []) !== 1 || count($accepted['person_profiles'] ?? []) !== 1 || count($accepted['party_roles'] ?? []) !== 1) {
     throw new RuntimeException('Import sollte Datensätze übernehmen.');
+}
+
+$initialMessage = $accepted['parties'][0]['message'] ?? null;
+if ($initialMessage !== 'inserted') {
+    throw new RuntimeException('Initialer Import sollte als insert gelten.');
 }
 
 $diff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));

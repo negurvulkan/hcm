@@ -474,26 +474,26 @@ class SyncRepository
             }
         }
 
-        $merged = $this->mergeWithExisting($definition, $id, $normalized);
+        $existingRow = $this->loadRow($definition, $id);
+        $merged = $this->mergeWithExisting($normalized, $existingRow);
         $this->assertDependencies($realScope, $definition, $merged);
-        $this->persistEntity($definition, $merged);
+        $this->persistEntity($definition, $merged, $existingRow !== null);
         $this->upsertState($realScope, $id, $incomingCursor->value(), $checksum, ['origin' => $origin]);
 
         return $existingState ? 'updated' : 'inserted';
     }
 
-    private function mergeWithExisting(array $definition, string $id, array $data): array
+    private function mergeWithExisting(array $data, ?array $existing): array
     {
-        $row = $this->loadRow($definition, $id);
-        if ($row === null) {
+        if ($existing === null) {
             return $data;
         }
 
         foreach ($data as $key => $value) {
-            $row[$key] = $value;
+            $existing[$key] = $value;
         }
 
-        return $row;
+        return $existing;
     }
 
     private function assertDependencies(string $scope, array $definition, array $data): void
@@ -510,24 +510,29 @@ class SyncRepository
         }
     }
 
-    private function persistEntity(array $definition, array $data): void
+    private function persistEntity(array $definition, array $data, bool $exists): void
     {
         $table = $definition['table'];
         $idColumn = $definition['id_column'];
-        $idValue = $data[$idColumn];
 
         $columns = array_keys($data);
         $updates = array_filter($columns, static fn ($column) => $column !== $idColumn);
 
-        $updateSql = sprintf('UPDATE %s SET %s WHERE %s = :%s', $table, implode(', ', array_map(static fn ($column) => sprintf('%s = :%s', $column, $column), $updates)), $idColumn, $idColumn);
-        $stmt = $this->pdo->prepare($updateSql);
-        $stmt->execute($this->prepareParams($data));
+        if ($exists) {
+            if ($updates === []) {
+                return;
+            }
 
-        if ($stmt->rowCount() === 0) {
-            $insertSql = sprintf('INSERT INTO %s (%s) VALUES (%s)', $table, implode(', ', $columns), implode(', ', array_map(static fn ($column) => ':' . $column, $columns)));
-            $insert = $this->pdo->prepare($insertSql);
-            $insert->execute($this->prepareParams($data));
+            $updateSql = sprintf('UPDATE %s SET %s WHERE %s = :%s', $table, implode(', ', array_map(static fn ($column) => sprintf('%s = :%s', $column, $column), $updates)), $idColumn, $idColumn);
+            $stmt = $this->pdo->prepare($updateSql);
+            $stmt->execute($this->prepareParams($data));
+
+            return;
         }
+
+        $insertSql = sprintf('INSERT INTO %s (%s) VALUES (%s)', $table, implode(', ', $columns), implode(', ', array_map(static fn ($column) => ':' . $column, $columns)));
+        $insert = $this->pdo->prepare($insertSql);
+        $insert->execute($this->prepareParams($data));
     }
 
     private function prepareParams(array $data): array
