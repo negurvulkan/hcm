@@ -161,3 +161,66 @@ if (!function_exists('sync_log_failure')) {
         }
     }
 }
+
+if (!function_exists('sync_resolve_push_cursor')) {
+    function sync_resolve_push_cursor(ChangeSet $changeSet, ImportReport $report): ?SyncCursor
+    {
+        $explicit = $changeSet->cursor();
+        if ($explicit !== null) {
+            try {
+                return new SyncCursor($explicit);
+            } catch (SyncException) {
+                // ignore invalid explicit cursor and fall back to accepted records
+            }
+        }
+
+        $summary = $report->toArray();
+        $accepted = $summary['accepted'] ?? [];
+        if ($accepted === [] || $accepted === null) {
+            return null;
+        }
+
+        $acceptedIds = [];
+        foreach ($accepted as $scope => $entries) {
+            foreach ($entries as $entry) {
+                $id = (string) ($entry['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $acceptedIds[$scope][$id] = true;
+            }
+        }
+
+        if ($acceptedIds === []) {
+            return null;
+        }
+
+        $bestCursor = null;
+        foreach ($changeSet->all() as $scope => $records) {
+            if (!isset($acceptedIds[$scope])) {
+                continue;
+            }
+            foreach ($records as $record) {
+                $id = (string) ($record['id'] ?? '');
+                if ($id === '' || !isset($acceptedIds[$scope][$id])) {
+                    continue;
+                }
+                $version = (string) ($record['version'] ?? '');
+                if ($version === '') {
+                    continue;
+                }
+                try {
+                    $candidate = new SyncCursor($version);
+                } catch (SyncException) {
+                    continue;
+                }
+
+                if ($bestCursor === null || $candidate->epoch() > $bestCursor->epoch()) {
+                    $bestCursor = $candidate;
+                }
+            }
+        }
+
+        return $bestCursor;
+    }
+}

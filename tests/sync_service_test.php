@@ -122,6 +122,16 @@ if ($initialMessage !== 'inserted') {
     throw new RuntimeException('Initialer Import sollte als insert gelten.');
 }
 
+$resolvedCursor = sync_resolve_push_cursor($changeSet, $report);
+if (!$resolvedCursor instanceof SyncCursor) {
+    throw new RuntimeException('Push sollte Cursor ableiten.');
+}
+setSyncCursor($resolvedCursor);
+$storedCursor = getSyncCursor();
+if ($storedCursor->value() !== $resolvedCursor->value()) {
+    throw new RuntimeException('Cursor sollte gespeichert werden.');
+}
+
 $diff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));
 if (count($diff->forScope('parties')) !== 1) {
     throw new RuntimeException('Diff sollte aktualisierte Partei melden.');
