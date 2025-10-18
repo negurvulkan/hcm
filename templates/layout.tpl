@@ -67,7 +67,7 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
     <header class="app-topbar navbar navbar-dark bg-dark shadow-sm">
         <div class="container-fluid align-items-center">
             <div class="d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0">
-                <button class="btn btn-outline-light btn-sm d-md-none app-sidebar-toggle" type="button" data-sidebar-toggle aria-controls="primarySidebar" aria-expanded="false" aria-label="<?= htmlspecialchars(t('layout.nav.toggle'), ENT_QUOTES, 'UTF-8') ?>">
+                <button class="btn btn-outline-light btn-sm d-md-none app-sidebar-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#primarySidebar" aria-controls="primarySidebar" aria-label="<?= htmlspecialchars(t('layout.nav.toggle'), ENT_QUOTES, 'UTF-8') ?>">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <a class="navbar-brand" href="dashboard.php"><?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?></a>
@@ -130,20 +130,19 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
         </div>
     </header>
     <div class="app-shell__body">
-        <aside class="app-sidebar" id="primarySidebar" data-sidebar>
-            <div class="app-sidebar__inner">
-                <div class="app-sidebar__mobile-head d-md-none">
-                    <a class="app-sidebar__brand" href="dashboard.php"><?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?></a>
-                    <button class="btn btn-outline-light btn-sm app-sidebar__close" type="button" data-sidebar-toggle aria-controls="primarySidebar" aria-expanded="true" aria-label="<?= htmlspecialchars(t('layout.nav.toggle'), ENT_QUOTES, 'UTF-8') ?>">
-                        &times;
-                    </button>
-                </div>
-                <div class="app-sidebar__brand d-none d-md-flex justify-content-center">
-                    <a class="app-sidebar__brand-icon" href="dashboard.php" title="<?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
-                        <?= htmlspecialchars($getInitial($appName ?? 'TM'), ENT_QUOTES, 'UTF-8') ?>
-                    </a>
-                </div>
-                <nav class="app-sidebar__nav" aria-label="<?= htmlspecialchars(t('layout.nav.toggle'), ENT_QUOTES, 'UTF-8') ?>">
+        <aside class="offcanvas-md offcanvas-start text-bg-dark app-sidebar" tabindex="-1" id="primarySidebar" aria-label="<?= htmlspecialchars(t('layout.nav.menu_label'), ENT_QUOTES, 'UTF-8') ?>" data-bs-scroll="true">
+            <div class="offcanvas-header border-bottom border-light-subtle">
+                <h2 class="offcanvas-title fs-6 mb-0 text-uppercase small"><?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?></h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="<?= htmlspecialchars(t('layout.nav.toggle'), ENT_QUOTES, 'UTF-8') ?>"></button>
+            </div>
+            <div class="offcanvas-body p-0">
+                <div class="app-sidebar__inner">
+                    <div class="app-sidebar__brand d-none d-md-flex justify-content-center">
+                        <a class="app-sidebar__brand-icon" href="dashboard.php" title="<?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
+                            <?= htmlspecialchars($getInitial($appName ?? 'TM'), ENT_QUOTES, 'UTF-8') ?>
+                        </a>
+                    </div>
+                    <nav class="app-sidebar__nav" aria-label="<?= htmlspecialchars(t('layout.nav.menu_label'), ENT_QUOTES, 'UTF-8') ?>">
                     <?php foreach ($groupedMenu as $group => $groupData): ?>
                         <?php
                         $groupItems = $groupData['items'];
@@ -212,10 +211,10 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
-                </nav>
+                    </nav>
+                </div>
             </div>
         </aside>
-        <div class="app-sidebar-backdrop" data-sidebar-backdrop></div>
         <div class="app-main flex-grow-1">
 
 <?php if (!empty($instanceMeta)): ?>
@@ -283,56 +282,20 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
             tooltipElements.forEach((element) => {
                 window.bootstrap.Tooltip.getInstance(element) ?? new window.bootstrap.Tooltip(element);
             });
-        }
 
-        const sidebar = document.querySelector('[data-sidebar]');
-        if (sidebar) {
-            const toggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
-            const backdrop = document.querySelector('[data-sidebar-backdrop]');
-            const mediaQuery = window.matchMedia('(min-width: 768px)');
+            const sidebarElement = document.getElementById('primarySidebar');
+            if (sidebarElement && window.bootstrap.Offcanvas) {
+                const navLinks = Array.from(sidebarElement.querySelectorAll('.app-sidebar__link'));
+                const mobileQuery = window.matchMedia('(max-width: 767.98px)');
 
-            const setSidebarState = (isOpen) => {
-                const isDesktop = mediaQuery.matches;
-                sidebar.classList.toggle('is-open', isOpen);
-                document.body.classList.toggle('sidebar-open', isOpen && !isDesktop);
-                if (backdrop) {
-                    backdrop.classList.toggle('is-visible', isOpen && !isDesktop);
-                }
-                if (isDesktop) {
-                    sidebar.removeAttribute('aria-hidden');
-                } else {
-                    sidebar.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-                }
-                toggles.forEach((button) => {
-                    button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                navLinks.forEach((link) => {
+                    link.addEventListener('click', () => {
+                        if (mobileQuery.matches) {
+                            window.bootstrap.Offcanvas.getOrCreateInstance(sidebarElement).hide();
+                        }
+                    });
                 });
-            };
-
-            toggles.forEach((button) => {
-                button.addEventListener('click', () => {
-                    const nextState = !sidebar.classList.contains('is-open');
-                    setSidebarState(nextState);
-                });
-            });
-
-            if (backdrop) {
-                backdrop.addEventListener('click', () => setSidebarState(false));
             }
-
-            setSidebarState(false);
-
-            const handleMediaChange = (event) => {
-                if (event.matches) {
-                    setSidebarState(false);
-                }
-            };
-
-            if (typeof mediaQuery.addEventListener === 'function') {
-                mediaQuery.addEventListener('change', handleMediaChange);
-            } else if (typeof mediaQuery.addListener === 'function') {
-                mediaQuery.addListener(handleMediaChange);
-            }
-
         }
     });
 </script>
