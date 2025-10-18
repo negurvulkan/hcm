@@ -595,6 +595,8 @@ return [
             'create_button' => 'Create field',
             'save_changes' => 'Save changes',
             'cancel' => 'Cancel',
+            'values_title' => 'Additional fields',
+            'values_empty' => 'No custom fields available for this context.',
         ],
         'flash' => [
             'created' => 'Custom field created.',
@@ -614,6 +616,12 @@ return [
             'regex_invalid' => 'Regex pattern is invalid.',
             'valid_from' => 'Start of validity is invalid.',
             'valid_to' => 'End of validity is invalid.',
+            'field_required' => 'Please fill "{label}".',
+            'field_invalid' => 'Value for "{label}" is invalid.',
+            'field_enum' => 'Selected value for "{label}" is not allowed.',
+            'field_min' => 'Value for "{label}" must be at least {min}.',
+            'field_max' => 'Value for "{label}" may not exceed {max}.',
+            'field_json' => 'JSON for "{label}" is invalid.',
         ],
         'entities' => [
             'person' => 'Person',
@@ -637,6 +645,11 @@ return [
             'internal' => 'Internal',
             'public' => 'Public',
             'private' => 'Private',
+        ],
+        'fields' => [
+            'placeholder' => 'Select…',
+            'yes' => 'Yes',
+            'no' => 'No',
         ],
     ],
     'common' => [
