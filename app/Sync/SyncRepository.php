@@ -237,6 +237,7 @@ class SyncRepository
     {
         $scopeNames = $scopes->toArray();
         $this->ensureBaseline($scopeNames);
+        $this->markMissingEntitiesAsDeleted($scopeNames);
 
         $placeholders = implode(',', array_fill(0, count($scopeNames), '?'));
         $sql = sprintf('SELECT scope, entity_id, version, checksum, payload_meta FROM sync_state WHERE scope IN (%s) AND version_epoch > :epoch ORDER BY version_epoch ASC, entity_id ASC', $placeholders);
@@ -847,6 +848,79 @@ class SyncRepository
                 }
             } catch (PDOException) {
                 continue;
+            }
+        }
+    }
+
+    private function markMissingEntitiesAsDeleted(array $scopes): void
+    {
+        $processed = [];
+
+        foreach ($scopes as $scope) {
+            $definition = $this->definitionFor($scope);
+            if ($definition === null) {
+                continue;
+            }
+
+            if (isset($definition['alias_of'])) {
+                $scope = $definition['alias_of'];
+                $definition = $this->definitionFor($scope);
+                if ($definition === null) {
+                    continue;
+                }
+            }
+
+            if (isset($processed[$scope])) {
+                continue;
+            }
+            $processed[$scope] = true;
+
+            $table = $definition['table'] ?? null;
+            if ($table === null) {
+                continue;
+            }
+
+            $idColumn = $definition['id_column'];
+
+            try {
+                $stmt = $this->pdo->prepare('SELECT entity_id, version_epoch, payload_meta FROM sync_state WHERE scope = :scope');
+                $stmt->execute(['scope' => $scope]);
+            } catch (PDOException) {
+                continue;
+            }
+
+            while ($state = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $entityId = (string) ($state['entity_id'] ?? '');
+                if ($entityId === '') {
+                    continue;
+                }
+
+                $meta = $this->decodeStateMeta($state['payload_meta'] ?? null);
+                if ($this->booleanMetaFlag($meta['deleted'] ?? null)) {
+                    continue;
+                }
+
+                try {
+                    if ($this->existsInTable($table, $idColumn, $this->castIdentifier($entityId))) {
+                        continue;
+                    }
+                } catch (PDOException) {
+                    continue;
+                }
+
+                $existingEpoch = isset($state['version_epoch']) ? (int) $state['version_epoch'] : 0;
+                $currentEpoch = time();
+                if ($currentEpoch <= $existingEpoch) {
+                    $currentEpoch = $existingEpoch + 1;
+                }
+
+                $version = (new DateTimeImmutable('@' . $currentEpoch))->format('c');
+                $meta['deleted'] = true;
+                if (!isset($meta['origin']) || !is_string($meta['origin']) || $meta['origin'] === '') {
+                    $meta['origin'] = strtoupper((string) $this->config->get('instance_role'));
+                }
+
+                $this->upsertState($scope, $entityId, $version, null, $meta);
             }
         }
     }
