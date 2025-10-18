@@ -296,7 +296,8 @@
             '      <option value="time">Zeit</option>' +
             '      <option value="set">Auswahl (Set)</option>' +
             '      <option value="boolean">Ja/Nein</option>' +
-            '      <option value="text">Text</option>' +
+            '      <option value="text">Text (einzeilig)</option>' +
+            '      <option value="textarea">Text (mehrzeilig)</option>' +
             '    </select>' +
             '  </div>' +
             '  <div class="col-md-3">' +
@@ -316,9 +317,13 @@
             '    <label class="form-label">Max</label>' +
             '    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="input.fields.' + index + '.max" step="0.01">' +
             '  </div>' +
-            '  <div class="col-md-6">' +
+            '  <div class="col-md-4">' +
             '    <label class="form-label">Optionen (Set, Komma getrennt)</label>' +
             '    <input type="text" class="form-control form-control-sm" data-type="csv-string" data-scoring-path="input.fields.' + index + '.options">' +
+            '  </div>' +
+            '  <div class="col-md-2">' +
+            '    <label class="form-label">Textarea-Zeilen (optional)</label>' +
+            '    <input type="number" class="form-control form-control-sm" data-type="integer" data-scoring-path="input.fields.' + index + '.rows" min="1">' +
             '  </div>' +
             '</div>';
         return wrapper;

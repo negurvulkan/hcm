@@ -330,13 +330,21 @@ function judge_normalize_field_values(array $definitions, array $values): array
         if (!$id) {
             continue;
         }
+        $type = $definition['type'] ?? 'number';
         $value = $values[$id] ?? ($definition['default'] ?? null);
-        if (($definition['type'] ?? 'number') === 'set') {
+        if ($type === 'set') {
             $normalized[$id] = is_array($value) ? array_values(array_unique($value)) : [];
-        } elseif (($definition['type'] ?? 'number') === 'boolean') {
+        } elseif ($type === 'boolean') {
             $normalized[$id] = (bool) $value;
-        } elseif (($definition['type'] ?? 'number') === 'number' || ($definition['type'] ?? '') === 'time') {
+        } elseif ($type === 'number' || $type === 'time') {
             $normalized[$id] = $value !== null && $value !== '' ? (float) $value : null;
+        } elseif ($type === 'text' || $type === 'textarea') {
+            if ($value === null) {
+                $normalized[$id] = null;
+            } else {
+                $stringValue = (string) $value;
+                $normalized[$id] = $stringValue === '' ? null : $stringValue;
+            }
         } else {
             $normalized[$id] = $value;
         }
@@ -373,6 +381,13 @@ function judge_parse_fields(array $definitions, array $payload): array
             $parsed[$id] = !empty($raw);
         } elseif ($type === 'number' || $type === 'time') {
             $parsed[$id] = $raw === '' || $raw === null ? null : (float) $raw;
+        } elseif ($type === 'text' || $type === 'textarea') {
+            if ($raw === null) {
+                $parsed[$id] = null;
+            } else {
+                $stringValue = (string) $raw;
+                $parsed[$id] = $stringValue === '' ? null : $stringValue;
+            }
         } else {
             $parsed[$id] = $raw;
         }

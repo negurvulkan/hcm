@@ -115,7 +115,7 @@
                         <?php $fieldId = $field['id'] ?? null; if (!$fieldId) { continue; }
                         $type = $field['type'] ?? 'number';
                         $value = $fieldsInput[$fieldId] ?? null; ?>
-                        <div class="col-md-<?= $type === 'set' ? '12' : '4' ?>">
+                        <div class="col-md-<?= in_array($type, ['set', 'textarea'], true) ? '12' : '4' ?>">
                             <label class="form-label"><?= htmlspecialchars($field['label'] ?? $fieldId, ENT_QUOTES, 'UTF-8') ?></label>
                             <?php if ($type === 'boolean'): ?>
                                 <div class="form-check form-switch">
@@ -137,6 +137,11 @@
                                        name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]"
                                        class="form-control"
                                        value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>">
+                            <?php elseif ($type === 'textarea'): ?>
+                                <?php $rows = max(1, (int) ($field['rows'] ?? 3)); ?>
+                                <textarea name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]"
+                                          class="form-control"
+                                          rows="<?= $rows ?>"><?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?></textarea>
                             <?php else: ?>
                                 <input type="number" step="0.01" name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]" class="form-control" value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>">
                             <?php endif; ?>
