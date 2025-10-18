@@ -34,135 +34,312 @@ body {
     box-shadow: 0 12px 24px rgba(17, 23, 33, 0.05);
 }
 
-.navbar-mega {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-}
-
-.navbar-mega__group {
-    min-width: 10rem;
-}
-
-.navbar-mega__label {
-    letter-spacing: 0.08em;
-    opacity: 0.7;
-    background: transparent;
-    border: 0;
-    color: inherit;
-    text-decoration: none;
-}
-
-.navbar-mega__label:focus {
-    box-shadow: none;
-}
-
-.navbar-mega__label:hover {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.navbar-mega__chevron::before {
-    content: "▾";
-    font-size: 0.75rem;
-    display: inline-block;
-    transform: translateY(-1px);
-}
-
-.navbar-mega__collapse {
-    margin-top: 0.35rem;
-}
-
-.navbar-mega__group .nav-link {
-    padding-left: 0;
-    padding-right: 0;
-}
-
-.nav-link--stacked {
+.app-shell {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    padding-top: 0.35rem;
-    padding-bottom: 0.35rem;
 }
 
-.nav-link--highlight .nav-link__label::before {
-    content: "";
-    width: 0.35rem;
-    height: 0.35rem;
-    border-radius: 999px;
-    background: var(--accent);
-    display: block;
-    margin-top: 0.35rem;
-    flex: 0 0 auto;
-}
-
-.nav-link--highlight .nav-link__label {
+.app-shell__body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
     position: relative;
 }
 
-.nav-link--highlight .nav-link__label span:first-child {
-    font-weight: 600;
+.app-main {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100%;
+    padding-top: 1.5rem;
 }
 
-.nav-link__label {
-    display: inline-flex;
-    align-items: flex-start;
+.app-topbar__quick-actions {
+    max-width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
-.nav-link__subtitle {
-    font-size: 0.75rem;
-    opacity: 0.75;
-}
-
-.nav-link__status {
-    font-size: 0.75rem;
-    line-height: 1;
-}
-
-.navbar-mega__more .dropdown-menu {
-    min-width: 14rem;
-}
-
-.nav-quick-actions__list {
+.app-topbar__quick-list {
     padding-bottom: 0.25rem;
 }
 
-@media (max-width: 991.98px) {
-    .navbar-mega {
-        flex-direction: column;
-        gap: 1rem;
-        padding-top: 1rem;
-    }
-    .navbar-divider {
-        display: none !important;
-    }
-
-    .navbar-mega__collapse {
-        width: 100%;
-    }
-
-    .nav-quick-actions__list {
-        margin-bottom: 0.5rem;
-    }
+.app-topbar__quick-actions .link-light {
+    white-space: nowrap;
 }
 
-@media (min-width: 992px) {
-    .navbar-mega__collapse {
-        display: block !important;
-        height: auto !important;
-        visibility: visible !important;
-    }
+.app-sidebar {
+    background: #11131a;
+    color: rgba(255, 255, 255, 0.85);
+    width: min(80vw, 18rem);
+    max-width: 20rem;
+    position: fixed;
+    inset: 0 auto 0 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    z-index: 1090;
+    border-radius: 0 1.25rem 1.25rem 0;
+    box-shadow: 0 18px 32px rgba(17, 23, 33, 0.35);
 }
 
-.nav-quick-actions .btn {
+.app-sidebar.is-open {
+    transform: translateX(0);
+}
+
+.app-sidebar__inner {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.app-sidebar__mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.app-sidebar__brand,
+.app-sidebar__brand-icon {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.app-sidebar__brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.app-sidebar__close {
+    border-radius: 999px;
+}
+
+.app-sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.app-sidebar__group {
+    display: flex;
+    flex-direction: column;
+}
+
+.app-sidebar__group-label {
+    letter-spacing: 0.08em;
+    margin-bottom: 0.75rem;
+}
+
+.app-sidebar__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.app-sidebar__text {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.app-sidebar__item {
+    position: relative;
+}
+
+.app-sidebar__link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: inherit;
+    text-decoration: none;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    transition: background 0.2s ease, color 0.2s ease;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.app-sidebar__link:hover,
+.app-sidebar__link.is-active {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
+.app-sidebar__link.is-highlighted {
+    border: 1px solid rgba(43, 114, 255, 0.55);
+}
+
+.app-sidebar__link--secondary {
+    background: transparent;
+}
+
+.app-sidebar__list--secondary .app-sidebar__link {
+    background: rgba(255, 255, 255, 0.04);
+    opacity: 0.85;
+}
+
+.app-sidebar__text small {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.65;
+}
+
+.app-sidebar__icon {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.app-sidebar__status {
+    margin-left: auto;
+    font-size: 0.85rem;
+}
+
+.app-sidebar__more-toggle {
+    margin-top: 0.75rem;
+    width: 100%;
+    border-radius: 0.75rem;
+}
+
+.app-sidebar__collapse {
+    margin-top: 0.75rem;
+}
+
+.app-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 23, 33, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1085;
+}
+
+.app-sidebar-backdrop.is-visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+body.sidebar-open {
+    overflow: hidden;
+}
+
+.app-topbar__quick-list .btn {
     border-radius: 999px;
     padding-inline: 1rem;
 }
 
-.navbar-divider {
-    width: 1px;
-    height: 2.5rem;
-    background: rgba(255, 255, 255, 0.2);
+@media (min-width: 768px) {
+    .app-shell__body {
+        flex-direction: row;
+        gap: 1.5rem;
+        padding: 1.5rem 1.5rem 0;
+    }
+
+    .app-main {
+        padding-top: 0;
+    }
+
+    .app-sidebar-backdrop {
+        display: none;
+    }
+
+    .app-sidebar {
+        position: sticky;
+        top: 1.5rem;
+        height: calc(100vh - 1.5rem);
+        transform: none !important;
+        width: 4.75rem;
+        min-width: 4.75rem;
+        max-width: 4.75rem;
+        box-shadow: 0 18px 36px rgba(17, 23, 33, 0.25);
+    }
+
+    .app-sidebar__inner {
+        padding: 1.5rem 0.75rem;
+        gap: 1.75rem;
+    }
+
+    .app-sidebar__mobile-head {
+        display: none !important;
+    }
+
+    .app-sidebar__nav {
+        gap: 1.5rem;
+    }
+
+    .app-sidebar__group-label {
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .app-sidebar__list {
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .app-sidebar__link {
+        flex-direction: column;
+        justify-content: center;
+        background: transparent;
+        padding: 0.5rem;
+    }
+
+    .app-sidebar__icon {
+        width: 3.25rem;
+        height: 3.25rem;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.08);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .app-sidebar__link:hover .app-sidebar__icon,
+    .app-sidebar__link.is-active .app-sidebar__icon {
+        background: rgba(43, 114, 255, 0.9);
+        color: #fff;
+    }
+
+    .app-sidebar__text {
+        display: none;
+    }
+
+    .app-sidebar__status {
+        position: absolute;
+        top: 0.35rem;
+        right: 0.35rem;
+    }
+
+    .app-sidebar__more-toggle {
+        display: none;
+    }
+
+    .app-sidebar__collapse {
+        display: block !important;
+        height: auto !important;
+        visibility: visible !important;
+        margin-top: 1rem;
+    }
+
+    .app-sidebar__list--secondary .app-sidebar__link {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    body.sidebar-open {
+        overflow: auto;
+    }
 }
 
 .btn-accent {
