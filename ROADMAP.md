@@ -23,7 +23,7 @@ Ziel ist der Aufbau einer stabilen, modularen und reitweisenunabhängigen Plattf
 - [x] Grundlegende Sync-Funktionen (Pull/Push Online ↔ Lokal)
 - [x] Health-/Info-Endpunkte für Instanzabfrage
 
-## Version 1.1 – Erweiterte Turnierpraxis
+## Version 1.5 – Erweiterte Turnierpraxis
 
 **Ziele:** bessere Arbeitsabläufe am Turniertag, höhere Stabilität, erste Zusatzfunktionen.
 
@@ -36,7 +36,7 @@ Ziel ist der Aufbau einer stabilen, modularen und reitweisenunabhängigen Plattf
 - [x] Erweiterte CSV-/JSON-Exporte (Ergebnisse, Meldungen, Finanzen)
 - [ ] Bessere QR-Integration (z. B. für Richterlinks)
 
-## Version 1.2 – Automatisierung & Integration
+## Version 2.0 – Automatisierung & Integration
 
 **Ziele:** Abläufe optimieren, externe Anbindungen ermöglichen, Reporting verbessern.
 
@@ -49,7 +49,7 @@ Ziel ist der Aufbau einer stabilen, modularen und reitweisenunabhängigen Plattf
 - [ ] Offene REST-API für externe Systeme
 - [ ] Erste Plugin-Schnittstellen (z. B. externe Wertungslogiken)
 
-## Version 2.0 – Erweiterbarkeit & Mobile Nutzung
+## Version 2.5 – Erweiterbarkeit & Mobile Nutzung
 
 **Ziele:** System skalierbar und verbandsfähig machen, mobile Komponenten ergänzen.
 
