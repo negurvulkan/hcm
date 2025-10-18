@@ -2,6 +2,8 @@
 require __DIR__ . '/auth.php';
 
 use App\Core\Rbac;
+use App\CustomFields\CustomFieldManager;
+use App\CustomFields\CustomFieldRepository;
 use App\Party\PartyRepository;
 
 if (!function_exists('persons_primary_role')) {
@@ -88,18 +90,45 @@ if (!function_exists('persons_redirect_with_tab')) {
     }
 }
 
+if (!function_exists('persons_profile_key')) {
+    function persons_profile_key(string $tab): string
+    {
+        return $tab === 'staff' ? 'staff' : 'participant';
+    }
+}
+
 $user = auth_require('persons');
 $roles = Rbac::ROLES;
 $staffRoles = array_values(array_filter($roles, static fn ($role) => $role !== 'participant'));
 $personStatuses = ['active', 'blocked', 'archived'];
 $clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
-$repository = new PartyRepository(app_pdo());
+$pdo = app_pdo();
+$repository = new PartyRepository($pdo);
+$customFieldRepository = new CustomFieldRepository($pdo);
+$activeEventId = event_active_id();
+$primaryOrganizationId = instance_primary_organization_id();
+
+$activeTab = $_GET['tab'] ?? 'staff';
+if (!in_array($activeTab, ['staff', 'participants'], true)) {
+    $activeTab = 'staff';
+}
+
+$customFieldContext = [
+    'profiles' => persons_profile_key($activeTab),
+    'tournament_id' => $activeEventId,
+];
+if ($primaryOrganizationId !== null) {
+    $customFieldContext['organization_id'] = $primaryOrganizationId;
+}
+$customFieldManager = new CustomFieldManager($customFieldRepository, 'person', $customFieldContext);
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editPerson = null;
 if ($editId) {
     $editPerson = $repository->findPerson($editId);
 }
+$editCustomFieldValues = $editId ? $customFieldRepository->valuesFor('person', $editId) : [];
+$personCustomFieldForm = $customFieldManager->formFields($editCustomFieldValues);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
@@ -114,6 +143,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'create';
     $redirectTab = $_POST['tab'] ?? null;
     $redirectTab = in_array($redirectTab, ['staff', 'participants'], true) ? $redirectTab : null;
+
+    $customFieldManagerPost = null;
+    $customFieldValues = [];
+    if (in_array($action, ['create', 'update'], true)) {
+        $profileKey = persons_profile_key($redirectTab ?? $activeTab);
+        $postContext = [
+            'profiles' => $profileKey,
+            'tournament_id' => $activeEventId,
+        ];
+        if ($primaryOrganizationId !== null) {
+            $postContext['organization_id'] = $primaryOrganizationId;
+        }
+        $customFieldManagerPost = new CustomFieldManager($customFieldRepository, 'person', $postContext);
+        $customFieldResult = $customFieldManagerPost->validate((array) ($_POST['custom_fields'] ?? []));
+        $customFieldValues = $customFieldResult['values'];
+        if ($customFieldResult['errors']) {
+            $errors = array_merge($errors, $customFieldResult['errors']);
+        }
+    }
 
     if ($action === 'delete') {
         $personId = (int) ($_POST['person_id'] ?? 0);
@@ -237,6 +285,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $displayName = trim($givenName . ' ' . $familyName);
         persons_sync_user($currentPerson, $displayName, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
+        if ($customFieldManagerPost) {
+            $customFieldRepository->saveValues('person', $personId, $customFieldValues, $customFieldManagerPost->context());
+        }
         flash('success', t('persons.flash.updated'));
     } else {
         $newId = $repository->createPerson(
@@ -252,6 +303,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $displayName = trim($givenName . ' ' . $familyName);
         persons_sync_user(null, $displayName, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
+        if ($customFieldManagerPost) {
+            $customFieldRepository->saveValues('person', $newId, $customFieldValues, $customFieldManagerPost->context());
+        }
         flash('success', t('persons.flash.created'));
     }
 
@@ -262,16 +316,22 @@ $filterName = trim((string) ($_GET['q'] ?? ''));
 $filterRole = trim((string) ($_GET['role'] ?? ''));
 $filterStatusRaw = trim((string) ($_GET['status'] ?? ''));
 $filterStatus = in_array($filterStatusRaw, $personStatuses, true) ? $filterStatusRaw : '';
-$activeTab = $_GET['tab'] ?? 'staff';
-if (!in_array($activeTab, ['staff', 'participants'], true)) {
-    $activeTab = 'staff';
-}
 
 $persons = $repository->searchPersons(
     $filterName !== '' ? $filterName : null,
     $filterRole !== '' ? $filterRole : null,
     $filterStatus !== '' ? $filterStatus : null
 );
+
+$personIds = array_map(static fn (array $row): int => (int) $row['id'], $persons);
+$personCustomFieldValues = $customFieldRepository->valuesForMany('person', $personIds);
+foreach ($persons as &$person) {
+    $id = (int) $person['id'];
+    $person['custom_fields'] = $customFieldManager->formatListValues($personCustomFieldValues[$id] ?? []);
+}
+unset($person);
+
+$personCustomFieldColumns = $customFieldManager->listColumns();
 
 $staffPersons = [];
 $participantPersons = [];
@@ -305,4 +365,6 @@ render_page('persons.tpl', [
     'activeTab' => $activeTab,
     'editPerson' => $editPerson,
     'personStatuses' => $personStatuses,
+    'personCustomFieldForm' => $personCustomFieldForm,
+    'personCustomFieldColumns' => $personCustomFieldColumns,
 ]);

@@ -100,6 +100,16 @@ function instance_refresh_view(): void
     }
 }
 
+function instance_primary_organization_id(): ?int
+{
+    $value = instance_config()->get('organization_id');
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    return (int) $value;
+}
+
 function instance_is_read_only(): bool
 {
     return !instance_config()->canWrite();

@@ -74,6 +74,11 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                             <option value="paid" <?= $editEntry && $editEntry['status'] === 'paid' ? 'selected' : '' ?>><?= htmlspecialchars(t('entries.status.paid'), ENT_QUOTES, 'UTF-8') ?></option>
                         </select>
                     </div>
+                    <?php
+                    $customFieldFormData = $entryCustomFieldForm;
+                    $customFieldShowEmpty = false;
+                    require __DIR__ . '/partials/custom_fields_form.tpl';
+                    ?>
                     <div class="d-grid gap-2">
                         <button class="btn btn-accent" type="submit"><?= htmlspecialchars(t('entries.form.submit'), ENT_QUOTES, 'UTF-8') ?></button>
                         <?php if ($editEntry): ?>
@@ -146,6 +151,9 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                                 <th><?= htmlspecialchars(t('entries.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></th>
                                 <th><?= htmlspecialchars(t('entries.table.columns.class'), ENT_QUOTES, 'UTF-8') ?></th>
                                 <th><?= htmlspecialchars(t('entries.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
+                                <?php foreach ($entryCustomFieldColumns as $column): ?>
+                                    <th><?= htmlspecialchars($column['label'], ENT_QUOTES, 'UTF-8') ?></th>
+                                <?php endforeach; ?>
                                 <th class="text-end"><?= htmlspecialchars(t('entries.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                             </tr>
                             </thead>
@@ -166,6 +174,9 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                                             <?= htmlspecialchars(t('entries.status.' . $entry['status']), ENT_QUOTES, 'UTF-8') ?>
                                         </span>
                                     </td>
+                                    <?php foreach ($entryCustomFieldColumns as $column): ?>
+                                        <td><?= htmlspecialchars($entry['custom_fields'][$column['key']] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                    <?php endforeach; ?>
                                     <td class="text-end">
                                         <div class="d-flex justify-content-end gap-2">
                                             <a class="btn btn-sm btn-outline-secondary" href="entries.php?edit=<?= (int) $entry['id'] ?>"><?= htmlspecialchars(t('entries.table.edit'), ENT_QUOTES, 'UTF-8') ?></a>

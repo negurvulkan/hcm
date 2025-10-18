@@ -207,6 +207,44 @@ class CustomFieldRepository
     }
 
     /**
+     * @param array<int, int> $entityIds
+     * @return array<int, array<string, array<string, mixed>>>
+     */
+    public function valuesForMany(string $entity, array $entityIds): array
+    {
+        if ($entityIds === []) {
+            return [];
+        }
+
+        $entityIds = array_values(array_unique(array_map(static fn ($id): int => (int) $id, $entityIds)));
+        if ($entityIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($entityIds), '?'));
+        $sql = 'SELECT v.*, d.field_key, d.type FROM custom_field_values v '
+            . 'JOIN custom_field_definitions d ON d.id = v.field_definition_id '
+            . 'WHERE v.entity = ? AND v.entity_id IN (' . $placeholders . ')';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(array_merge([$entity], $entityIds));
+
+        $values = [];
+        while (($row = $stmt->fetch(PDO::FETCH_ASSOC)) !== false) {
+            $entityId = (int) $row['entity_id'];
+            $key = (string) $row['field_key'];
+            $values[$entityId][$key] = [
+                'field_definition_id' => (int) $row['field_definition_id'],
+                'version' => (int) $row['version'],
+                'value' => $this->decodeValue($row['value'], (string) $row['type']),
+                'updated_at' => $row['updated_at'],
+            ];
+        }
+
+        return $values;
+    }
+
+    /**
      * @param array<string, mixed> $values
      * @param array{organization_id?: int|null, tournament_id?: int|null, profiles?: array<int, string>|string|null} $options
      */

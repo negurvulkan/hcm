@@ -1,15 +1,20 @@
 <?php
 require __DIR__ . '/auth.php';
 
+use App\CustomFields\CustomFieldManager;
+use App\CustomFields\CustomFieldRepository;
 use App\Party\PartyRepository;
 
 $user = auth_require('entries');
 $isAdmin = auth_is_admin($user);
 $activeEvent = event_active();
-$partyRepository = new PartyRepository(app_pdo());
+$pdo = app_pdo();
+$partyRepository = new PartyRepository($pdo);
 $persons = $partyRepository->personOptions();
 $horses = db_all('SELECT id, name FROM horses ORDER BY name');
 $clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
+$customFieldRepository = new CustomFieldRepository($pdo);
+$primaryOrganizationId = instance_primary_organization_id();
 $classesSql = 'SELECT c.id, c.label, e.title FROM classes c JOIN events e ON e.id = c.event_id';
 if (!$isAdmin) {
     if (!$activeEvent) {
@@ -184,6 +189,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
                 flash('error', t('entries.validation.forbidden_event'));
             } else {
+                $managerContext = [
+                    'tournament_id' => (int) $class['event_id'],
+                ];
+                if ($primaryOrganizationId !== null) {
+                    $managerContext['organization_id'] = $primaryOrganizationId;
+                }
+                $customFieldManagerPost = new CustomFieldManager($customFieldRepository, 'entry', $managerContext);
+                $customFieldResult = $customFieldManagerPost->validate((array) ($_POST['custom_fields'] ?? []));
+                if ($customFieldResult['errors']) {
+                    foreach ($customFieldResult['errors'] as $message) {
+                        flash('error', $message);
+                    }
+                    header('Location: entries.php');
+                    exit;
+                }
                 db_execute(
                     'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :paid_at, :created)',
                     [
@@ -196,7 +216,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created' => (new \DateTimeImmutable())->format('c'),
                     ]
                 );
-                $entryId = (int) app_pdo()->lastInsertId();
+                $entryId = (int) $pdo->lastInsertId();
+                if ($entryId > 0) {
+                    $customFieldRepository->saveValues('entry', $entryId, $customFieldResult['values'], $customFieldManagerPost->context());
+                }
                 $context = [
                     'eventId' => (int) $class['event_id'],
                     'classId' => $classId,
@@ -229,6 +252,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$class || !event_accessible($user, (int) $class['event_id'])) {
                 flash('error', t('entries.validation.class_unavailable'));
             } else {
+                $managerContext = [
+                    'tournament_id' => (int) $class['event_id'],
+                ];
+                if ($primaryOrganizationId !== null) {
+                    $managerContext['organization_id'] = $primaryOrganizationId;
+                }
+                $customFieldManagerPost = new CustomFieldManager($customFieldRepository, 'entry', $managerContext);
+                $customFieldResult = $customFieldManagerPost->validate((array) ($_POST['custom_fields'] ?? []));
+                if ($customFieldResult['errors']) {
+                    foreach ($customFieldResult['errors'] as $message) {
+                        flash('error', $message);
+                    }
+                    header('Location: entries.php?edit=' . $entryId);
+                    exit;
+                }
                 db_execute(
                     'UPDATE entries SET event_id = :event_id, class_id = :class_id, party_id = :party_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
                     [
@@ -241,6 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'id' => $entryId,
                     ]
                 );
+                $customFieldRepository->saveValues('entry', $entryId, $customFieldResult['values'], $customFieldManagerPost->context());
                 if ($existing && (int) $existing['class_id'] !== $classId && !empty($existing['start_number_assignment_id'])) {
                     releaseStartNumber([
                         'id' => (int) $existing['start_number_assignment_id'],
@@ -439,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'created' => (new \DateTimeImmutable())->format('c'),
                 ]
             );
-            $entryId = (int) app_pdo()->lastInsertId();
+            $entryId = (int) $pdo->lastInsertId();
             $cacheKey = (int) $class['id'];
             if (!isset($ruleCache[$cacheKey])) {
                 $context = [
@@ -465,7 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$entriesSql = 'SELECT e.id, e.status, e.party_id, e.horse_id, e.class_id, pr.display_name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
+$entriesSql = 'SELECT e.id, e.status, e.party_id, e.horse_id, e.class_id, e.event_id, pr.display_name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
 $entriesOrder = ' ORDER BY e.created_at DESC LIMIT 100';
 if (!$isAdmin) {
     if (!$activeEvent) {
@@ -486,6 +525,37 @@ if ($editId) {
         }
     }
 }
+$entryFormEventId = null;
+if ($editEntry) {
+    $entryFormEventId = (int) $editEntry['event_id'];
+} elseif ($activeEvent) {
+    $entryFormEventId = (int) $activeEvent['id'];
+}
+$entryFormContext = [
+    'tournament_id' => $entryFormEventId,
+];
+if ($primaryOrganizationId !== null) {
+    $entryFormContext['organization_id'] = $primaryOrganizationId;
+}
+$entryFormFieldManager = new CustomFieldManager($customFieldRepository, 'entry', $entryFormContext);
+$editEntryCustomFields = $editEntry ? $customFieldRepository->valuesFor('entry', (int) $editEntry['id']) : [];
+$entryCustomFieldForm = $entryFormFieldManager->formFields($editEntryCustomFields);
+
+$listContext = [];
+if ($primaryOrganizationId !== null) {
+    $listContext['organization_id'] = $primaryOrganizationId;
+}
+if (!$isAdmin && $activeEvent) {
+    $listContext['tournament_id'] = (int) $activeEvent['id'];
+}
+$entryListFieldManager = new CustomFieldManager($customFieldRepository, 'entry', $listContext);
+$entryCustomFieldColumns = $entryListFieldManager->listColumns();
+$entryIds = array_map(static fn (array $row): int => (int) $row['id'], $entries);
+$entryCustomValues = $customFieldRepository->valuesForMany('entry', $entryIds);
+foreach ($entries as &$entry) {
+    $entry['custom_fields'] = $entryListFieldManager->formatListValues($entryCustomValues[(int) $entry['id']] ?? []);
+}
+unset($entry);
 $importToken = $_GET['import'] ?? '';
 $importRows = $importToken && isset($_SESSION['entries_import'][$importToken]) ? $_SESSION['entries_import'][$importToken] : null;
 $importHeader = $importRows ? $importRows[0] : [];
@@ -514,6 +584,8 @@ render_page('entries.tpl', [
     'importPreview' => $importPreview,
     'importPreviewRemaining' => $importPreviewRemaining,
     'editEntry' => $editEntry,
+    'entryCustomFieldForm' => $entryCustomFieldForm,
+    'entryCustomFieldColumns' => $entryCustomFieldColumns,
     'selectedPersonId' => $selectedPersonId,
     'selectedHorseId' => $selectedHorseId,
     'defaultHorseOwnerId' => $defaultHorseOwnerId,
