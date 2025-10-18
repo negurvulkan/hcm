@@ -2,7 +2,7 @@
 return [
     'app' => [
         'title_suffix' => '{name}',
-        'footer_notice' => 'Turniermanagement V2 · Kein Internet notwendig · Vendors lokal einbinden.',
+        'footer_notice' => 'Turniermanagement · 2025 Hanjo Winter',
     ],
     'layout' => [
         'default_title' => 'Turniermanagement',
