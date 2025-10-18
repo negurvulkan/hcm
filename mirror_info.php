@@ -3,9 +3,6 @@ require __DIR__ . '/app/bootstrap.php';
 
 use App\Core\App;
 use App\Services\InstanceConfiguration;
-use DateTimeImmutable;
-use PDO;
-use PDOException;
 
 header('Content-Type: application/json');
 
