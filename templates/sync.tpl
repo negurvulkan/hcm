@@ -10,8 +10,6 @@
 /** @var bool $canPush */
 /** @var string|null $lastSyncAt */
 
-use DateTimeImmutable;
-use Throwable;
 ?>
 <div class="row g-4">
     <div class="col-lg-4">
@@ -28,8 +26,8 @@ use Throwable;
                         <?php if ($lastSyncAt): ?>
                             <?php
                             try {
-                                $formatted = format_datetime(new DateTimeImmutable($lastSyncAt));
-                            } catch (Throwable) {
+                                $formatted = format_datetime(new \DateTimeImmutable($lastSyncAt));
+                            } catch (\Throwable) {
                                 $formatted = $lastSyncAt;
                             }
                             echo htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8');
@@ -129,8 +127,8 @@ use Throwable;
                                             <?php if (!empty($log['created_at'])): ?>
                                                 <?php
                                                 try {
-                                                    $formatted = format_datetime(new DateTimeImmutable($log['created_at']), 'short', 'short');
-                                                } catch (Throwable) {
+                                                    $formatted = format_datetime(new \DateTimeImmutable($log['created_at']), 'short', 'short');
+                                                } catch (\Throwable) {
                                                     $formatted = $log['created_at'];
                                                 }
                                                 echo htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8');
