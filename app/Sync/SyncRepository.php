@@ -379,6 +379,43 @@ class SyncRepository
             if ($definition === null || ($definition['table'] ?? null) === null) {
                 foreach ($changeSet->forScope($scope) as $record) {
                     if ($this->isDeletionRecord($record)) {
+                        $report->addRejected($scope, $record['id'], 'INVALID_SCOPE', \t('sync.api.errors.scope_not_synchronised'));
+                    }
+                }
+                continue;
+            }
+
+            foreach ($changeSet->forScope($scope) as $record) {
+                if (!$this->isDeletionRecord($record)) {
+                    continue;
+                }
+
+                $meta = $this->normalizeMeta($record['meta'] ?? []);
+
+                try {
+                    $this->pdo->beginTransaction();
+                    $message = $this->applyDeletion($scope, $definition, $record['id'], $record['version'], $meta, $changeSet->origin());
+                    $this->pdo->commit();
+                    $report->addAccepted($scope, $record['id'], $message);
+                } catch (SyncException $exception) {
+                    $this->pdo->rollBack();
+                    $report->addRejected($scope, $record['id'], $exception->getErrorCode(), $exception->getMessage());
+                } catch (Throwable $throwable) {
+                    $this->pdo->rollBack();
+                    $report->addError('INTERNAL_ERROR', $throwable->getMessage());
+                }
+            }
+        }
+
+        foreach ($scopes as $scope) {
+            if (!isset($upsertScopes[$scope])) {
+                continue;
+            }
+
+            $definition = $this->definitionFor($scope);
+            if ($definition === null || ($definition['table'] ?? null) === null) {
+                foreach ($changeSet->forScope($scope) as $record) {
+                    if ($this->isDeletionRecord($record)) {
                         continue;
                     }
                     $report->addRejected($scope, $record['id'], 'INVALID_SCOPE', \t('sync.api.errors.scope_not_synchronised'));
