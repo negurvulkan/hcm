@@ -18,7 +18,7 @@ if (!function_exists('persons_primary_role')) {
 }
 
 if (!function_exists('persons_sync_user')) {
-    function persons_sync_user(?array $currentPerson, string $name, string $email, array $roles, bool $setPassword, ?string $password): void
+    function persons_sync_user(?array $currentPerson, string $displayName, string $email, array $roles, bool $setPassword, ?string $password): void
     {
         $normalizedEmail = $email !== '' ? mb_strtolower($email) : '';
 
@@ -47,7 +47,7 @@ if (!function_exists('persons_sync_user')) {
         if ($existingUser) {
             $params = [
                 'id' => (int) $existingUser['id'],
-                'name' => $name,
+                'name' => $displayName,
                 'email' => $normalizedEmail,
                 'role' => $primaryRole,
             ];
@@ -65,7 +65,7 @@ if (!function_exists('persons_sync_user')) {
             db_execute(
                 'INSERT INTO users (name, email, password, role, created_at) VALUES (:name, :email, :password, :role, :created_at)',
                 [
-                    'name' => $name,
+                    'name' => $displayName,
                     'email' => $normalizedEmail,
                     'password' => password_hash($password, PASSWORD_DEFAULT),
                     'role' => $primaryRole,
@@ -91,6 +91,7 @@ if (!function_exists('persons_redirect_with_tab')) {
 $user = auth_require('persons');
 $roles = Rbac::ROLES;
 $staffRoles = array_values(array_filter($roles, static fn ($role) => $role !== 'participant'));
+$personStatuses = ['active', 'blocked', 'archived'];
 $clubs = db_all('SELECT id, name FROM clubs ORDER BY name');
 $repository = new PartyRepository(app_pdo());
 
@@ -133,12 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currentPerson = $repository->findPerson($personId);
     }
 
-    $name = trim((string) ($_POST['name'] ?? ''));
+    $givenName = trim((string) ($_POST['given_name'] ?? ''));
+    $familyName = trim((string) ($_POST['family_name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $phone = trim((string) ($_POST['phone'] ?? ''));
     $selectedRoles = array_values(array_filter((array) ($_POST['roles'] ?? [])));
     $selectedRoles = array_values(array_intersect($selectedRoles, Rbac::ROLES));
     $clubId = (int) ($_POST['club_id'] ?? 0) ?: null;
+    $dateOfBirth = trim((string) ($_POST['date_of_birth'] ?? ''));
+    $nationality = trim((string) ($_POST['nationality'] ?? ''));
+    $status = in_array($_POST['status'] ?? 'active', $personStatuses, true) ? ($_POST['status'] ?? 'active') : 'active';
     $password = (string) ($_POST['password'] ?? '');
     $passwordConfirm = (string) ($_POST['password_confirm'] ?? '');
     $setPassword = $password !== '' || $passwordConfirm !== '';
@@ -149,12 +154,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = t('persons.validation.not_found');
     }
 
-    if ($name === '') {
-        $errors[] = t('persons.validation.name_required');
+    if ($givenName === '') {
+        $errors[] = t('persons.validation.given_name_required');
+    }
+
+    if ($familyName === '') {
+        $errors[] = t('persons.validation.family_name_required');
+    }
+
+    if ($email === '' && $phone === '') {
+        $errors[] = t('persons.validation.contact_required');
     }
 
     if (!$selectedRoles) {
         $errors[] = t('persons.validation.role_required');
+    }
+
+    if ($dateOfBirth !== '') {
+        $date = DateTimeImmutable::createFromFormat('Y-m-d', $dateOfBirth);
+        if (!$date || $date->format('Y-m-d') !== $dateOfBirth) {
+            $errors[] = t('persons.validation.date_of_birth_invalid');
+        }
+    } else {
+        $dateOfBirth = null;
+    }
+
+    if ($nationality !== '' && !preg_match('/^[A-Za-z]{2,3}$/', $nationality)) {
+        $errors[] = t('persons.validation.nationality_invalid');
+    } elseif ($nationality === '') {
+        $nationality = null;
     }
 
     $normalizedEmail = $email !== '' ? mb_strtolower($email) : '';
@@ -194,12 +222,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'update' && $personId > 0) {
-        $repository->updatePerson($personId, $name, $email ?: null, $phone ?: null, $clubId, $selectedRoles);
-        persons_sync_user($currentPerson, $name, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
+        $repository->updatePerson(
+            $personId,
+            $givenName,
+            $familyName,
+            $email ?: null,
+            $phone ?: null,
+            $clubId,
+            $selectedRoles,
+            $dateOfBirth,
+            $nationality,
+            $status,
+            $currentPerson['uuid'] ?? null
+        );
+        $displayName = trim($givenName . ' ' . $familyName);
+        persons_sync_user($currentPerson, $displayName, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
         flash('success', t('persons.flash.updated'));
     } else {
-        $newId = $repository->createPerson($name, $email ?: null, $phone ?: null, $clubId, $selectedRoles);
-        persons_sync_user(null, $name, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
+        $newId = $repository->createPerson(
+            $givenName,
+            $familyName,
+            $email ?: null,
+            $phone ?: null,
+            $clubId,
+            $selectedRoles,
+            $dateOfBirth,
+            $nationality,
+            $status
+        );
+        $displayName = trim($givenName . ' ' . $familyName);
+        persons_sync_user(null, $displayName, $email, $selectedRoles, $setPassword, $setPassword ? $password : null);
         flash('success', t('persons.flash.created'));
     }
 
@@ -208,12 +260,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $filterName = trim((string) ($_GET['q'] ?? ''));
 $filterRole = trim((string) ($_GET['role'] ?? ''));
+$filterStatusRaw = trim((string) ($_GET['status'] ?? ''));
+$filterStatus = in_array($filterStatusRaw, $personStatuses, true) ? $filterStatusRaw : '';
 $activeTab = $_GET['tab'] ?? 'staff';
 if (!in_array($activeTab, ['staff', 'participants'], true)) {
     $activeTab = 'staff';
 }
 
-$persons = $repository->searchPersons($filterName !== '' ? $filterName : null, $filterRole !== '' ? $filterRole : null);
+$persons = $repository->searchPersons(
+    $filterName !== '' ? $filterName : null,
+    $filterRole !== '' ? $filterRole : null,
+    $filterStatus !== '' ? $filterStatus : null
+);
 
 $staffPersons = [];
 $participantPersons = [];
@@ -243,6 +301,8 @@ render_page('persons.tpl', [
     'clubs' => $clubs,
     'filterName' => $filterName,
     'filterRole' => $filterRole,
+    'filterStatus' => $filterStatus,
     'activeTab' => $activeTab,
     'editPerson' => $editPerson,
+    'personStatuses' => $personStatuses,
 ]);

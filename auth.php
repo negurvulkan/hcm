@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/app/bootstrap.php';
+require_once __DIR__ . '/app/helpers/uuid.php';
 require_once __DIR__ . '/start_numbers.php';
 
 use App\Core\App;

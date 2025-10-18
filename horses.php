@@ -6,6 +6,7 @@ use App\Party\PartyRepository;
 $user = auth_require('horses');
 $partyRepository = new PartyRepository(app_pdo());
 $owners = $partyRepository->personOptions();
+$horseSexes = ['unknown', 'mare', 'gelding', 'stallion'];
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editHorse = $editId ? db_first('SELECT * FROM horses WHERE id = :id', ['id' => $editId]) : null;
@@ -36,30 +37,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ownerId = (int) ($_POST['owner_id'] ?? 0) ?: null;
     $documentsOk = isset($_POST['documents_ok']) ? 1 : 0;
     $notes = trim((string) ($_POST['notes'] ?? ''));
+    $lifeNumber = trim((string) ($_POST['life_number'] ?? ''));
+    $microchip = trim((string) ($_POST['microchip'] ?? ''));
+    $sex = in_array($_POST['sex'] ?? 'unknown', $horseSexes, true) ? ($_POST['sex'] ?? 'unknown') : 'unknown';
+    $birthYearRaw = trim((string) ($_POST['birth_year'] ?? ''));
+    $birthYear = null;
+
+    $errors = [];
 
     if ($name === '') {
-        flash('error', t('horses.validation.name_required'));
+        $errors[] = t('horses.validation.name_required');
+    }
+
+    if ($lifeNumber === '' && $microchip === '') {
+        $errors[] = t('horses.validation.identification_required');
+    }
+
+    if ($birthYearRaw !== '') {
+        if (!preg_match('/^\d{4}$/', $birthYearRaw)) {
+            $errors[] = t('horses.validation.birth_year_invalid');
+        } else {
+            $birthYear = (int) $birthYearRaw;
+            $currentYear = (int) (new DateTimeImmutable())->format('Y');
+            if ($birthYear < 1900 || $birthYear > $currentYear) {
+                $errors[] = t('horses.validation.birth_year_invalid');
+            }
+        }
+    }
+
+    if ($errors) {
+        foreach ($errors as $message) {
+            flash('error', $message);
+        }
     } else {
         if ($action === 'update' && $horseId > 0) {
             db_execute(
-                'UPDATE horses SET name = :name, owner_party_id = :owner, documents_ok = :ok, notes = :notes WHERE id = :id',
+                'UPDATE horses SET uuid = COALESCE(uuid, :uuid), name = :name, owner_party_id = :owner, documents_ok = :ok, notes = :notes, life_number = :life, microchip = :chip, sex = :sex, birth_year = :birth WHERE id = :id',
                 [
+                    'uuid' => $editHorse['uuid'] ?? app_uuid(),
                     'name' => $name,
                     'owner' => $ownerId,
                     'ok' => $documentsOk,
                     'notes' => $notes ?: null,
+                    'life' => $lifeNumber !== '' ? $lifeNumber : null,
+                    'chip' => $microchip !== '' ? $microchip : null,
+                    'sex' => $sex,
+                    'birth' => $birthYear,
                     'id' => $horseId,
                 ]
             );
             flash('success', t('horses.flash.updated'));
         } else {
             db_execute(
-                'INSERT INTO horses (name, owner_party_id, documents_ok, notes) VALUES (:name, :owner, :ok, :notes)',
+                'INSERT INTO horses (uuid, name, owner_party_id, documents_ok, notes, life_number, microchip, sex, birth_year) VALUES (:uuid, :name, :owner, :ok, :notes, :life, :chip, :sex, :birth)',
                 [
+                    'uuid' => app_uuid(),
                     'name' => $name,
                     'owner' => $ownerId,
                     'ok' => $documentsOk,
                     'notes' => $notes ?: null,
+                    'life' => $lifeNumber !== '' ? $lifeNumber : null,
+                    'chip' => $microchip !== '' ? $microchip : null,
+                    'sex' => $sex,
+                    'birth' => $birthYear,
                 ]
             );
             flash('success', t('horses.flash.created'));
@@ -95,4 +135,5 @@ render_page('horses.tpl', [
     'filterName' => $filterName,
     'filterOwner' => $filterOwner,
     'editHorse' => $editHorse,
+    'horseSexes' => $horseSexes,
 ]);

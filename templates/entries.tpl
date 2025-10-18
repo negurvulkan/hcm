@@ -207,17 +207,34 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="create_person">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label" for="quick-person-name"><?= htmlspecialchars(t('entries.quick.person.name'), ENT_QUOTES, 'UTF-8') ?></label>
-                        <input type="text" class="form-control" id="quick-person-name" name="name" required>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-person-given"><?= htmlspecialchars(t('entries.quick.person.given_name'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="text" class="form-control" id="quick-person-given" name="given_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-person-family"><?= htmlspecialchars(t('entries.quick.person.family_name'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="text" class="form-control" id="quick-person-family" name="family_name" required>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="quick-person-email"><?= htmlspecialchars(t('entries.quick.person.email'), ENT_QUOTES, 'UTF-8') ?></label>
                         <input type="email" class="form-control" id="quick-person-email" name="email" placeholder="<?= htmlspecialchars(t('entries.quick.person.email_placeholder'), ENT_QUOTES, 'UTF-8') ?>">
+                        <small class="text-muted"><?= htmlspecialchars(t('entries.quick.person.contact_hint'), ENT_QUOTES, 'UTF-8') ?></small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="quick-person-phone"><?= htmlspecialchars(t('entries.quick.person.phone'), ENT_QUOTES, 'UTF-8') ?></label>
                         <input type="text" class="form-control" id="quick-person-phone" name="phone">
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-person-dob"><?= htmlspecialchars(t('entries.quick.person.date_of_birth'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="date" class="form-control" id="quick-person-dob" name="date_of_birth">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-person-nationality"><?= htmlspecialchars(t('entries.quick.person.nationality'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="text" class="form-control" id="quick-person-nationality" name="nationality" maxlength="3">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="quick-person-club"><?= htmlspecialchars(t('entries.quick.person.club'), ENT_QUOTES, 'UTF-8') ?></label>
@@ -252,6 +269,31 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                     <div class="mb-3">
                         <label class="form-label" for="quick-horse-name"><?= htmlspecialchars(t('entries.quick.horse.name'), ENT_QUOTES, 'UTF-8') ?></label>
                         <input type="text" class="form-control" id="quick-horse-name" name="name" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-horse-life"><?= htmlspecialchars(t('entries.quick.horse.life_number'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="text" class="form-control" id="quick-horse-life" name="life_number">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-horse-chip"><?= htmlspecialchars(t('entries.quick.horse.microchip'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="text" class="form-control" id="quick-horse-chip" name="microchip">
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-horse-sex"><?= htmlspecialchars(t('entries.quick.horse.sex'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <select class="form-select" id="quick-horse-sex" name="sex">
+                                <option value="unknown"><?= htmlspecialchars(t('entries.quick.horse.sex_unknown'), ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="mare"><?= htmlspecialchars(t('entries.quick.horse.sex_mare'), ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="gelding"><?= htmlspecialchars(t('entries.quick.horse.sex_gelding'), ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="stallion"><?= htmlspecialchars(t('entries.quick.horse.sex_stallion'), ENT_QUOTES, 'UTF-8') ?></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="quick-horse-birth"><?= htmlspecialchars(t('entries.quick.horse.birth_year'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="number" class="form-control" id="quick-horse-birth" name="birth_year" min="1900" max="<?= (int) date('Y') ?>">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center">
