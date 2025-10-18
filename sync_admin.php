@@ -190,6 +190,7 @@ function sync_http_post_json_request(string $url, array $headers, array $payload
             'timeout' => 10,
             'header' => implode("\r\n", $headers),
             'content' => json_encode($payload, JSON_THROW_ON_ERROR),
+            'ignore_errors' => true,
         ],
     ]);
 
@@ -206,11 +207,26 @@ function sync_http_post_json_request(string $url, array $headers, array $payload
         throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => $message]), $status);
     }
 
-    if ($status !== 0 && $status !== 200) {
-        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => $statusLine ?: 'HTTP error']), $status);
+    $decoded = null;
+    try {
+        $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+    } catch (\JsonException) {
+        $decoded = null;
     }
 
-    $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+    if ($status !== 0 && $status !== 200) {
+        $message = $statusLine !== '' ? $statusLine : 'HTTP error';
+        if (is_array($decoded)) {
+            $remoteMessage = (string) ($decoded['message'] ?? '');
+            $remoteCode = (string) ($decoded['code'] ?? '');
+            if ($remoteMessage !== '') {
+                $message = $remoteCode !== '' ? $remoteCode . ': ' . $remoteMessage : $remoteMessage;
+            }
+        }
+
+        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => $message]), $status);
+    }
+
     if (!is_array($decoded)) {
         throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => 'invalid response']), $status);
     }
