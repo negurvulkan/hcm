@@ -102,6 +102,11 @@ $buildTabLink = static function (string $tab) use ($filterName, $filterRole, $fi
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <?php
+                    $customFieldFormData = $personCustomFieldForm;
+                    $customFieldShowEmpty = false;
+                    require __DIR__ . '/partials/custom_fields_form.tpl';
+                    ?>
                     <div class="d-grid gap-2">
                         <button class="btn btn-accent" type="submit"><?= htmlspecialchars(t('persons.form.submit'), ENT_QUOTES, 'UTF-8') ?></button>
                         <?php if ($editPerson): ?>
@@ -176,6 +181,9 @@ $buildTabLink = static function (string $tab) use ($filterName, $filterRole, $fi
                             <th><?= htmlspecialchars(t('persons.table.roles'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('persons.table.club'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('persons.table.status'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <?php foreach ($personCustomFieldColumns as $column): ?>
+                                <th><?= htmlspecialchars($column['label'], ENT_QUOTES, 'UTF-8') ?></th>
+                            <?php endforeach; ?>
                             <th class="text-end"><?= htmlspecialchars(t('persons.table.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                         </tr>
                         </thead>
@@ -217,6 +225,9 @@ $buildTabLink = static function (string $tab) use ($filterName, $filterRole, $fi
                                     ?>
                                     <span class="badge <?= htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('persons.status.' . $statusKey), ENT_QUOTES, 'UTF-8') ?></span>
                                 </td>
+                                <?php foreach ($personCustomFieldColumns as $column): ?>
+                                    <td><?= htmlspecialchars($person['custom_fields'][$column['key']] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                <?php endforeach; ?>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-2">
                                         <?php
@@ -245,7 +256,7 @@ $buildTabLink = static function (string $tab) use ($filterName, $filterRole, $fi
                         <?php endforeach; ?>
                         <?php if (!$activePersons): ?>
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4"><?= htmlspecialchars(t($emptyMessageKey), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td colspan="<?= 6 + count($personCustomFieldColumns) ?>" class="text-center text-muted py-4"><?= htmlspecialchars(t($emptyMessageKey), ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         <?php endif; ?>
                         </tbody>

@@ -1,15 +1,30 @@
 <?php
 require __DIR__ . '/auth.php';
 
+use App\CustomFields\CustomFieldManager;
+use App\CustomFields\CustomFieldRepository;
 use App\Party\PartyRepository;
 
 $user = auth_require('horses');
-$partyRepository = new PartyRepository(app_pdo());
+$pdo = app_pdo();
+$partyRepository = new PartyRepository($pdo);
 $owners = $partyRepository->personOptions();
 $horseSexes = ['unknown', 'mare', 'gelding', 'stallion'];
+$customFieldRepository = new CustomFieldRepository($pdo);
+$activeEventId = event_active_id();
+$primaryOrganizationId = instance_primary_organization_id();
+$customFieldContext = [
+    'tournament_id' => $activeEventId,
+];
+if ($primaryOrganizationId !== null) {
+    $customFieldContext['organization_id'] = $primaryOrganizationId;
+}
+$customFieldManager = new CustomFieldManager($customFieldRepository, 'horse', $customFieldContext);
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editHorse = $editId ? db_first('SELECT * FROM horses WHERE id = :id', ['id' => $editId]) : null;
+$editCustomFields = $editId ? $customFieldRepository->valuesFor('horse', $editId) : [];
+$horseCustomFieldForm = $customFieldManager->formFields($editCustomFields);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
@@ -42,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sex = in_array($_POST['sex'] ?? 'unknown', $horseSexes, true) ? ($_POST['sex'] ?? 'unknown') : 'unknown';
     $birthYearRaw = trim((string) ($_POST['birth_year'] ?? ''));
     $birthYear = null;
+    $customFieldResult = $customFieldManager->validate((array) ($_POST['custom_fields'] ?? []));
 
     $errors = [];
 
@@ -65,6 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($customFieldResult['errors']) {
+        $errors = array_merge($errors, $customFieldResult['errors']);
+    }
+
     if ($errors) {
         foreach ($errors as $message) {
             flash('error', $message);
@@ -86,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'id' => $horseId,
                 ]
             );
+            $customFieldRepository->saveValues('horse', $horseId, $customFieldResult['values'], $customFieldManager->context());
             flash('success', t('horses.flash.updated'));
         } else {
             db_execute(
@@ -102,6 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'birth' => $birthYear,
                 ]
             );
+            $newId = (int) $pdo->lastInsertId();
+            if ($newId > 0) {
+                $customFieldRepository->saveValues('horse', $newId, $customFieldResult['values'], $customFieldManager->context());
+            }
             flash('success', t('horses.flash.created'));
         }
     }
@@ -126,6 +151,14 @@ if ($filterOwner) {
 $sql .= ' ORDER BY h.name LIMIT 100';
 
 $horses = db_all($sql, $params);
+$horseIds = array_map(static fn (array $row): int => (int) $row['id'], $horses);
+$horseCustomValues = $customFieldRepository->valuesForMany('horse', $horseIds);
+foreach ($horses as &$horse) {
+    $id = (int) $horse['id'];
+    $horse['custom_fields'] = $customFieldManager->formatListValues($horseCustomValues[$id] ?? []);
+}
+unset($horse);
+$horseCustomFieldColumns = $customFieldManager->listColumns();
 
 render_page('horses.tpl', [
     'titleKey' => 'pages.horses.title',
@@ -136,4 +169,6 @@ render_page('horses.tpl', [
     'filterOwner' => $filterOwner,
     'editHorse' => $editHorse,
     'horseSexes' => $horseSexes,
+    'horseCustomFieldForm' => $horseCustomFieldForm,
+    'horseCustomFieldColumns' => $horseCustomFieldColumns,
 ]);

@@ -57,6 +57,11 @@
                         <label class="form-label"><?= htmlspecialchars(t('horses.form.notes'), ENT_QUOTES, 'UTF-8') ?></label>
                         <textarea name="notes" class="form-control" rows="3"><?= htmlspecialchars($editHorse['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                     </div>
+                    <?php
+                    $customFieldFormData = $horseCustomFieldForm;
+                    $customFieldShowEmpty = false;
+                    require __DIR__ . '/partials/custom_fields_form.tpl';
+                    ?>
                     <div class="d-grid gap-2">
                         <button class="btn btn-accent" type="submit"><?= htmlspecialchars(t('horses.form.submit'), ENT_QUOTES, 'UTF-8') ?></button>
                         <?php if ($editHorse): ?>
@@ -99,6 +104,9 @@
                             <th><?= htmlspecialchars(t('horses.table.owner'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('horses.table.documents'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('horses.table.notes'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <?php foreach ($horseCustomFieldColumns as $column): ?>
+                                <th><?= htmlspecialchars($column['label'], ENT_QUOTES, 'UTF-8') ?></th>
+                            <?php endforeach; ?>
                             <th class="text-end"><?= htmlspecialchars(t('horses.table.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                         </tr>
                         </thead>
@@ -135,6 +143,9 @@
                                     <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($horse['notes'] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                <?php foreach ($horseCustomFieldColumns as $column): ?>
+                                    <td><?= htmlspecialchars($horse['custom_fields'][$column['key']] ?? '–', ENT_QUOTES, 'UTF-8') ?></td>
+                                <?php endforeach; ?>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-2">
                                         <a class="btn btn-sm btn-outline-secondary" href="horses.php?edit=<?= (int) $horse['id'] ?>"><?= htmlspecialchars(t('horses.table.edit'), ENT_QUOTES, 'UTF-8') ?></a>
