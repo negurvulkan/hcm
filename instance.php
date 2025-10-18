@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     try {
-                        $remote = instance_http_get($baseUrl, $path, $token);
+                        $remote = instance_http_get($baseUrl, $path, $token, true);
                         break;
                     } catch (RuntimeException $exception) {
                         $lastException = $exception;
@@ -221,8 +221,11 @@ render_page('instance.tpl', [
     'previousMode' => $previousMode,
 ]);
 
-function instance_http_get(string $baseUrl, string $path, ?string $token = null): array
+function instance_http_get(string $baseUrl, string $path, ?string $token = null, bool $includeTokenQuery = false): array
 {
+    if ($token && $includeTokenQuery) {
+        $path .= (str_contains($path, '?') ? '&' : '?') . 'token=' . urlencode($token);
+    }
     $url = rtrim($baseUrl, '/') . $path;
     $headers = ['Accept: application/json'];
     if ($token) {
