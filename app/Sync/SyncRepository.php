@@ -239,7 +239,7 @@ class SyncRepository
         $this->ensureBaseline($scopeNames);
 
         $placeholders = implode(',', array_fill(0, count($scopeNames), '?'));
-        $sql = sprintf('SELECT scope, entity_id, version, checksum FROM sync_state WHERE scope IN (%s) AND version_epoch > :epoch ORDER BY version_epoch ASC, entity_id ASC', $placeholders);
+        $sql = sprintf('SELECT scope, entity_id, version, checksum, payload_meta FROM sync_state WHERE scope IN (%s) AND version_epoch > :epoch ORDER BY version_epoch ASC, entity_id ASC', $placeholders);
         $stmt = $this->pdo->prepare($sql);
         $params = $scopeNames;
         $params[':epoch'] = $since->epoch();
@@ -248,11 +248,16 @@ class SyncRepository
 
         $changeSet = new ChangeSet([], $this->config->get('instance_role'), $since->value());
         foreach ($rows as $row) {
+            $meta = $this->decodeStateMeta($row['payload_meta'] ?? null);
+            if ($row['checksum'] !== null) {
+                $meta['checksum'] = $row['checksum'];
+            }
+
             $changeSet->add($row['scope'], [
                 'id' => $row['entity_id'],
                 'version' => $row['version'],
                 'data' => null,
-                'meta' => ['checksum' => $row['checksum']],
+                'meta' => $meta,
             ]);
         }
 
@@ -288,6 +293,10 @@ class SyncRepository
                 continue;
             }
             foreach ($records as $record) {
+                if ($this->isDeletionRecord($record)) {
+                    continue;
+                }
+
                 if (!is_array($record['data'])) {
                     $report->addIssue($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.record_missing_data'));
                     continue;
@@ -311,16 +320,77 @@ class SyncRepository
     public function import(ChangeSet $changeSet, ImportReport $report): void
     {
         $scopes = $this->orderScopes($changeSet->scopes());
+        $deletionScopes = [];
+        $upsertScopes = [];
+
         foreach ($scopes as $scope) {
+            foreach ($changeSet->forScope($scope) as $record) {
+                if ($this->isDeletionRecord($record)) {
+                    $deletionScopes[$scope] = true;
+                } else {
+                    $upsertScopes[$scope] = true;
+                }
+            }
+        }
+
+        foreach (array_reverse($scopes) as $scope) {
+            if (!isset($deletionScopes[$scope])) {
+                continue;
+            }
+
             $definition = $this->definitionFor($scope);
             if ($definition === null || ($definition['table'] ?? null) === null) {
                 foreach ($changeSet->forScope($scope) as $record) {
+                    if ($this->isDeletionRecord($record)) {
+                        $report->addRejected($scope, $record['id'], 'INVALID_SCOPE', \t('sync.api.errors.scope_not_synchronised'));
+                    }
+                }
+                continue;
+            }
+
+            foreach ($changeSet->forScope($scope) as $record) {
+                if (!$this->isDeletionRecord($record)) {
+                    continue;
+                }
+
+                $meta = $this->normalizeMeta($record['meta'] ?? []);
+
+                try {
+                    $this->pdo->beginTransaction();
+                    $message = $this->applyDeletion($scope, $definition, $record['id'], $record['version'], $meta, $changeSet->origin());
+                    $this->pdo->commit();
+                    $report->addAccepted($scope, $record['id'], $message);
+                } catch (SyncException $exception) {
+                    $this->pdo->rollBack();
+                    $report->addRejected($scope, $record['id'], $exception->getErrorCode(), $exception->getMessage());
+                } catch (Throwable $throwable) {
+                    $this->pdo->rollBack();
+                    $report->addError('INTERNAL_ERROR', $throwable->getMessage());
+                }
+            }
+        }
+
+        foreach ($scopes as $scope) {
+            if (!isset($upsertScopes[$scope])) {
+                continue;
+            }
+
+            $definition = $this->definitionFor($scope);
+            if ($definition === null || ($definition['table'] ?? null) === null) {
+                foreach ($changeSet->forScope($scope) as $record) {
+                    if ($this->isDeletionRecord($record)) {
+                        continue;
+                    }
                     $report->addRejected($scope, $record['id'], 'INVALID_SCOPE', \t('sync.api.errors.scope_not_synchronised'));
                 }
                 continue;
             }
 
             foreach ($changeSet->forScope($scope) as $record) {
+                if ($this->isDeletionRecord($record)) {
+                    continue;
+                }
+
                 $data = $record['data'];
                 if (!is_array($data)) {
                     $report->addRejected($scope, $record['id'], 'SCHEMA_VALIDATION_FAILED', \t('sync.api.errors.record_missing_data'));
@@ -496,6 +566,42 @@ class SyncRepository
         return $existing;
     }
 
+    private function applyDeletion(string $scope, array $definition, string $id, string $version, array $meta, string $origin): string
+    {
+        $realScope = $definition['alias_of'] ?? $scope;
+        if (isset($definition['alias_of'])) {
+            $definition = $this->definitionFor($definition['alias_of']);
+            if ($definition === null) {
+                throw new SyncException('INVALID_SCOPE', \t('sync.api.errors.alias_unknown_scope'));
+            }
+        }
+
+        $existingState = $this->fetchState($realScope, $id);
+        $incomingCursor = new SyncCursor($version);
+
+        if ($existingState !== null) {
+            $existingEpoch = (int) $existingState['version_epoch'];
+            if ($incomingCursor->epoch() < $existingEpoch && !$this->shouldAcceptOlder($origin, $incomingCursor->epoch(), $existingEpoch)) {
+                throw new SyncException('CONFLICT_POLICY_VIOLATION', \t('sync.api.errors.change_outdated'));
+            }
+
+            if ($incomingCursor->epoch() === $existingEpoch && $this->stateMarkedAsDeleted($existingState)) {
+                return 'noop';
+            }
+        }
+
+        $existingRow = $this->loadRow($definition, $id);
+        if ($existingRow !== null) {
+            $this->deleteEntity($definition, $id);
+        }
+
+        $meta['origin'] = $origin;
+        $meta['deleted'] = true;
+        $this->upsertState($realScope, $id, $incomingCursor->value(), null, $meta);
+
+        return $existingRow === null ? 'noop' : 'deleted';
+    }
+
     private function assertDependencies(string $scope, array $definition, array $data): void
     {
         $dependencies = $definition['dependencies'] ?? [];
@@ -606,11 +712,18 @@ class SyncRepository
             $id = (string) $row[$idColumn];
             $state = $this->fetchState($scope, $id);
             $version = $state['version'] ?? $this->determineVersion($definition, $row);
+            $meta = $this->decodeStateMeta($state['payload_meta'] ?? null);
+            $checksum = $state['checksum'] ?? null;
+            if ($checksum === null) {
+                $checksum = $this->checksum($row);
+            }
+            $meta['checksum'] = $checksum;
+
             $result[] = [
                 'id' => $id,
                 'version' => $version,
                 'data' => $row,
-                'meta' => ['checksum' => $state['checksum'] ?? $this->checksum($row)],
+                'meta' => $meta,
             ];
         }
 
@@ -626,6 +739,14 @@ class SyncRepository
         ]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    private function deleteEntity(array $definition, string $id): void
+    {
+        $table = $definition['table'];
+        $idColumn = $definition['id_column'];
+        $stmt = $this->pdo->prepare(sprintf('DELETE FROM %s WHERE %s = :id', $table, $idColumn));
+        $stmt->execute(['id' => $this->castIdentifier($id)]);
     }
 
     private function upsertState(string $scope, string $id, string $version, ?string $checksum, array $meta = []): void
@@ -737,6 +858,58 @@ class SyncRepository
             return (int) $id;
         }
         return $id;
+    }
+
+    private function decodeStateMeta(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || $value === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function stateMarkedAsDeleted(array $state): bool
+    {
+        $meta = $this->decodeStateMeta($state['payload_meta'] ?? null);
+        return $this->booleanMetaFlag($meta['deleted'] ?? null);
+    }
+
+    private function isDeletionRecord(array $record): bool
+    {
+        $meta = $this->normalizeMeta($record['meta'] ?? []);
+        return $this->booleanMetaFlag($meta['deleted'] ?? null);
+    }
+
+    private function normalizeMeta(mixed $meta): array
+    {
+        return is_array($meta) ? $meta : [];
+    }
+
+    private function booleanMetaFlag(mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        if (is_string($value)) {
+            return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return false;
     }
 
     private function shouldAcceptOlder(string $origin, int $incomingEpoch, int $existingEpoch): bool
