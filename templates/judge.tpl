@@ -132,6 +132,11 @@
                                         </label>
                                     <?php endforeach; ?>
                                 </div>
+                            <?php elseif ($type === 'text'): ?>
+                                <input type="text"
+                                       name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]"
+                                       class="form-control"
+                                       value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>">
                             <?php else: ?>
                                 <input type="number" step="0.01" name="score[fields][<?= htmlspecialchars($fieldId, ENT_QUOTES, 'UTF-8') ?>]" class="form-control" value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>">
                             <?php endif; ?>
