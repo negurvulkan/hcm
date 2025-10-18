@@ -261,46 +261,92 @@ if (!function_exists('sync_hydrate_change_set')) {
         }
 
         $scopeMap = [];
+        $originalEntries = [];
+        $isDeletionFlag = static function ($meta): bool {
+            if (!is_array($meta)) {
+                return false;
+            }
+
+            $value = $meta['deleted'] ?? null;
+            if ($value === null) {
+                return false;
+            }
+
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_int($value)) {
+                return $value === 1;
+            }
+
+            if (is_string($value)) {
+                return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+            }
+
+            return false;
+        };
         foreach ($entries as $scope => $records) {
-            $ids = [];
             foreach ($records as $record) {
                 $id = (string) ($record['id'] ?? '');
                 if ($id === '') {
                     continue;
                 }
-                $ids[$id] = $id;
+
+                $originalEntries[$scope][$id] = $record;
+                if ($isDeletionFlag($record['meta'] ?? [])) {
+                    continue;
+                }
+
+                $scopeMap[$scope][$id] = $id;
             }
+        }
+
+        $pullMap = [];
+        foreach ($scopeMap as $scope => $ids) {
             if ($ids !== []) {
-                $scopeMap[$scope] = ['ids' => array_values($ids)];
+                $pullMap[$scope] = ['ids' => array_values($ids)];
             }
         }
 
-        if ($scopeMap === []) {
-            return null;
-        }
-
-        $fullSet = sync_pull_entities($scopeMap);
         $cursor = sync_highest_cursor($changeSet);
         $cursorValue = $cursor?->value();
+
+        if ($pullMap === []) {
+            $hydrated = new ChangeSet([], $changeSet->origin(), $cursorValue);
+            foreach ($entries as $scope => $records) {
+                foreach ($records as $record) {
+                    $hydrated->add($scope, $record);
+                }
+            }
+            return $hydrated;
+        }
+
+        $fullSet = sync_pull_entities($pullMap);
         $hydrated = new ChangeSet([], $fullSet->origin(), $cursorValue);
 
         foreach ($fullSet->all() as $scope => $records) {
-            $diffMeta = [];
-            foreach ($entries[$scope] ?? [] as $record) {
+            foreach ($records as $record) {
                 $id = (string) ($record['id'] ?? '');
                 if ($id === '') {
                     continue;
                 }
-                $meta = $record['meta'] ?? [];
-                if (is_array($meta)) {
-                    $diffMeta[$id] = $meta;
-                }
-            }
 
+                $originalMeta = $originalEntries[$scope][$id]['meta'] ?? [];
+                if (is_array($originalMeta)) {
+                    $record['meta'] = array_merge($originalMeta, is_array($record['meta'] ?? null) ? $record['meta'] : []);
+                }
+
+                $hydrated->add($scope, $record);
+                unset($originalEntries[$scope][$id]);
+            }
+        }
+
+        foreach ($originalEntries as $scope => $records) {
             foreach ($records as $record) {
-                $id = (string) ($record['id'] ?? '');
-                if ($id !== '' && isset($diffMeta[$id])) {
-                    $record['meta'] = array_merge($diffMeta[$id], is_array($record['meta'] ?? null) ? $record['meta'] : []);
+                if ($isDeletionFlag($record['meta'] ?? [])) {
+                    $hydrated->add($scope, $record);
+                    continue;
                 }
                 $hydrated->add($scope, $record);
             }

@@ -321,4 +321,51 @@ if (!$validation->isValid()) {
     throw new RuntimeException('Startnummernfelder sollten für den Sync erlaubt sein.');
 }
 
+$deleteChange = new ChangeSet([], InstanceConfiguration::ROLE_LOCAL);
+$deleteChange->add('parties', [
+    'id' => '1',
+    'version' => '2024-07-22T09:00:00+00:00',
+    'meta' => ['deleted' => true],
+]);
+
+$validationDelete = validateDelta($deleteChange);
+if (!$validationDelete->isValid()) {
+    throw new RuntimeException('Löschungen sollten die Validierung bestehen.');
+}
+
+$deleteReport = importChanges($deleteChange);
+$deleteMessage = $deleteReport->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($deleteMessage !== 'deleted') {
+    throw new RuntimeException('Löschungen sollten als deleted markiert werden.');
+}
+
+$countAfterDelete = (int) $pdo->query('SELECT COUNT(*) FROM parties')->fetchColumn();
+if ($countAfterDelete !== 0) {
+    throw new RuntimeException('Gelöschte Datensätze sollten entfernt sein.');
+}
+
+$deleteRepeat = importChanges($deleteChange);
+$repeatMessage = $deleteRepeat->toArray()['accepted']['parties'][0]['message'] ?? null;
+if ($repeatMessage !== 'noop') {
+    throw new RuntimeException('Erneute Löschungen sollten noop liefern.');
+}
+
+$deletionDiff = exportChanges(new Since('2024-07-19T00:00:00+00:00'), new Scopes(['parties']));
+$deletionRecord = $deletionDiff->forScope('parties')[0] ?? null;
+if (!is_array($deletionRecord) || ($deletionRecord['meta']['deleted'] ?? false) !== true) {
+    throw new RuntimeException('Diff sollte Löschungen kennzeichnen.');
+}
+
+$hydratedDeletion = sync_hydrate_change_set($deletionDiff);
+if (!$hydratedDeletion instanceof ChangeSet) {
+    throw new RuntimeException('Hydrierter ChangeSet sollte bei Löschungen erzeugt werden.');
+}
+$hydratedDeletionRecord = $hydratedDeletion->forScope('parties')[0] ?? null;
+if (!is_array($hydratedDeletionRecord) || ($hydratedDeletionRecord['meta']['deleted'] ?? false) !== true) {
+    throw new RuntimeException('Hydrierter ChangeSet sollte Löschungs-Metadaten behalten.');
+}
+if ($hydratedDeletionRecord['data'] !== null) {
+    throw new RuntimeException('Hydrierte Löschungen sollten keinen Datensatz enthalten.');
+}
+
 echo "SyncService tests passed\n";
