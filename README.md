@@ -1,4 +1,4 @@
-# Turniermanagement V2
+# Turniermanagementsystem
 
 Ein webbasierter Werkzeugkasten für Reitturnier-Organisator:innen. Die Anwendung deckt Stammdatenpflege, Nennungsabwicklung, Zeitplanung, Live-Richten und Anzeige in einem gemeinsam nutzbaren System ab – auch ohne dauerhafte Internetverbindung.
 
