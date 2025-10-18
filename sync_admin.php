@@ -146,7 +146,6 @@ render_page('sync.tpl', [
 
 function sync_http_post_json(string $baseUrl, string $path, array $payload, string $token = ''): array
 {
-    $url = rtrim($baseUrl, '/') . $path;
     $headers = ['Accept: application/json', 'Content-Type: application/json'];
     $token = trim($token);
     if ($token !== '') {
@@ -154,6 +153,37 @@ function sync_http_post_json(string $baseUrl, string $path, array $payload, stri
         $headers[] = 'X-API-Token: ' . $token;
     }
 
+    $base = rtrim($baseUrl, '/');
+    $attempts = [$base . $path];
+
+    if (preg_match('~^/sync/([a-z0-9_-]+)$~i', $path, $matches)) {
+        $attempts[] = $base . '/sync/index.php?action=' . rawurlencode($matches[1]);
+    }
+
+    $lastException = null;
+    foreach ($attempts as $url) {
+        try {
+            return sync_http_post_json_request($url, $headers, $payload);
+        } catch (RuntimeException $exception) {
+            if ($exception->getCode() !== 404) {
+                throw $exception;
+            }
+            $lastException = $exception;
+        }
+    }
+
+    if ($lastException instanceof RuntimeException) {
+        throw $lastException;
+    }
+
+    throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => 'connection failed']));
+}
+
+/**
+ * @param array<int, string> $headers
+ */
+function sync_http_post_json_request(string $url, array $headers, array $payload): array
+{
     $context = stream_context_create([
         'http' => [
             'method' => 'POST',
@@ -164,19 +194,25 @@ function sync_http_post_json(string $baseUrl, string $path, array $payload, stri
     ]);
 
     $response = @file_get_contents($url, false, $context);
-    if ($response === false) {
-        $error = error_get_last();
-        throw new RuntimeException($error['message'] ?? t('sync.flash.peer_request_failed', ['message' => 'connection failed']));
+    $statusLine = $http_response_header[0] ?? '';
+    $status = 0;
+    if (preg_match('~\s(\d{3})\s~', $statusLine, $match)) {
+        $status = (int) $match[1];
     }
 
-    $statusLine = $http_response_header[0] ?? '';
-    if (!str_contains($statusLine, '200')) {
-        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => $statusLine ?: 'HTTP error']));
+    if ($response === false) {
+        $error = error_get_last();
+        $message = $error['message'] ?? ($statusLine !== '' ? $statusLine : 'connection failed');
+        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => $message]), $status);
+    }
+
+    if ($status !== 0 && $status !== 200) {
+        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => $statusLine ?: 'HTTP error']), $status);
     }
 
     $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($decoded)) {
-        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => 'invalid response']));
+        throw new RuntimeException(t('sync.flash.peer_request_failed', ['message' => 'invalid response']), $status);
     }
 
     return $decoded;
