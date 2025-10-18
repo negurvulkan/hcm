@@ -63,7 +63,7 @@ class SyncRepository
         'events' => [
             'table' => 'events',
             'id_column' => 'id',
-            'columns' => ['id', 'title', 'start_date', 'end_date', 'venues', 'is_active', 'scoring_rule_json', 'updated_at'],
+            'columns' => ['id', 'title', 'start_date', 'end_date', 'venues', 'is_active', 'scoring_rule_json', 'start_number_rules', 'updated_at'],
             'version_column' => 'updated_at',
         ],
         'classes' => [
@@ -78,7 +78,7 @@ class SyncRepository
         'entries' => [
             'table' => 'entries',
             'id_column' => 'id',
-            'columns' => ['id', 'event_id', 'class_id', 'party_id', 'horse_id', 'status', 'fee_paid_at', 'created_at', 'updated_at', 'start_number_display', 'start_number_raw', 'start_number_assignment_id', 'start_number_rule_snapshot', 'start_number_allocation_entity'],
+            'columns' => ['id', 'event_id', 'class_id', 'party_id', 'horse_id', 'status', 'fee_paid_at', 'created_at', 'updated_at', 'start_number_display', 'start_number_raw', 'start_number_assignment_id', 'start_number_rule_snapshot', 'start_number_allocation_entity', 'start_number_locked_at'],
             'version_column' => 'updated_at',
             'fallback_version_column' => 'created_at',
             'dependencies' => [
@@ -91,7 +91,7 @@ class SyncRepository
         'starts' => [
             'table' => 'startlist_items',
             'id_column' => 'id',
-            'columns' => ['id', 'class_id', 'entry_id', 'position', 'planned_start', 'state', 'note', 'created_at', 'updated_at', 'start_number_display', 'start_number_raw', 'start_number_assignment_id', 'start_number_rule_snapshot', 'start_number_allocation_entity'],
+            'columns' => ['id', 'class_id', 'entry_id', 'position', 'planned_start', 'state', 'note', 'created_at', 'updated_at', 'start_number_display', 'start_number_raw', 'start_number_assignment_id', 'start_number_rule_snapshot', 'start_number_allocation_entity', 'start_number_locked_at'],
             'version_column' => 'updated_at',
             'fallback_version_column' => 'created_at',
             'dependencies' => [

@@ -258,4 +258,67 @@ if (!$logs || ($logs[0]['operation'] ?? '') !== 'push') {
     throw new RuntimeException('Logeintrag fehlt.');
 }
 
+$startNumberChange = new ChangeSet([], InstanceConfiguration::ROLE_ONLINE);
+$startNumberChange->add('events', [
+    'id' => '2',
+    'version' => '2024-07-21T12:00:00+00:00',
+    'data' => [
+        'id' => 2,
+        'title' => 'Demo Turnier',
+        'start_date' => '2024-07-21',
+        'end_date' => '2024-07-22',
+        'venues' => 'Arena 1',
+        'is_active' => 1,
+        'scoring_rule_json' => '{}',
+        'start_number_rules' => '{}',
+        'updated_at' => '2024-07-21T12:00:00+00:00',
+    ],
+]);
+$startNumberChange->add('entries', [
+    'id' => '5',
+    'version' => '2024-07-21T12:02:00+00:00',
+    'data' => [
+        'id' => 5,
+        'event_id' => 2,
+        'class_id' => 7,
+        'party_id' => 1,
+        'horse_id' => 3,
+        'status' => 'confirmed',
+        'fee_paid_at' => null,
+        'created_at' => '2024-07-21T11:00:00+00:00',
+        'updated_at' => '2024-07-21T12:02:00+00:00',
+        'start_number_assignment_id' => 10,
+        'start_number_raw' => 42,
+        'start_number_display' => '42',
+        'start_number_rule_snapshot' => '{}',
+        'start_number_allocation_entity' => 'class:7',
+        'start_number_locked_at' => '2024-07-21T12:03:00+00:00',
+    ],
+]);
+$startNumberChange->add('starts', [
+    'id' => '11',
+    'version' => '2024-07-21T12:04:00+00:00',
+    'data' => [
+        'id' => 11,
+        'class_id' => 7,
+        'entry_id' => 5,
+        'position' => 1,
+        'planned_start' => '2024-07-21T12:10:00+00:00',
+        'state' => 'scheduled',
+        'note' => null,
+        'created_at' => '2024-07-21T11:30:00+00:00',
+        'updated_at' => '2024-07-21T12:04:00+00:00',
+        'start_number_assignment_id' => 10,
+        'start_number_raw' => 42,
+        'start_number_display' => '42',
+        'start_number_rule_snapshot' => '{}',
+        'start_number_allocation_entity' => 'class:7',
+        'start_number_locked_at' => '2024-07-21T12:05:00+00:00',
+    ],
+]);
+$validation = validateDelta($startNumberChange);
+if (!$validation->isValid()) {
+    throw new RuntimeException('Startnummernfelder sollten für den Sync erlaubt sein.');
+}
+
 echo "SyncService tests passed\n";
