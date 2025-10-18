@@ -2,6 +2,9 @@
 require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
 
+use App\CustomFields\CustomFieldManager;
+use App\CustomFields\CustomFieldRepository;
+
 $user = auth_require('schedule');
 $isAdmin = auth_is_admin($user);
 $activeEvent = event_active();
@@ -47,6 +50,19 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
         exit;
     }
 }
+
+$pdo = app_pdo();
+$customFieldRepository = new CustomFieldRepository($pdo);
+$primaryOrganizationId = instance_primary_organization_id();
+$customFieldContext = [];
+if (!empty($selectedClass['event_id'])) {
+    $customFieldContext['tournament_id'] = (int) $selectedClass['event_id'];
+}
+if ($primaryOrganizationId !== null) {
+    $customFieldContext['organization_id'] = $primaryOrganizationId;
+}
+$riderCustomFieldManager = new CustomFieldManager($customFieldRepository, 'person', $customFieldContext);
+$horseCustomFieldManager = new CustomFieldManager($customFieldRepository, 'horse', $customFieldContext);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
@@ -143,6 +159,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $items = db_all('SELECT si.id, si.position, si.planned_start, si.start_number_display, si.start_number_locked_at, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.id AS horse_id, h.name AS horse, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$riderIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['rider_id'] ?? 0), $items), static fn (int $id): bool => $id > 0));
+$horseIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['horse_id'] ?? 0), $items), static fn (int $id): bool => $id > 0));
+$riderCustomValues = $customFieldRepository->valuesForMany('person', $riderIds);
+$horseCustomValues = $customFieldRepository->valuesForMany('horse', $horseIds);
+foreach ($items as &$item) {
+    $riderId = (int) ($item['rider_id'] ?? 0);
+    $horseId = (int) ($item['horse_id'] ?? 0);
+    $item['rider_custom_fields'] = $riderCustomFieldManager->entityInfoFields($riderCustomValues[$riderId] ?? []);
+    $item['horse_custom_fields'] = $horseCustomFieldManager->entityInfoFields($horseCustomValues[$horseId] ?? []);
+}
+unset($item);
 $shifts = db_all('SELECT shift_minutes, created_at FROM schedule_shifts WHERE class_id = :class_id ORDER BY id DESC LIMIT 10', ['class_id' => $classId]);
 
 render_page('schedule.tpl', [

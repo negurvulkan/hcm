@@ -127,6 +127,45 @@ class CustomFieldManager
     }
 
     /**
+     * @param array<string, array<string, mixed>> $values
+     * @return array<int, array<string, mixed>>
+     */
+    public function entityInfoFields(array $values): array
+    {
+        $fields = [];
+        foreach ($this->definitions() as $definition) {
+            if (!in_array($definition['visibility'], ['internal', 'public'], true)) {
+                continue;
+            }
+
+            $key = (string) $definition['key'];
+            $rawValue = $values[$key]['value'] ?? null;
+            if ($rawValue === null || $rawValue === '') {
+                continue;
+            }
+
+            $label = $this->resolveLabel($definition['label']) ?? $key;
+            $formatted = $this->formatEntityInfoValue($definition, $rawValue);
+            if ($formatted === '' || $formatted === '–') {
+                continue;
+            }
+
+            $field = [
+                'label' => $label,
+                'value' => $formatted,
+            ];
+
+            if ($this->isMultilineType((string) $definition['type'])) {
+                $field['multiline'] = true;
+            }
+
+            $fields[] = $field;
+        }
+
+        return $fields;
+    }
+
+    /**
      * @param array<string, mixed> $definition
      * @param mixed $value
      */
@@ -479,5 +518,23 @@ class CustomFieldManager
             'json' => is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE),
             default => (string) $value,
         };
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     * @param mixed $value
+     */
+    private function formatEntityInfoValue(array $definition, $value): string
+    {
+        if ((string) $definition['type'] === 'json' && !is_string($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        }
+
+        return $this->formatValue($definition, $value);
+    }
+
+    private function isMultilineType(string $type): bool
+    {
+        return in_array($type, ['textarea', 'json'], true);
     }
 }
