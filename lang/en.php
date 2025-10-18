@@ -11,6 +11,7 @@ return [
             'quick_access' => 'Quick actions',
             'quick_edit' => 'Configure',
             'quick_empty_admin' => 'No quick actions configured yet.',
+            'menu_label' => 'Primary navigation',
         ],
         'role_label' => 'Role',
         'read_only' => 'Read-only',

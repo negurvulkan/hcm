@@ -11,6 +11,7 @@ return [
             'quick_access' => 'Schnellzugriffe',
             'quick_edit' => 'Bearbeiten',
             'quick_empty_admin' => 'Noch keine Schnellzugriffe hinterlegt.',
+            'menu_label' => 'Hauptnavigation',
         ],
         'role_label' => 'Rolle',
         'read_only' => 'Read-only',
