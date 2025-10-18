@@ -150,15 +150,22 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                         $groupLabelId = $groupId . 'Label';
                         $groupCollapseId = $groupId . 'Collapse';
                         $moreId = $groupId . 'More';
+                        $containsActive = array_reduce(
+                            $groupItems,
+                            static function (bool $carry, array $item) use ($pageKey): bool {
+                                return $carry || (($item['key'] ?? null) === $pageKey);
+                            },
+                            false
+                        );
                         $primaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'primary');
                         $secondaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'secondary');
                         ?>
                         <div class="app-sidebar__group">
-                            <button class="app-sidebar__group-toggle text-uppercase small text-muted" id="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="true" aria-controls="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>">
+                            <button class="app-sidebar__group-toggle text-uppercase small text-muted" id="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="<?= $containsActive ? 'true' : 'false' ?>" aria-controls="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>">
                                 <span><?= htmlspecialchars(t('nav.groups.' . $group), ENT_QUOTES, 'UTF-8') ?></span>
                                 <span class="app-sidebar__group-caret" aria-hidden="true"></span>
                             </button>
-                            <div class="collapse app-sidebar__collapse-group show" id="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-labelledby="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>">
+                            <div class="collapse app-sidebar__collapse-group<?= $containsActive ? ' show' : '' ?>" id="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-labelledby="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>">
                                 <ul class="app-sidebar__list" aria-labelledby="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>">
                                     <?php foreach ($primaryItems as $path => $item): ?>
                                         <?php
