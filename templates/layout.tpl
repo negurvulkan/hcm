@@ -194,7 +194,17 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                                         $shouldHighlight = ($item['priority'] ?? 50) <= 12;
                                         $tooltipKey = $item['tooltip_key'] ?? null;
                                         $subtitleKey = $item['subtitle_key'] ?? null;
-                                        $label = t($item['label_key'] ?? $item['key']);
+                                        $labelTranslations = is_array($item['label_translations'] ?? null) ? $item['label_translations'] : [];
+                                        if (isset($labelTranslations[$currentLocale]) && $labelTranslations[$currentLocale] !== '') {
+                                            $label = $labelTranslations[$currentLocale];
+                                        } else {
+                                            $first = reset($labelTranslations);
+                                            if (is_string($first) && $first !== '') {
+                                                $label = $first;
+                                            } else {
+                                                $label = t($item['label_key'] ?? $item['key']);
+                                            }
+                                        }
                                         $tooltip = $tooltipKey ? t($tooltipKey) : $label;
                                         $initial = $getInitial($label);
                                         ?>
@@ -220,7 +230,17 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                                             <ul class="app-sidebar__list app-sidebar__list--secondary">
                                                 <?php foreach ($secondaryItems as $path => $item): ?>
                                                     <?php
-                                                    $label = t($item['label_key'] ?? $item['key']);
+                                                    $labelTranslations = is_array($item['label_translations'] ?? null) ? $item['label_translations'] : [];
+                                                    if (isset($labelTranslations[$currentLocale]) && $labelTranslations[$currentLocale] !== '') {
+                                                        $label = $labelTranslations[$currentLocale];
+                                                    } else {
+                                                        $first = reset($labelTranslations);
+                                                        if (is_string($first) && $first !== '') {
+                                                            $label = $first;
+                                                        } else {
+                                                            $label = t($item['label_key'] ?? $item['key']);
+                                                        }
+                                                    }
                                                     $tooltipKey = $item['tooltip_key'] ?? null;
                                                     $tooltip = $tooltipKey ? t($tooltipKey) : $label;
                                                     $initial = $getInitial($label);

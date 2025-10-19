@@ -5,6 +5,20 @@ use App\Core\Csrf;
 use App\Core\Rbac;
 use App\Navigation\NavigationRepository;
 
+if (!function_exists('navigation_generate_custom_item_key')) {
+    function navigation_generate_custom_item_key(NavigationRepository $repository, string $role): string
+    {
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $key = 'custom_' . bin2hex(random_bytes(4));
+            if (!$repository->itemExists($role, $key)) {
+                return $key;
+            }
+        }
+
+        throw new \RuntimeException('Unable to generate navigation key');
+    }
+}
+
 $user = auth_require('instance');
 $pdo = app_pdo();
 $repository = new NavigationRepository($pdo);
@@ -67,6 +81,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $errors[] = t('navigation.validation.group_missing');
             }
+        } elseif ($action === 'create_custom_item') {
+            $payload = $_POST['new_item'] ?? [];
+            $groupId = isset($payload['group_id']) ? (int) $payload['group_id'] : 0;
+            if ($groupId <= 0 || !$repository->groupBelongsToRole($groupId, $role)) {
+                $errors[] = t('navigation.validation.group_missing');
+            }
+
+            $target = trim((string) ($payload['target'] ?? ''));
+            if ($target === '') {
+                $errors[] = t('navigation.validation.target_invalid', ['item' => t('navigation.labels.custom_item')]);
+            } elseif (!preg_match('/^[A-Za-z0-9_\-\/]+\.php(?:#[A-Za-z0-9_\-]+)?$/', $target)) {
+                $errors[] = t('navigation.validation.target_invalid', ['item' => t('navigation.labels.custom_item')]);
+            }
+
+            $variant = ($payload['variant'] ?? 'primary') === 'secondary' ? 'secondary' : 'primary';
+            $position = isset($payload['position']) ? (int) $payload['position'] : 0;
+
+            $labels = [];
+            $labelInput = $payload['label'] ?? [];
+            foreach ($availableLocales as $locale) {
+                $value = trim((string) ($labelInput[$locale] ?? ''));
+                if ($value !== '') {
+                    $labels[$locale] = $value;
+                }
+            }
+
+            if (!$labels) {
+                $errors[] = t('navigation.validation.label_required');
+            }
+
+            if (!$errors) {
+                try {
+                    $itemKey = navigation_generate_custom_item_key($repository, $role);
+                    $repository->createCustomItem($role, $itemKey, $labels, $target, $groupId, $variant, $position);
+                    flash('success', t('navigation.flash.custom_created'));
+                } catch (Throwable) {
+                    $errors[] = t('navigation.validation.custom_key_failed');
+                }
+            }
         } elseif ($action === 'save_items') {
             $definitions = Rbac::menuDefinitions();
             $definitionsByKey = [];
@@ -81,6 +134,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$enabled) {
                     continue;
                 }
+                $isCustom = isset($itemData['is_custom']) && (string) $itemData['is_custom'] === '1';
+                if ($isCustom) {
+                    $existing = $currentItemsByKey[$itemKey] ?? null;
+                    if ($existing === null || empty($existing['is_custom'])) {
+                        continue;
+                    }
+
+                    $groupId = isset($itemData['group_id']) ? (int) $itemData['group_id'] : 0;
+                    if ($groupId <= 0 || !$repository->groupBelongsToRole($groupId, $role)) {
+                        $errors[] = t('navigation.validation.group_required', ['item' => t('navigation.labels.custom_item')]);
+                        continue;
+                    }
+
+                    $target = trim((string) ($itemData['target'] ?? ''));
+                    if ($target === '' || !preg_match('/^[A-Za-z0-9_\-\/]+\.php(?:#[A-Za-z0-9_\-]+)?$/', $target)) {
+                        $errors[] = t('navigation.validation.target_invalid', ['item' => t('navigation.labels.custom_item')]);
+                        continue;
+                    }
+
+                    $variant = $itemData['variant'] ?? 'primary';
+                    $variant = $variant === 'secondary' ? 'secondary' : 'primary';
+                    $position = isset($itemData['position']) ? (int) $itemData['position'] : 0;
+
+                    $labels = [];
+                    $labelInput = $itemData['label'] ?? [];
+                    foreach ($availableLocales as $locale) {
+                        $value = trim((string) ($labelInput[$locale] ?? ''));
+                        if ($value !== '') {
+                            $labels[$locale] = $value;
+                        }
+                    }
+
+                    if (!$labels) {
+                        $errors[] = t('navigation.validation.label_required');
+                        continue;
+                    }
+
+                    $itemsToSave[] = [
+                        'item_key' => $itemKey,
+                        'target' => $target,
+                        'group_id' => $groupId,
+                        'variant' => $variant,
+                        'position' => $position,
+                        'is_custom' => true,
+                        'labels' => $labels,
+                    ];
+
+                    continue;
+                }
+
                 if (!isset($definitionsByKey[$itemKey]) || !Rbac::allowed($role, $itemKey)) {
                     continue;
                 }
@@ -95,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $target = $definitionsByKey[$itemKey]['path'];
                 }
 
-                if (!preg_match('/^[A-Za-z0-9_\-\/]+\.php$/', $target)) {
+                if (!preg_match('/^[A-Za-z0-9_\-\/]+\.php(?:#[A-Za-z0-9_\-]+)?$/', $target)) {
                     $itemLabel = $definitionsByKey[$itemKey]['definition']['label_key'] ?? $itemKey;
                     $errors[] = t('navigation.validation.target_invalid', ['item' => t($itemLabel)]);
                     continue;
@@ -111,6 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'group_id' => $groupId,
                     'variant' => $variant,
                     'position' => $position,
+                    'is_custom' => false,
+                    'labels' => [],
                 ];
             }
             if (!$errors) {
@@ -164,11 +269,43 @@ foreach ($menuDefinitions as $path => $definition) {
         'group_id' => $active['group_id'] ?? null,
         'target' => $active['target'] ?? $path,
         'enabled' => $active !== null,
+        'is_custom' => false,
+        'label_translations' => $active['label_translations'] ?? [],
+    ];
+}
+
+foreach ($currentItems as $item) {
+    if (empty($item['is_custom'])) {
+        continue;
+    }
+
+    $translations = $item['label_translations'] ?? [];
+    $fallbackLabel = reset($translations);
+    if (!is_string($fallbackLabel)) {
+        $fallbackLabel = $item['target'];
+    }
+
+    $menuItems[] = [
+        'key' => $item['item_key'],
+        'path' => $item['target'],
+        'label_key' => null,
+        'tooltip_key' => null,
+        'variant' => $item['variant'] ?? 'primary',
+        'position' => $item['position'] ?? 50,
+        'group_id' => $item['group_id'] ?? null,
+        'target' => $item['target'],
+        'enabled' => true,
+        'is_custom' => true,
+        'label_translations' => is_array($translations) ? $translations : [],
+        'fallback_label' => is_string($fallbackLabel) ? $fallbackLabel : $item['target'],
     ];
 }
 
 usort($menuItems, static function (array $left, array $right): int {
-    return strcmp($left['label_key'], $right['label_key']);
+    $leftLabel = $left['label_key'] !== null ? t($left['label_key']) : ($left['fallback_label'] ?? $left['key']);
+    $rightLabel = $right['label_key'] !== null ? t($right['label_key']) : ($right['fallback_label'] ?? $right['key']);
+
+    return strcmp((string) $leftLabel, (string) $rightLabel);
 });
 
 render_page('navigation.tpl', [

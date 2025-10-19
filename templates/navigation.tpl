@@ -136,8 +136,23 @@ $currentLocale = current_locale();
                             <tbody>
                                 <?php foreach ($menuItems as $item): ?>
                                     <?php
-                                    $label = t($item['label_key']);
-                                    $tooltip = $item['tooltip_key'] ? t($item['tooltip_key']) : $label;
+                                    $isCustom = !empty($item['is_custom']);
+                                    $labelTranslations = is_array($item['label_translations'] ?? null) ? $item['label_translations'] : [];
+                                    if ($isCustom) {
+                                        if (isset($labelTranslations[$currentLocale]) && $labelTranslations[$currentLocale] !== '') {
+                                            $label = $labelTranslations[$currentLocale];
+                                        } else {
+                                            $first = reset($labelTranslations);
+                                            $label = is_string($first) && $first !== '' ? $first : ($item['fallback_label'] ?? $item['target']);
+                                        }
+                                        if (!is_string($label) || $label === '') {
+                                            $label = $item['target'];
+                                        }
+                                        $tooltip = $label;
+                                    } else {
+                                        $label = t($item['label_key']);
+                                        $tooltip = $item['tooltip_key'] ? t($item['tooltip_key']) : $label;
+                                    }
                                     ?>
                                     <tr>
                                         <td>
@@ -147,8 +162,20 @@ $currentLocale = current_locale();
                                             </div>
                                         </td>
                                         <td>
+                                            <input type="hidden" name="items[<?= htmlspecialchars($item['key'], ENT_QUOTES, 'UTF-8') ?>][is_custom]" value="<?= $isCustom ? '1' : '0' ?>">
                                             <strong><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></strong>
-                                            <div class="text-muted small"><?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?></div>
+                                            <?php if ($isCustom): ?>
+                                                <span class="badge bg-info-subtle text-info-emphasis ms-1 align-middle"><?= htmlspecialchars(t('navigation.labels.custom_item'), ENT_QUOTES, 'UTF-8') ?></span>
+                                                <div class="text-muted small mb-2"><?= htmlspecialchars(t('navigation.hints.custom_item'), ENT_QUOTES, 'UTF-8') ?></div>
+                                                <?php foreach ($locales as $locale): ?>
+                                                    <div class="mb-2">
+                                                        <label class="form-label small text-uppercase text-muted mb-1"><?= htmlspecialchars(t('navigation.labels.item_label', ['locale' => strtoupper($locale)]), ENT_QUOTES, 'UTF-8') ?></label>
+                                                        <input type="text" class="form-control form-control-sm" name="items[<?= htmlspecialchars($item['key'], ENT_QUOTES, 'UTF-8') ?>][label][<?= htmlspecialchars($locale, ENT_QUOTES, 'UTF-8') ?>]" value="<?= htmlspecialchars($labelTranslations[$locale] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="<?= htmlspecialchars($item['target'], ENT_QUOTES, 'UTF-8') ?>">
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <div class="text-muted small"><?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?></div>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <input type="text" class="form-control form-control-sm" name="items[<?= htmlspecialchars($item['key'], ENT_QUOTES, 'UTF-8') ?>][target]" value="<?= htmlspecialchars($item['target'] ?? $item['path'], ENT_QUOTES, 'UTF-8') ?>" placeholder="<?= htmlspecialchars($item['path'], ENT_QUOTES, 'UTF-8') ?>">
@@ -193,6 +220,60 @@ $currentLocale = current_locale();
                         <button type="submit" name="action" value="reset_layout" class="btn btn-outline-danger" onclick="return confirm('<?= htmlspecialchars(t('navigation.confirm.reset'), ENT_QUOTES, 'UTF-8') ?>');"><?= htmlspecialchars(t('navigation.actions.reset'), ENT_QUOTES, 'UTF-8') ?></button>
                     </div>
                 </form>
+                <hr class="my-4">
+                <h3 class="h6 text-uppercase mb-3"><?= htmlspecialchars(t('navigation.sections.add_custom_item'), ENT_QUOTES, 'UTF-8') ?></h3>
+                <?php if ($groups): ?>
+                    <form method="post" class="row g-3">
+                        <input type="hidden" name="_token" value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="role" value="<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="action" value="create_custom_item">
+                        <?php foreach ($locales as $locale): ?>
+                            <div class="col-12">
+                                <label class="form-label small text-uppercase text-muted"><?= htmlspecialchars(t('navigation.labels.item_label', ['locale' => strtoupper($locale)]), ENT_QUOTES, 'UTF-8') ?></label>
+                                <input type="text" name="new_item[label][<?= htmlspecialchars($locale, ENT_QUOTES, 'UTF-8') ?>]" class="form-control" placeholder="<?= htmlspecialchars(t('navigation.placeholders.item_label'), ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                        <?php endforeach; ?>
+                        <div class="col-sm-6">
+                            <label class="form-label small text-uppercase text-muted"><?= htmlspecialchars(t('navigation.labels.target'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="text" name="new_item[target]" class="form-control" placeholder="<?= htmlspecialchars(t('navigation.placeholders.item_target'), ENT_QUOTES, 'UTF-8') ?>">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small text-uppercase text-muted"><?= htmlspecialchars(t('navigation.labels.group'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <select name="new_item[group_id]" class="form-select">
+                                <option value=""><?= htmlspecialchars(t('navigation.labels.choose_group'), ENT_QUOTES, 'UTF-8') ?></option>
+                                <?php foreach ($groups as $group): ?>
+                                    <?php
+                                    $groupTranslations = $group['label_translations'] ?? [];
+                                    if (is_array($groupTranslations) && !empty($groupTranslations[$currentLocale])) {
+                                        $groupLabel = $groupTranslations[$currentLocale];
+                                    } elseif (!empty($group['label_key'])) {
+                                        $groupLabel = t($group['label_key']);
+                                    } else {
+                                        $groupLabel = t('navigation.placeholders.group_fallback');
+                                    }
+                                    ?>
+                                    <option value="<?= (int) $group['id'] ?>"><?= htmlspecialchars($groupLabel, ENT_QUOTES, 'UTF-8') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small text-uppercase text-muted"><?= htmlspecialchars(t('navigation.labels.variant'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <select name="new_item[variant]" class="form-select">
+                                <option value="primary" selected><?= htmlspecialchars(t('navigation.labels.variant_primary'), ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="secondary"><?= htmlspecialchars(t('navigation.labels.variant_secondary'), ENT_QUOTES, 'UTF-8') ?></option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small text-uppercase text-muted"><?= htmlspecialchars(t('navigation.labels.position'), ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="number" name="new_item[position]" class="form-control" value="0">
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-outline-primary"><?= htmlspecialchars(t('navigation.actions.add_item'), ENT_QUOTES, 'UTF-8') ?></button>
+                        </div>
+                    </form>
+                <?php else: ?>
+                    <div class="alert alert-warning mb-0"><?= htmlspecialchars(t('navigation.hints.groups_required'), ENT_QUOTES, 'UTF-8') ?></div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
