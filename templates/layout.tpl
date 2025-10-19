@@ -178,7 +178,7 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                                         $initial = $getInitial($label);
                                         ?>
                                         <li class="app-sidebar__item">
-                                            <a class="app-sidebar__link <?= $isActive ? 'is-active' : '' ?> <?= $shouldHighlight ? 'is-highlighted' : '' ?>" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
+                                            <a class="app-sidebar__link <?= $isActive ? 'is-active' : '' ?>" href="<?= htmlspecialchars($path, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
                                                 <span class="app-sidebar__icon" aria-hidden="true"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
                                                 <span class="app-sidebar__text">
                                                     <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
