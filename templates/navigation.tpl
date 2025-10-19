@@ -127,6 +127,7 @@ $currentLocale = current_locale();
                                 <tr>
                                     <th style="width: 80px;"><?= htmlspecialchars(t('navigation.labels.enabled'), ENT_QUOTES, 'UTF-8') ?></th>
                                     <th><?= htmlspecialchars(t('navigation.labels.item'), ENT_QUOTES, 'UTF-8') ?></th>
+                                    <th style="width: 200px;"><?= htmlspecialchars(t('navigation.labels.target'), ENT_QUOTES, 'UTF-8') ?></th>
                                     <th style="width: 220px;"><?= htmlspecialchars(t('navigation.labels.group'), ENT_QUOTES, 'UTF-8') ?></th>
                                     <th style="width: 150px;"><?= htmlspecialchars(t('navigation.labels.variant'), ENT_QUOTES, 'UTF-8') ?></th>
                                     <th style="width: 110px;"><?= htmlspecialchars(t('navigation.labels.position'), ENT_QUOTES, 'UTF-8') ?></th>
@@ -148,6 +149,9 @@ $currentLocale = current_locale();
                                         <td>
                                             <strong><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></strong>
                                             <div class="text-muted small"><?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?></div>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" name="items[<?= htmlspecialchars($item['key'], ENT_QUOTES, 'UTF-8') ?>][target]" value="<?= htmlspecialchars($item['target'] ?? $item['path'], ENT_QUOTES, 'UTF-8') ?>" placeholder="<?= htmlspecialchars($item['path'], ENT_QUOTES, 'UTF-8') ?>">
                                         </td>
                                         <td>
                                             <select class="form-select form-select-sm" name="items[<?= htmlspecialchars($item['key'], ENT_QUOTES, 'UTF-8') ?>][group_id]" <?= $groups ? '' : 'disabled' ?>>
