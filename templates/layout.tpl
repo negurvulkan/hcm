@@ -182,9 +182,6 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                                                 <span class="app-sidebar__icon" aria-hidden="true"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
                                                 <span class="app-sidebar__text">
                                                     <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
-                                                    <?php if ($subtitleKey): ?>
-                                                        <small><?= htmlspecialchars(t($subtitleKey), ENT_QUOTES, 'UTF-8') ?></small>
-                                                    <?php endif; ?>
                                                 </span>
                                                 <?php if (in_array($item['key'] ?? '', $navReadOnlyKeys, true)): ?>
                                                     <span class="app-sidebar__status" data-bs-toggle="tooltip" title="<?= htmlspecialchars(t('nav.hints.read_only'), ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">&#9888;</span>
