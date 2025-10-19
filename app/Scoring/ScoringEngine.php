@@ -403,6 +403,7 @@ class ScoringEngine
             }
         }
         $componentDefinitions = array_values($componentMap);
+        $fields = $input['fields'] ?? [];
         foreach (($input['judges'] ?? []) as $judge) {
             $payload = $this->mergeJudgeComponentPayload($judge);
             try {
