@@ -1,0 +1,58 @@
+{
+  "label": "Springen v1",
+  "rule": {
+    "version": "1",
+    "id": "jumping.generic.v1",
+    "label": "Springen v1",
+    "input": {
+      "judges": {
+        "min": 1,
+        "max": 1,
+        "aggregation": {
+          "method": "mean"
+        }
+      },
+      "fields": [
+        {
+          "id": "time_s",
+          "label": "Zeit (Sek.)",
+          "type": "number",
+          "min": 0
+        },
+        {
+          "id": "faults",
+          "label": "Fehlerpunkte",
+          "type": "number",
+          "min": 0
+        }
+      ],
+      "components": []
+    },
+    "penalties": [
+      {
+        "id": "faults",
+        "when": "fields.faults > 0",
+        "points": "fields.faults",
+        "label": "Hindernisfehler"
+      }
+    ],
+    "time": {
+      "mode": "faults_from_time",
+      "allowed_s": 75,
+      "fault_per_s": 1
+    },
+    "per_judge_formula": "0",
+    "aggregate_formula": "penalties.total + time.faults",
+    "ranking": {
+      "order": "asc",
+      "tiebreak_chain": [
+        "least_time",
+        "random_draw"
+      ]
+    },
+    "output": {
+      "rounding": 2,
+      "unit": "Fehler"
+    }
+  }
+}

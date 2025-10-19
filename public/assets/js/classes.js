@@ -125,13 +125,6 @@
         }
 
         this.editor.addEventListener('click', function (event) {
-            var presetButton = event.target.closest('[data-preset]');
-            if (presetButton && self.editor.contains(presetButton)) {
-                event.preventDefault();
-                self.applyPreset(presetButton.getAttribute('data-preset'));
-                return;
-            }
-
             var actionButton = event.target.closest('[data-action]');
             if (!actionButton || !self.builder || !self.builder.contains(actionButton)) {
                 return;
@@ -173,6 +166,17 @@
                 if (!isNaN(penaltyIndex)) {
                     self.removePenalty(penaltyIndex);
                 }
+            }
+        });
+
+        this.editor.addEventListener('change', function (event) {
+            var select = event.target.closest('[data-preset-select]');
+            if (select && self.editor.contains(select)) {
+                var value = select.value;
+                if (value) {
+                    self.applyPreset(value);
+                }
+                select.value = '';
             }
         });
 

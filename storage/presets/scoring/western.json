@@ -1,0 +1,80 @@
+{
+  "label": "Western / Reining v1",
+  "rule": {
+    "version": "1",
+    "id": "western.reining.v1",
+    "label": "Western / Reining v1",
+    "input": {
+      "judges": {
+        "min": 3,
+        "max": 5,
+        "aggregation": {
+          "method": "mean",
+          "drop_high": 1,
+          "drop_low": 1
+        }
+      },
+      "fields": [],
+      "components": [
+        {
+          "id": "M1",
+          "label": "Stop",
+          "min": -1.5,
+          "max": 1.5,
+          "step": 0.5
+        },
+        {
+          "id": "M2",
+          "label": "Spin",
+          "min": -1.5,
+          "max": 1.5,
+          "step": 0.5
+        },
+        {
+          "id": "M3",
+          "label": "Lead Change",
+          "min": -1.5,
+          "max": 1.5,
+          "step": 0.5
+        }
+      ]
+    },
+    "penalties": [
+      {
+        "id": "p1",
+        "when": "fields.penalties.contains(1)",
+        "points": "1",
+        "label": "Kleine Fehler"
+      },
+      {
+        "id": "p2",
+        "when": "fields.penalties.contains(2)",
+        "points": "2",
+        "label": "Mittlere Fehler"
+      },
+      {
+        "id": "p5",
+        "when": "fields.penalties.contains(5)",
+        "points": "5",
+        "label": "Grobe Fehler"
+      }
+    ],
+    "time": {
+      "mode": "none"
+    },
+    "per_judge_formula": "sum(components) + 70",
+    "aggregate_formula": "aggregate.score - penalties.total",
+    "ranking": {
+      "order": "desc",
+      "tiebreak_chain": [
+        "best_component:M1",
+        "lowest_penalties",
+        "random_draw"
+      ]
+    },
+    "output": {
+      "rounding": 1,
+      "unit": "Score"
+    }
+  }
+}

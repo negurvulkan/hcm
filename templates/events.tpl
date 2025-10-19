@@ -56,10 +56,14 @@
                                                         <button class="btn btn-outline-secondary" type="button" data-action="load-json"><?= htmlspecialchars(t('scoring_designer.toolbar.load_json'), ENT_QUOTES, 'UTF-8') ?></button>
                                                         <button class="btn btn-outline-secondary" type="button" data-action="reset-default"><?= htmlspecialchars(t('scoring_designer.toolbar.reset'), ENT_QUOTES, 'UTF-8') ?></button>
                                                     </div>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="dressage"><?= htmlspecialchars(t('scoring_designer.toolbar.preset.dressage'), ENT_QUOTES, 'UTF-8') ?></button>
-                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="jumping"><?= htmlspecialchars(t('scoring_designer.toolbar.preset.jumping'), ENT_QUOTES, 'UTF-8') ?></button>
-                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="western"><?= htmlspecialchars(t('scoring_designer.toolbar.preset.western'), ENT_QUOTES, 'UTF-8') ?></button>
+                                                    <div class="input-group input-group-sm" style="min-width: 220px;">
+                                                        <span class="input-group-text"><?= htmlspecialchars(t('scoring_designer.toolbar.preset_select_label'), ENT_QUOTES, 'UTF-8') ?></span>
+                                                        <select class="form-select" data-preset-select>
+                                                            <option value=""><?= htmlspecialchars(t('scoring_designer.toolbar.preset_select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                            <?php foreach ($scoringPresetOptions as $option): ?>
+                                                                <option value="<?= htmlspecialchars($option['key'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
                                                     </div>
                                                 </div>
                                             </div>
@@ -221,7 +225,8 @@
                                 <div class="modal-body">
                                     <div class="card border-secondary" data-start-number-designer data-target="#start-number-rules-input"
                                          data-rule="<?= htmlspecialchars($ruleDesignerJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>"
-                                         data-default="<?= htmlspecialchars($ruleDesignerDefaultsJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>">
+                                         data-default="<?= htmlspecialchars($ruleDesignerDefaultsJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>"
+                                         data-presets='<?= htmlspecialchars($startNumberDesignerPresetsJson ?? "{}", ENT_QUOTES, 'UTF-8') ?>'>
                                         <div class="card-body">
                                             <div class="d-flex align-items-start justify-content-between mb-3">
                                                 <div>
@@ -233,9 +238,14 @@
                                                         <button class="btn btn-outline-secondary" type="button" data-action="load-json"><?= htmlspecialchars(t('start_numbers.designer.actions.load_json'), ENT_QUOTES, 'UTF-8') ?></button>
                                                         <button class="btn btn-outline-secondary" type="button" data-action="reset-defaults"><?= htmlspecialchars(t('start_numbers.designer.actions.reset'), ENT_QUOTES, 'UTF-8') ?></button>
                                                     </div>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="classic"><?= htmlspecialchars(t('start_numbers.designer.presets.classic'), ENT_QUOTES, 'UTF-8') ?></button>
-                                                        <button class="btn btn-outline-primary" type="button" data-action="load-preset" data-preset="western"><?= htmlspecialchars(t('start_numbers.designer.presets.western'), ENT_QUOTES, 'UTF-8') ?></button>
+                                                    <div class="input-group input-group-sm" style="min-width: 220px;">
+                                                        <span class="input-group-text"><?= htmlspecialchars(t('start_numbers.designer.presets.select_label'), ENT_QUOTES, 'UTF-8') ?></span>
+                                                        <select class="form-select" data-preset-select>
+                                                            <option value=""><?= htmlspecialchars(t('start_numbers.designer.presets.select_placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                            <?php foreach ($startNumberPresetOptions as $option): ?>
+                                                                <option value="<?= htmlspecialchars($option['key'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
                                                     </div>
                                                 </div>
                                             </div>

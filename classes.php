@@ -22,6 +22,9 @@ $scoringDesignerPresets = [];
 foreach ($presets as $key => $preset) {
     $scoringDesignerPresets[$key] = RuleManager::mergeDefaults($preset);
 }
+$scoringPresetOptions = scoring_rule_preset_options();
+$startNumberPresetRules = start_number_rule_preset_rules();
+$startNumberPresetOptions = start_number_rule_preset_options();
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editClass = null;
@@ -362,5 +365,8 @@ render_page('classes.tpl', [
     'classRuleEventJson' => $classRuleEvent ? start_number_rule_safe_json($classRuleEvent) : null,
     'scoringDesignerDefaultJson' => scoring_rule_safe_json($scoringDesignerDefault),
     'scoringDesignerPresetsJson' => scoring_rule_safe_json($scoringDesignerPresets),
+    'scoringPresetOptions' => $scoringPresetOptions,
+    'startNumberPresetOptions' => $startNumberPresetOptions,
+    'startNumberDesignerPresetsJson' => start_number_rule_safe_json($startNumberPresetRules),
     'extraScripts' => ['public/assets/js/scoring-designer.js', 'public/assets/js/start-number-designer.js', 'public/assets/js/classes.js'],
 ]);

@@ -122,66 +122,7 @@
         var overrideContainer = container.querySelector('[data-override-list]');
         var fieldSelectors = '[data-designer-field]';
         var presetData = parseJsonSafe(container.dataset.presets, {});
-        var presets = Object.assign({
-            classic: {
-                mode: 'classic',
-                scope: 'tournament',
-                sequence: {
-                    start: 1,
-                    step: 1,
-                    range: [1, 450],
-                    reset: 'per_day'
-                },
-                format: {
-                    prefix: '',
-                    width: 3,
-                    suffix: '',
-                    separator: ''
-                },
-                allocation: {
-                    entity: 'start',
-                    time: 'on_startlist',
-                    reuse: 'after_scratch',
-                    lock_after: 'start_called'
-                },
-                constraints: {
-                    unique_per: 'tournament',
-                    blocklists: ['13'],
-                    club_spacing: 1,
-                    horse_cooldown_min: 0
-                },
-                overrides: []
-            },
-            western: {
-                mode: 'western',
-                scope: 'class',
-                sequence: {
-                    start: 100,
-                    step: 5,
-                    range: [100, 499],
-                    reset: 'per_class'
-                },
-                format: {
-                    prefix: 'W',
-                    width: 2,
-                    suffix: '',
-                    separator: ''
-                },
-                allocation: {
-                    entity: 'pair',
-                    time: 'on_startlist',
-                    reuse: 'after_scratch',
-                    lock_after: 'sign_off'
-                },
-                constraints: {
-                    unique_per: 'class',
-                    blocklists: [],
-                    club_spacing: 0,
-                    horse_cooldown_min: 30
-                },
-                overrides: []
-            }
-        }, presetData || {});
+        var presets = (presetData && typeof presetData === 'object') ? presetData : {};
         var eventRule = container.hasAttribute('data-event-rule') ? parseJsonSafe(container.dataset.eventRule, null) : null;
         var state = mergeWithDefaults(parseJsonSafe(container.dataset.rule, defaults));
 
@@ -522,6 +463,15 @@
 
         container.addEventListener('change', function (event) {
             var target = event.target;
+            if (target && target.hasAttribute('data-preset-select')) {
+                var presetKey = target.value;
+                if (presetKey && presets[presetKey]) {
+                    state = mergeWithDefaults(presets[presetKey]);
+                    applyStateToForm();
+                }
+                target.value = '';
+                return;
+            }
             if (target.matches('select[data-override-field="sequence.reset"]')) {
                 collectStateFromForm();
             }
@@ -564,14 +514,6 @@
                 event.preventDefault();
                 state = mergeWithDefaults({});
                 applyStateToForm();
-            }
-            if (target.dataset.action === 'load-preset') {
-                event.preventDefault();
-                var presetKey = target.getAttribute('data-preset');
-                if (presetKey && presets[presetKey]) {
-                    state = mergeWithDefaults(presets[presetKey]);
-                    applyStateToForm();
-                }
             }
             if (target.dataset.action === 'load-event-rule') {
                 event.preventDefault();

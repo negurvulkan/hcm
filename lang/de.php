@@ -798,6 +798,8 @@ return [
         'toolbar' => [
             'load_json' => 'JSON laden',
             'reset' => 'Zurücksetzen',
+            'preset_select_label' => 'Vorlage',
+            'preset_select_placeholder' => 'Vorlage auswählen…',
             'preset' => [
                 'dressage' => 'Dressur',
                 'jumping' => 'Springen',
@@ -900,6 +902,8 @@ return [
                 'western' => 'Western-Vorlage',
                 'classic_short' => 'Classic',
                 'western_short' => 'Western',
+                'select_label' => 'Vorlage',
+                'select_placeholder' => 'Vorlage auswählen…',
             ],
             'fields' => [
                 'mode' => 'Modus',
@@ -1085,6 +1089,8 @@ return [
             'preset_dressage' => 'Dressur-Vorlage',
             'preset_jumping' => 'Springen-Vorlage',
             'preset_western' => 'Western-Vorlage',
+            'preset_select_label' => 'Vorlage',
+            'preset_select_placeholder' => 'Vorlage auswählen…',
             'rules_note' => 'JSON direkt bearbeiten oder über Presets starten. Gültige Regeln werden beim Speichern geprüft.',
             'scoring_open_designer' => 'Scoring-Designer öffnen',
             'use_event_rule' => 'Turnierregel übernehmen',

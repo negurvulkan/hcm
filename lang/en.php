@@ -809,6 +809,8 @@ return [
         'toolbar' => [
             'load_json' => 'Load JSON',
             'reset' => 'Reset',
+            'preset_select_label' => 'Preset',
+            'preset_select_placeholder' => 'Choose preset…',
             'preset' => [
                 'dressage' => 'Dressage',
                 'jumping' => 'Jumping',
@@ -911,6 +913,8 @@ return [
                 'western' => 'Western preset',
                 'classic_short' => 'Classic',
                 'western_short' => 'Western',
+                'select_label' => 'Preset',
+                'select_placeholder' => 'Choose preset…',
             ],
             'fields' => [
                 'mode' => 'Mode',
@@ -1096,6 +1100,8 @@ return [
             'preset_dressage' => 'Dressage preset',
             'preset_jumping' => 'Jumping preset',
             'preset_western' => 'Western preset',
+            'preset_select_label' => 'Preset',
+            'preset_select_placeholder' => 'Choose preset…',
             'rules_note' => 'Edit JSON directly or start with presets. Valid rules are validated on save.',
             'scoring_open_designer' => 'Open scoring designer',
             'use_event_rule' => 'Apply event rule',
