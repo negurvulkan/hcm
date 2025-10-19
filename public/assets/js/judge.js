@@ -110,7 +110,14 @@
         const hidden = widget.querySelector('[data-score-value]');
         const options = Array.from(widget.querySelectorAll('[data-score-option]'));
         const precision = widgetPrecision(widget);
+        const debug = (...args) => {
+            if (window && window.console && typeof window.console.log === 'function') {
+                window.console.log('[judge][scale]', ...args);
+            }
+        };
+
         const applyValue = (numeric) => {
+            debug('applyValue', { widget, numeric });
             if (numeric === null || !Number.isFinite(numeric)) {
                 if (hidden) {
                     hidden.value = '';
@@ -140,22 +147,32 @@
             applyValue(initial);
         }
 
+        const applyOption = (option) => {
+            const numeric = parseNumber(option.value);
+            debug('applyOption', { option, value: option.value, numeric });
+            if (numeric !== null) {
+                applyValue(numeric);
+            }
+        };
+
         options.forEach((option) => {
-            const updateFromOption = () => {
-                if (!option.checked) {
-                    return;
-                }
-                const numeric = parseNumber(option.value);
-                if (numeric !== null) {
-                    applyValue(numeric);
-                }
-            };
+            const updateFromOption = () => applyOption(option);
             option.addEventListener('change', updateFromOption);
             option.addEventListener('click', updateFromOption);
+            option.addEventListener('keydown', (event) => {
+                if (event.key === ' ' || event.key === 'Enter') {
+                    debug('keydown on option', { option, key: event.key });
+                    applyOption(option);
+                }
+            });
         });
 
         widget.addEventListener('click', (event) => {
-            const preset = event.target.closest('[data-score-preset]');
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) {
+                return;
+            }
+            const preset = target.closest('[data-score-preset]');
             if (!preset || !widget.contains(preset)) {
                 return;
             }
@@ -164,6 +181,7 @@
                 return;
             }
             const numeric = parseNumber(raw);
+            debug('preset click', { preset, raw, numeric });
             if (numeric !== null) {
                 applyValue(numeric);
             }
@@ -177,8 +195,10 @@
             const numeric = parseNumber(manual.value);
             if (numeric === null) {
                 if (manual.value.trim() === '') {
+                    debug('manual cleared');
                     applyValue(null);
                 } else {
+                    debug('manual invalid', { value: manual.value });
                     manual.classList.add('is-invalid');
                     if (hidden) {
                         hidden.value = '';
@@ -189,11 +209,13 @@
                 }
                 return;
             }
+            debug('manual change', { value: manual.value, numeric });
             applyValue(numeric);
         });
 
         manual.addEventListener('blur', () => {
             const numeric = parseNumber(manual.value);
+            debug('manual blur', { value: manual.value, numeric });
             if (numeric !== null) {
                 applyValue(numeric);
             }
