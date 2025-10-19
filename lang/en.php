@@ -99,6 +99,7 @@ return [
             'actions' => 'Actions',
             'enabled' => 'Enabled',
             'item' => 'Navigation item',
+            'target' => 'File/Page',
             'group' => 'Group',
             'variant' => 'Variant',
             'choose_group' => 'Select group…',
@@ -132,6 +133,7 @@ return [
             'csrf' => 'Session expired – please try again.',
             'group_missing' => 'Selected group could not be found.',
             'group_required' => 'Please select a group for “:item”.',
+            'target_invalid' => 'Please provide a valid PHP target for “:item”.',
             'reset_failed' => 'Default navigation could not be loaded.',
         ],
         'confirm' => [

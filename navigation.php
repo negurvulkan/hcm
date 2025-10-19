@@ -90,13 +90,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $errors[] = t('navigation.validation.group_required', ['item' => t($itemLabel)]);
                     continue;
                 }
+                $target = trim((string) ($itemData['target'] ?? ''));
+                if ($target === '') {
+                    $target = $definitionsByKey[$itemKey]['path'];
+                }
+
+                if (!preg_match('/^[A-Za-z0-9_\-\/]+\.php$/', $target)) {
+                    $itemLabel = $definitionsByKey[$itemKey]['definition']['label_key'] ?? $itemKey;
+                    $errors[] = t('navigation.validation.target_invalid', ['item' => t($itemLabel)]);
+                    continue;
+                }
+
                 $variant = $itemData['variant'] ?? 'primary';
                 $variant = $variant === 'secondary' ? 'secondary' : 'primary';
                 $position = isset($itemData['position']) ? (int) $itemData['position'] : 0;
 
                 $itemsToSave[] = [
                     'item_key' => $itemKey,
-                    'target' => $definitionsByKey[$itemKey]['path'],
+                    'target' => $target,
                     'group_id' => $groupId,
                     'variant' => $variant,
                     'position' => $position,
@@ -151,6 +162,7 @@ foreach ($menuDefinitions as $path => $definition) {
         'variant' => $active['variant'] ?? ($definition['variant'] ?? 'primary'),
         'position' => $active['position'] ?? ($definition['priority'] ?? 50),
         'group_id' => $active['group_id'] ?? null,
+        'target' => $active['target'] ?? $path,
         'enabled' => $active !== null,
     ];
 }

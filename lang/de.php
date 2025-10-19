@@ -99,6 +99,7 @@ return [
             'actions' => 'Aktionen',
             'enabled' => 'Aktiv',
             'item' => 'Navigationspunkt',
+            'target' => 'Datei/Seite',
             'group' => 'Gruppe',
             'variant' => 'Darstellung',
             'choose_group' => 'Gruppe wählen …',
@@ -132,6 +133,7 @@ return [
             'csrf' => 'Session abgelaufen – bitte erneut versuchen.',
             'group_missing' => 'Ausgewählte Gruppe wurde nicht gefunden.',
             'group_required' => 'Für „:item“ muss eine Gruppe ausgewählt werden.',
+            'target_invalid' => 'Für „:item“ muss eine gültige PHP-Datei angegeben werden.',
             'reset_failed' => 'Standardnavigation konnte nicht geladen werden.',
         ],
         'confirm' => [
