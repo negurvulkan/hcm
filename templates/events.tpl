@@ -124,6 +124,11 @@
                                             </div>
                                             <div class="vstack gap-3 mb-4" data-scoring-list="components" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.components.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
                                             <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h4 class="h6 mb-0"><?= htmlspecialchars(t('scoring_designer.sections.lessons.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-lesson"><?= htmlspecialchars(t('scoring_designer.sections.lessons.add'), ENT_QUOTES, 'UTF-8') ?></button>
+                                            </div>
+                                            <div class="vstack gap-3 mb-4" data-scoring-list="lessons" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.lessons.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
                                                 <h4 class="h6 mb-0"><?= htmlspecialchars(t('scoring_designer.sections.penalties.title'), ENT_QUOTES, 'UTF-8') ?></h4>
                                                 <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-penalty"><?= htmlspecialchars(t('scoring_designer.sections.penalties.add'), ENT_QUOTES, 'UTF-8') ?></button>
                                             </div>

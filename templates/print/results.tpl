@@ -34,6 +34,7 @@ $strings = [
     'time_faults' => t('print.pdf.results.time_details.faults'),
     'time_bonus' => t('print.pdf.results.time_details.bonus'),
     'components' => t('print.pdf.results.sections.components'),
+    'lessons' => t('print.pdf.results.sections.lessons'),
     'tiebreak' => t('print.pdf.results.sections.tiebreak'),
     'rule' => t('print.pdf.results.sections.rule'),
     'rule_engine' => t('print.pdf.results.rule_engine_prefix'),
@@ -63,6 +64,7 @@ $strings = [
         $timeInfo = $breakdown['time'] ?? ($totals['time'] ?? []);
         $aggregate = $breakdown['aggregate'] ?? ($totals['aggregate'] ?? []);
         $components = $aggregate['components'] ?? [];
+        $lessons = $aggregate['lessons'] ?? [];
         $unit = $item['unit'] ?? ($aggregate['unit'] ?? null);
         $rank = $item['rank'] ?? ($index + 1);
         ?>
@@ -116,6 +118,17 @@ $strings = [
                         }
                         ?>
                         <?= htmlspecialchars(implode(', ', $componentTexts), ENT_QUOTES, 'UTF-8') ?>
+                    </div>
+                <?php endif; ?>
+                <?php if ($lessons): ?>
+                    <div><strong><?= htmlspecialchars($strings['lessons'], ENT_QUOTES, 'UTF-8') ?></strong>
+                        <?php
+                        $lessonTexts = [];
+                        foreach ($lessons as $lessonId => $lessonData) {
+                            $lessonTexts[] = $lessonId . ': ' . format_number($lessonData['score'] ?? 0, 2);
+                        }
+                        ?>
+                        <?= htmlspecialchars(implode(', ', $lessonTexts), ENT_QUOTES, 'UTF-8') ?>
                     </div>
                 <?php endif; ?>
                 <?php if (!empty($item['tiebreak_path'])): ?>

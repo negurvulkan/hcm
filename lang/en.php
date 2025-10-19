@@ -848,6 +848,11 @@ return [
                 'add' => 'Add component',
                 'empty' => 'No components configured.',
             ],
+            'lessons' => [
+                'title' => 'Lessons',
+                'add' => 'Add lesson',
+                'empty' => 'No lessons configured.',
+            ],
             'penalties' => [
                 'title' => 'Penalties',
                 'add' => 'Add penalty',
@@ -1319,6 +1324,7 @@ return [
             'global_inputs' => 'Global inputs',
             'toggle_hint' => 'Enable for “Yes”.',
             'judge_inputs' => 'Scoring ({judge})',
+            'lessons_heading' => 'Lessons ({judge})',
             'other_judges' => 'Other judges’ input',
             'other_judges_columns' => [
                 'judge' => 'Judge',
@@ -1516,6 +1522,7 @@ return [
                     'penalties_none' => 'none',
                     'time' => 'Time:',
                     'components' => 'Components:',
+                    'lessons' => 'Lessons:',
                     'tiebreak' => 'Tiebreak:',
                     'rule' => 'Rule:',
                 ],
