@@ -139,6 +139,7 @@ foreach ($existingInput['judges'] ?? [] as $entry) {
 }
 $judgeKey = judge_identifier($user);
 $currentJudgeComponents = $judgeEntries[$judgeKey]['components'] ?? [];
+$currentJudgeLessons = $judgeEntries[$judgeKey]['lessons'] ?? [];
 $otherJudges = array_filter($judgeEntries, static fn(string $key): bool => $key !== $judgeKey, ARRAY_FILTER_USE_KEY);
 $perJudgeScores = [];
 if (is_array($existingEvaluation['per_judge'] ?? null)) {
@@ -151,6 +152,7 @@ if (is_array($existingEvaluation['per_judge'] ?? null)) {
 
 $fieldsInput = judge_normalize_field_values($rule['input']['fields'] ?? [], $fieldsInput);
 $judgeComponents = judge_normalize_component_values($rule['input']['components'] ?? [], $currentJudgeComponents);
+$judgeLessons = judge_normalize_lesson_values($rule['input']['lessons'] ?? [], $currentJudgeLessons);
 
 if ($start && $start['state'] !== 'running' && $start['state'] !== 'withdrawn') {
     $before = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $startId]);
@@ -210,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = $_POST['score'] ?? [];
     $parsedFields = judge_parse_fields($rule['input']['fields'] ?? [], $payload['fields'] ?? []);
     $parsedComponents = judge_parse_components($rule['input']['components'] ?? [], $payload['components'] ?? []);
+    $parsedLessons = judge_parse_lessons($rule['input']['lessons'] ?? [], $payload['lessons'] ?? []);
     $fieldsData = $fieldsInput;
     foreach ($parsedFields as $key => $value) {
         $fieldsData[$key] = $value;
@@ -218,6 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'id' => $judgeKey,
         'user' => ['id' => $user['id'] ?? null, 'name' => $user['name'] ?? null],
         'components' => $parsedComponents,
+        'lessons' => $parsedLessons,
         'submitted_at' => (new \DateTimeImmutable())->format('c'),
     ];
     $evaluationInput = [
@@ -329,6 +333,7 @@ render_page('judge.tpl', [
     'starts' => $starts,
     'fieldsInput' => $fieldsInput,
     'judgeComponents' => $judgeComponents,
+    'judgeLessons' => $judgeLessons,
     'rule' => $rule,
     'result' => $result,
     'evaluation' => $existingEvaluation,
@@ -392,6 +397,19 @@ function judge_normalize_component_values(array $components, array $values): arr
     return $normalized;
 }
 
+function judge_normalize_lesson_values(array $lessons, array $values): array
+{
+    $normalized = [];
+    foreach ($lessons as $lesson) {
+        $id = $lesson['id'] ?? null;
+        if (!$id) {
+            continue;
+        }
+        $normalized[$id] = $values[$id] ?? null;
+    }
+    return $normalized;
+}
+
 function judge_parse_fields(array $definitions, array $payload): array
 {
     $parsed = [];
@@ -423,6 +441,20 @@ function judge_parse_fields(array $definitions, array $payload): array
 }
 
 function judge_parse_components(array $definitions, array $payload): array
+{
+    $parsed = [];
+    foreach ($definitions as $definition) {
+        $id = $definition['id'] ?? null;
+        if (!$id) {
+            continue;
+        }
+        $value = $payload[$id] ?? null;
+        $parsed[$id] = $value === '' || $value === null ? null : (float) $value;
+    }
+    return $parsed;
+}
+
+function judge_parse_lessons(array $definitions, array $payload): array
 {
     $parsed = [];
     foreach ($definitions as $definition) {

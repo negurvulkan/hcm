@@ -837,6 +837,11 @@ return [
                 'add' => 'Komponente hinzufügen',
                 'empty' => 'Keine Komponenten hinterlegt.',
             ],
+            'lessons' => [
+                'title' => 'Lektionen',
+                'add' => 'Lektion hinzufügen',
+                'empty' => 'Keine Lektionen hinterlegt.',
+            ],
             'penalties' => [
                 'title' => 'Penalties',
                 'add' => 'Penalty hinzufügen',
@@ -1308,6 +1313,7 @@ return [
             'global_inputs' => 'Globale Eingaben',
             'toggle_hint' => 'Aktivieren für „Ja“.',
             'judge_inputs' => 'Bewertung ({judge})',
+            'lessons_heading' => 'Lektionen ({judge})',
             'other_judges' => 'Eingaben weiterer Richter',
             'other_judges_columns' => [
                 'judge' => 'Richter',
@@ -1505,6 +1511,7 @@ return [
                     'penalties_none' => 'keine',
                     'time' => 'Zeit:',
                     'components' => 'Komponenten:',
+                    'lessons' => 'Lektionen:',
                     'tiebreak' => 'Tiebreak:',
                     'rule' => 'Regel:',
                 ],

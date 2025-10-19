@@ -108,6 +108,7 @@ function scoring_fake_input(array $rule): array
     $judgeCount = max($judgesMin, $judgesMax ? random_int($judgesMin, max($judgesMin, $judgesMax)) : $judgesMin);
     $input = ['judges' => [], 'fields' => []];
     $components = $rule['input']['components'] ?? [];
+    $lessons = $rule['input']['lessons'] ?? [];
     for ($j = 0; $j < $judgeCount; $j++) {
         $componentValues = [];
         foreach ($components as $component) {
@@ -118,9 +119,19 @@ function scoring_fake_input(array $rule): array
             $value = $min + $step * random_int(0, max(0, $steps));
             $componentValues[$component['id']] = round($value, 3);
         }
+        $lessonValues = [];
+        foreach ($lessons as $lesson) {
+            $min = isset($lesson['min']) ? (float) $lesson['min'] : 0.0;
+            $max = isset($lesson['max']) ? (float) $lesson['max'] : 10.0;
+            $step = isset($lesson['step']) ? (float) $lesson['step'] : 0.5;
+            $steps = (int) (($max - $min) / max($step, 0.1));
+            $value = $min + $step * random_int(0, max(0, $steps));
+            $lessonValues[$lesson['id']] = round($value, 3);
+        }
         $input['judges'][] = [
             'id' => 'judge_' . ($j + 1),
             'components' => $componentValues,
+            'lessons' => $lessonValues,
         ];
     }
     foreach ($rule['input']['fields'] ?? [] as $field) {

@@ -284,6 +284,32 @@ if ($start) {
             </div>
         </div>
 
+        <?php $lessons = $rule['input']['lessons'] ?? []; ?>
+        <?php if ($lessons): ?>
+            <div class="mb-4">
+                <h3 class="h6"><?= htmlspecialchars(t('judge.form.lessons_heading', ['judge' => $judgeKey]), ENT_QUOTES, 'UTF-8') ?></h3>
+                <div class="row g-3">
+                    <?php foreach ($lessons as $lesson): ?>
+                        <?php $lessonId = $lesson['id'] ?? null; if (!$lessonId) { continue; }
+                        $value = $judgeLessons[$lessonId] ?? null; ?>
+                        <div class="col-md-4">
+                            <label class="form-label"><?= htmlspecialchars($lesson['label'] ?? $lessonId, ENT_QUOTES, 'UTF-8') ?></label>
+                            <input type="number"
+                                   class="form-control"
+                                   name="score[lessons][<?= htmlspecialchars($lessonId, ENT_QUOTES, 'UTF-8') ?>]"
+                                   value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>"
+                                   <?php if (isset($lesson['min'])): ?>min="<?= (float) $lesson['min'] ?>"<?php endif; ?>
+                                   <?php if (isset($lesson['max'])): ?>max="<?= (float) $lesson['max'] ?>"<?php endif; ?>
+                                   step="<?= isset($lesson['step']) ? (float) $lesson['step'] : 0.1 ?>">
+                            <?php if (!empty($lesson['weight'])): ?>
+                                <div class="form-text"><?= htmlspecialchars(t('judge.form.weight_hint', ['weight' => $lesson['weight']]), ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($otherJudges)): ?>
             <div class="mb-4">
                 <h3 class="h6"><?= htmlspecialchars(t('judge.form.other_judges'), ENT_QUOTES, 'UTF-8') ?></h3>

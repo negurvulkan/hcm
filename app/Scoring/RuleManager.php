@@ -67,6 +67,7 @@ class RuleManager
                     ['id' => 'penalties', 'label' => 'Penalties', 'type' => 'set', 'options' => [1, 2, 5]],
                 ],
                 'components' => [],
+                'lessons' => [],
             ],
             'penalties' => [],
             'time' => [
@@ -105,6 +106,14 @@ class RuleManager
         foreach ($rule['input']['components'] as $component) {
             if (!isset($component['id'])) {
                 throw new RuntimeException('Komponente ohne ID');
+            }
+        }
+        if (isset($rule['input']['lessons']) && !is_array($rule['input']['lessons'])) {
+            throw new RuntimeException('lessons muss ein Array sein');
+        }
+        foreach ($rule['input']['lessons'] ?? [] as $lesson) {
+            if (!isset($lesson['id'])) {
+                throw new RuntimeException('Lektion ohne ID');
             }
         }
     }
@@ -229,6 +238,7 @@ class RuleManager
                             ['id' => 'C3', 'label' => 'Übergänge', 'min' => 0, 'max' => 10, 'step' => 0.5, 'weight' => 1],
                             ['id' => 'IMP', 'label' => 'Impression', 'min' => 0, 'max' => 10, 'step' => 0.5, 'weight' => 0.5],
                         ],
+                        'lessons' => [],
                     ],
                     'penalties' => [],
                     'time' => ['mode' => 'none'],
@@ -264,6 +274,7 @@ class RuleManager
                             ['id' => 'faults', 'label' => 'Fehlerpunkte', 'type' => 'number', 'min' => 0],
                         ],
                         'components' => [],
+                        'lessons' => [],
                     ],
                     'penalties' => [
                         ['id' => 'faults', 'when' => 'fields.faults > 0', 'points' => 'fields.faults', 'label' => 'Hindernisfehler'],
@@ -307,6 +318,7 @@ class RuleManager
                             ['id' => 'M2', 'label' => 'Spin', 'min' => -1.5, 'max' => 1.5, 'step' => 0.5],
                             ['id' => 'M3', 'label' => 'Lead Change', 'min' => -1.5, 'max' => 1.5, 'step' => 0.5],
                         ],
+                        'lessons' => [],
                     ],
                     'penalties' => [
                         ['id' => 'p1', 'when' => 'fields.penalties.contains(1)', 'points' => '1', 'label' => 'Kleine Fehler'],
