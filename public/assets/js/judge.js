@@ -140,22 +140,30 @@
             applyValue(initial);
         }
 
+        const applyOption = (option) => {
+            const numeric = parseNumber(option.value);
+            if (numeric !== null) {
+                applyValue(numeric);
+            }
+        };
+
         options.forEach((option) => {
-            const updateFromOption = () => {
-                if (!option.checked) {
-                    return;
-                }
-                const numeric = parseNumber(option.value);
-                if (numeric !== null) {
-                    applyValue(numeric);
-                }
-            };
+            const updateFromOption = () => applyOption(option);
             option.addEventListener('change', updateFromOption);
             option.addEventListener('click', updateFromOption);
+            option.addEventListener('keydown', (event) => {
+                if (event.key === ' ' || event.key === 'Enter') {
+                    applyOption(option);
+                }
+            });
         });
 
         widget.addEventListener('click', (event) => {
-            const preset = event.target.closest('[data-score-preset]');
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) {
+                return;
+            }
+            const preset = target.closest('[data-score-preset]');
             if (!preset || !widget.contains(preset)) {
                 return;
             }
