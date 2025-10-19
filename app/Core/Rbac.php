@@ -1,6 +1,9 @@
 <?php
 namespace App\Core;
 
+use App\Navigation\NavigationRepository;
+use Throwable;
+
 class Rbac
 {
     public const ROLES = [
@@ -285,7 +288,76 @@ class Rbac
         return in_array($role, $permissions, true);
     }
 
+    public static function menuDefinitions(): array
+    {
+        return self::MENU;
+    }
+
     public static function menuFor(string $role): array
+    {
+        $menu = self::menuFromDatabase($role);
+        if ($menu !== null) {
+            return $menu;
+        }
+
+        return self::baseMenuForRole($role);
+    }
+
+    public static function defaultLayoutForRole(string $role): array
+    {
+        $menu = self::baseMenuForRole($role);
+        $groups = [];
+        foreach ($menu as $path => $item) {
+            $groupKey = $item['group'] ?? 'overview';
+            $groupPriority = (int) ($item['group_priority'] ?? 999);
+            if (!isset($groups[$groupKey])) {
+                $groups[$groupKey] = [
+                    'key' => $groupKey,
+                    'label_key' => 'nav.groups.' . $groupKey,
+                    'labels' => [],
+                    'position' => $groupPriority,
+                ];
+            } else {
+                $groups[$groupKey]['position'] = min($groups[$groupKey]['position'], $groupPriority);
+            }
+        }
+
+        uasort($groups, static function (array $left, array $right): int {
+            $comparison = ($left['position'] ?? 0) <=> ($right['position'] ?? 0);
+            if ($comparison !== 0) {
+                return $comparison;
+            }
+
+            return strcmp($left['key'], $right['key']);
+        });
+
+        $items = [];
+        foreach ($menu as $path => $item) {
+            $items[] = [
+                'item_key' => $item['key'],
+                'target' => $path,
+                'group_key' => $item['group'] ?? 'overview',
+                'variant' => $item['variant'] ?? 'primary',
+                'position' => (int) ($item['priority'] ?? 50),
+            ];
+        }
+
+        usort($items, static function (array $left, array $right): int {
+            $comparison = ($left['position'] ?? 0) <=> ($right['position'] ?? 0);
+            if ($comparison !== 0) {
+                return $comparison;
+            }
+
+            return strcmp($left['item_key'], $right['item_key']);
+        });
+
+        return [
+            'groups' => array_values($groups),
+            'items' => $items,
+        ];
+    }
+
+    private static function baseMenuForRole(string $role): array
     {
         $items = array_filter(self::MENU, static fn ($item) => self::allowed($role, $item['key']));
 
@@ -311,6 +383,8 @@ class Rbac
             $item['variant'] = $item['variant'] ?? 'primary';
             $item['priority'] = $item['priority'] ?? 50;
             $item['group_priority'] = $groupOrder[$item['group']] ?? 999;
+            $item['group_label_key'] = 'nav.groups.' . ($item['group'] ?? 'overview');
+            $item['group_label_translations'] = [];
 
             if (isset($overrides['priorities'][$item['key']])) {
                 $item['priority'] = $overrides['priorities'][$item['key']];
@@ -337,6 +411,91 @@ class Rbac
         });
 
         return $items;
+    }
+
+    private static function menuFromDatabase(string $role): ?array
+    {
+        $pdo = App::get('pdo');
+        if (!$pdo instanceof \PDO) {
+            return null;
+        }
+
+        try {
+            $repository = new NavigationRepository($pdo);
+            $groups = $repository->groupsForRole($role);
+            $items = $repository->itemsForRole($role);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (!$items) {
+            return null;
+        }
+
+        $groupMap = [];
+        foreach ($groups as $group) {
+            $groupMap[$group['id']] = $group;
+        }
+
+        $definitions = self::MENU;
+        $definitionsByKey = [];
+        foreach ($definitions as $path => $definition) {
+            $definitionsByKey[$definition['key']] = ['path' => $path, 'definition' => $definition];
+        }
+
+        $menu = [];
+        foreach ($items as $item) {
+            $groupId = $item['group_id'];
+            if ($groupId === null || !isset($groupMap[$groupId])) {
+                continue;
+            }
+            $group = $groupMap[$groupId];
+
+            $path = $item['target'];
+            $definition = $definitions[$path] ?? null;
+            if ($definition === null && isset($definitionsByKey[$item['item_key']])) {
+                $definition = $definitionsByKey[$item['item_key']]['definition'];
+                $path = $definitionsByKey[$item['item_key']]['path'];
+            }
+
+            if ($definition === null) {
+                continue;
+            }
+
+            if (!self::allowed($role, $definition['key'])) {
+                continue;
+            }
+
+            $menuItem = $definition;
+            $menuItem['variant'] = $item['variant'] !== '' ? $item['variant'] : ($menuItem['variant'] ?? 'primary');
+            $menuItem['priority'] = $item['position'];
+            $menuItem['group_priority'] = $group['position'];
+            $menuItem['group'] = 'group-' . $group['id'];
+            $menuItem['group_label_key'] = $group['label_key'] ?? null;
+            $menuItem['group_label_translations'] = $group['label_translations'] ?? [];
+
+            $menu[$path] = $menuItem;
+        }
+
+        if (!$menu) {
+            return null;
+        }
+
+        uasort($menu, static function (array $left, array $right): int {
+            $groupComparison = ($left['group_priority'] ?? 0) <=> ($right['group_priority'] ?? 0);
+            if ($groupComparison !== 0) {
+                return $groupComparison;
+            }
+
+            $priorityComparison = ($left['priority'] ?? 0) <=> ($right['priority'] ?? 0);
+            if ($priorityComparison !== 0) {
+                return $priorityComparison;
+            }
+
+            return strcmp($left['label_key'] ?? $left['key'], $right['label_key'] ?? $right['key']);
+        });
+
+        return $menu;
     }
 
     public static function quickActionsFor(string $role): array
