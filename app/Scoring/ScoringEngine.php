@@ -117,6 +117,9 @@ class ScoringEngine
                 }
                 $value = $totalWeight > 0 ? $weightedSum / $totalWeight : array_sum($scores) / max(count($scores), 1);
                 break;
+            case 'sum':
+                $value = array_sum($scores);
+                break;
             case 'mean':
             default:
                 $value = $scores ? array_sum($scores) / count($scores) : 0.0;
@@ -156,6 +159,16 @@ class ScoringEngine
         $eliminated = false;
 
         foreach ($penaltyDefinitions as $definition) {
+            if (!is_array($definition)) {
+                continue;
+            }
+            if ($this->applyManualPenaltyDefinition($definition, $input, $fields, $penalties, $eliminated)) {
+                if ($eliminated) {
+                    break;
+                }
+                continue;
+            }
+
             $context = $this->buildContext($aggregate, $perJudge, $fields, $penalties, null);
             $whenExpression = trim((string) ($definition['when'] ?? ''));
             $shouldApply = $whenExpression === '' ? true : (bool) Expression::evaluate($whenExpression, $context);
@@ -181,7 +194,7 @@ class ScoringEngine
             ];
         }
 
-        $timeRule = $rule['time'] ?? ['mode' => 'none'];
+        $timeRule = is_array($rule['time'] ?? null) ? $rule['time'] : ['mode' => 'none'];
         $time = $this->evaluateTime($timeRule, $fields, $aggregate, $perJudge, $penalties);
         if (!empty($time['eliminate'])) {
             $eliminated = true;
@@ -190,19 +203,251 @@ class ScoringEngine
         $context = $this->buildContext($aggregate, $perJudge, $fields, $penalties, $time);
         $formula = $rule['aggregate_formula'] ?? 'aggregate.score';
         $totalScore = (float) Expression::evaluate($formula, $context);
-        $rounded = round($totalScore, (int) ($rule['output']['rounding'] ?? 2));
+        $normalizationTarget = null;
+        $normalize = !empty($rule['output']['normalize_to_percent']);
+        if ($normalize) {
+            $normalizationTarget = $this->calculateNormalizationTarget($rule);
+            if ($normalizationTarget !== null && abs($normalizationTarget) > self::EPSILON) {
+                $totalScore = ($totalScore / $normalizationTarget) * 100.0;
+            }
+        }
 
-        return [
+        $rounding = (int) ($rule['output']['rounding'] ?? 2);
+        $rounded = round($totalScore, $rounding);
+        $unit = $rule['output']['unit'] ?? 'pts';
+        if ($normalize && $unit === 'pts') {
+            $unit = '%';
+        }
+
+        $result = [
             'aggregate' => $aggregate,
             'total_raw' => $totalScore,
             'total_rounded' => $rounded,
-            'unit' => $rule['output']['unit'] ?? 'pts',
+            'unit' => $unit,
             'penalties' => $penalties,
             'time' => $time,
             'fields' => $fields,
             'eliminated' => $eliminated,
             'show_breakdown' => (bool) ($rule['output']['show_breakdown'] ?? true),
         ];
+
+        if ($normalize) {
+            $result['normalization_target'] = $normalizationTarget;
+        }
+
+        return $result;
+    }
+
+    private function applyManualPenaltyDefinition(array $definition, array $input, array $fields, array &$penalties, bool &$eliminated): bool
+    {
+        if (isset($definition['when'])) {
+            return false;
+        }
+
+        $type = strtolower((string) ($definition['type'] ?? ''));
+        $explicitEliminate = !empty($definition['eliminate']);
+        $id = isset($definition['id']) ? (string) $definition['id'] : '';
+
+        if ($id === '' && $type === '' && !$explicitEliminate) {
+            return false;
+        }
+
+        $count = $this->selectedPenaltyCount($id, $input, $fields);
+
+        if (($type === 'elimination' || $explicitEliminate) && $count > 0) {
+            $eliminated = true;
+            $penalties['applied'][] = [
+                'id' => $id !== '' ? $id : null,
+                'label' => $definition['label'] ?? 'Elimination',
+                'eliminate' => true,
+            ];
+            return true;
+        }
+
+        if ($type === '' && !$explicitEliminate) {
+            return false;
+        }
+
+        if ($count <= 0) {
+            return true;
+        }
+
+        $value = (float) ($definition['value'] ?? 0.0);
+        if ($count > 1) {
+            $value *= $count;
+        }
+        if ($type === 'bonus') {
+            $value = -abs($value);
+        } else {
+            $value = abs($value);
+        }
+
+        $penalties['total'] += $value;
+        $penalties['applied'][] = [
+            'id' => $id !== '' ? $id : null,
+            'label' => $definition['label'] ?? null,
+            'points' => $value,
+        ];
+
+        return true;
+    }
+
+    private function selectedPenaltyCount(string $id, array $input, array $fields): int
+    {
+        if ($id === '') {
+            return 0;
+        }
+
+        $count = 0;
+        if (isset($input['penalties'])) {
+            $count += $this->countPenaltyOccurrences($id, $input['penalties']);
+        }
+        if (isset($fields['penalties'])) {
+            $count += $this->countPenaltyOccurrences($id, $fields['penalties']);
+        }
+
+        return $count;
+    }
+
+    private function countPenaltyOccurrences(string $id, mixed $source): int
+    {
+        if ($id === '') {
+            return 0;
+        }
+
+        if (is_array($source)) {
+            $total = 0;
+            if ($this->isList($source)) {
+                foreach ($source as $value) {
+                    if (is_array($value)) {
+                        if (($value['id'] ?? null) === $id) {
+                            $count = $value['count'] ?? $value['value'] ?? ($value['quantity'] ?? 1);
+                            $total += is_numeric($count) ? max(0, (int) $count) : 1;
+                        } elseif (in_array($id, $value, true)) {
+                            $total++;
+                        }
+                    } elseif ((string) $value === $id) {
+                        $total++;
+                    }
+                }
+            } else {
+                foreach ($source as $key => $value) {
+                    if ((string) $key === $id) {
+                        if (is_numeric($value)) {
+                            $total += max(0, (int) $value);
+                        } elseif (is_bool($value)) {
+                            $total += $value ? 1 : 0;
+                        } elseif (is_array($value)) {
+                            $total += count($value) ?: 1;
+                        } elseif ($value === null || $value === '') {
+                            continue;
+                        } else {
+                            $total++;
+                        }
+                    } elseif ((string) $value === $id) {
+                        $total++;
+                    }
+                }
+            }
+            return $total;
+        }
+
+        if (is_string($source)) {
+            return $source === $id ? 1 : 0;
+        }
+
+        if (is_bool($source)) {
+            return $source ? 1 : 0;
+        }
+
+        if (is_numeric($source)) {
+            return max(0, (int) $source);
+        }
+
+        return 0;
+    }
+
+    private function isList(array $array): bool
+    {
+        return array_keys($array) === range(0, count($array) - 1);
+    }
+
+    private function calculateNormalizationTarget(array $rule): ?float
+    {
+        $definitions = $rule['input']['components'] ?? [];
+        if (!$definitions) {
+            return null;
+        }
+
+        $maxInput = [];
+        foreach ($definitions as $definition) {
+            if (!is_array($definition)) {
+                continue;
+            }
+            $id = $definition['id'] ?? null;
+            if (!$id) {
+                continue;
+            }
+            $max = $this->inferComponentMax($definition);
+            if ($max === null) {
+                return null;
+            }
+            $maxInput[$id] = $max;
+        }
+
+        if (!$maxInput) {
+            return null;
+        }
+
+        try {
+            $fields = [];
+            $componentData = $this->prepareJudgeComponents($definitions, $maxInput, $fields);
+            $components = $componentData['scores'];
+            $context = [
+                'components' => $components,
+                'fields' => $fields,
+                '__weights' => $this->componentWeights($rule),
+            ];
+            $perJudgeFormula = $rule['per_judge_formula'] ?? 'sum(components)';
+            $perJudgeScore = (float) Expression::evaluate($perJudgeFormula, $context);
+            $perJudge = [[
+                'id' => 'max',
+                'score' => $perJudgeScore,
+                'components' => $components,
+            ]];
+            $aggregate = $this->aggregateJudges($perJudge, $rule);
+            $timeRule = is_array($rule['time'] ?? null) ? $rule['time'] : [];
+            $timeContext = [
+                'mode' => $timeRule['mode'] ?? 'none',
+                'seconds' => null,
+                'allowed' => $timeRule['allowed_s'] ?? null,
+                'faults' => 0.0,
+                'bonus' => 0.0,
+                'cap' => $timeRule['cap_s'] ?? null,
+            ];
+            $penalties = ['total' => 0.0, 'applied' => []];
+            $context = $this->buildContext($aggregate, $perJudge, $fields, $penalties, $timeContext);
+            $formula = $rule['aggregate_formula'] ?? 'aggregate.score';
+            return (float) Expression::evaluate($formula, $context);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function inferComponentMax(array $definition): ?float
+    {
+        if (!array_key_exists('max', $definition)) {
+            return null;
+        }
+        $max = $definition['max'];
+        if ($max === null || $max === '') {
+            return null;
+        }
+        if (!is_numeric($max)) {
+            return null;
+        }
+
+        return (float) $max;
     }
 
     public function rankWithTiebreak(array $totals, array $rule): array
@@ -260,7 +505,8 @@ class ScoringEngine
         $weights = [];
         foreach (($rule['input']['components'] ?? []) as $component) {
             if (!empty($component['id'])) {
-                $weights[$component['id']] = (float) ($component['weight'] ?? 1.0);
+                $weight = $component['weight'] ?? ($component['coefficient'] ?? 1.0);
+                $weights[$component['id']] = (float) $weight;
             }
         }
         return $weights;
