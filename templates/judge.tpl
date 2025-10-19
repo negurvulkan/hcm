@@ -417,6 +417,7 @@ if ($start) {
                         }
                     }
                     $hasInteractiveWidget = in_array($widgetType, ['scale', 'delta', 'count', 'time'], true);
+                    $hasHiddenValueInput = $hasInteractiveWidget || $widgetType === 'custom';
                     $usesHidden = in_array($widgetType, ['time', 'custom'], true);
                     ?>
                     <div class="col-md-6 col-lg-4">
@@ -428,7 +429,7 @@ if ($start) {
                              <?php if ($maxValue !== null): ?> data-score-max="<?= htmlspecialchars($maxValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
                              <?php if ($stepValue !== null): ?> data-score-step="<?= htmlspecialchars($stepValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>>
                             <label class="form-label"<?= $widgetType === 'custom' ? '' : ' for="' . htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') . '"' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></label>
-                            <?php if ($usesHidden): ?>
+                            <?php if ($hasHiddenValueInput): ?>
                                 <input type="hidden"
                                        name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"
                                        value="<?= htmlspecialchars($hiddenValue, ENT_QUOTES, 'UTF-8') ?>"
@@ -454,7 +455,8 @@ if ($start) {
                                                value="<?= htmlspecialchars($optionFormatted, ENT_QUOTES, 'UTF-8') ?>"
                                                data-score-option <?= $isChecked ? 'checked' : '' ?>>
                                         <label class="btn <?= $buttonClass ?> mb-1"
-                                               for="<?= htmlspecialchars($optionId, ENT_QUOTES, 'UTF-8') ?>">
+                                               for="<?= htmlspecialchars($optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                               data-score-preset="<?= htmlspecialchars($optionFormatted, ENT_QUOTES, 'UTF-8') ?>">
                                             <?= htmlspecialchars($optionLabel, ENT_QUOTES, 'UTF-8') ?>
                                         </label>
                                     <?php endforeach; ?>
