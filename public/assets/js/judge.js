@@ -141,7 +141,7 @@
         }
 
         options.forEach((option) => {
-            option.addEventListener('change', () => {
+            const updateFromOption = () => {
                 if (!option.checked) {
                     return;
                 }
@@ -149,7 +149,24 @@
                 if (numeric !== null) {
                     applyValue(numeric);
                 }
-            });
+            };
+            option.addEventListener('change', updateFromOption);
+            option.addEventListener('click', updateFromOption);
+        });
+
+        widget.addEventListener('click', (event) => {
+            const preset = event.target.closest('[data-score-preset]');
+            if (!preset || !widget.contains(preset)) {
+                return;
+            }
+            const raw = preset.getAttribute('data-score-preset');
+            if (!raw) {
+                return;
+            }
+            const numeric = parseNumber(raw);
+            if (numeric !== null) {
+                applyValue(numeric);
+            }
         });
 
         manual.addEventListener('input', () => {

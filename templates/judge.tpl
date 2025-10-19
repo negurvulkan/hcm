@@ -455,7 +455,8 @@ if ($start) {
                                                value="<?= htmlspecialchars($optionFormatted, ENT_QUOTES, 'UTF-8') ?>"
                                                data-score-option <?= $isChecked ? 'checked' : '' ?>>
                                         <label class="btn <?= $buttonClass ?> mb-1"
-                                               for="<?= htmlspecialchars($optionId, ENT_QUOTES, 'UTF-8') ?>">
+                                               for="<?= htmlspecialchars($optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                               data-score-preset="<?= htmlspecialchars($optionFormatted, ENT_QUOTES, 'UTF-8') ?>">
                                             <?= htmlspecialchars($optionLabel, ENT_QUOTES, 'UTF-8') ?>
                                         </label>
                                     <?php endforeach; ?>
