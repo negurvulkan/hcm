@@ -2,6 +2,7 @@
 require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
 require_once __DIR__ . '/app/helpers/scoring.php';
+require_once __DIR__ . '/app/helpers/judge.php';
 
 use App\CustomFields\CustomFieldManager;
 use App\CustomFields\CustomFieldRepository;
@@ -353,99 +354,3 @@ render_page('judge.tpl', [
     'startStateCounts' => $startStateCounts,
     'extraScripts' => ['public/assets/js/entity-info.js', 'public/assets/js/judge.js'],
 ]);
-
-function judge_identifier(array $user): string
-{
-    if (!empty($user['id'])) {
-        return 'judge:' . (int) $user['id'];
-    }
-    $token = $user['email'] ?? $user['name'] ?? uniqid('judge', true);
-    return 'judge:' . substr(hash('sha1', $token), 0, 12);
-}
-
-function judge_normalize_field_values(array $definitions, array $values): array
-{
-    $normalized = [];
-    foreach ($definitions as $definition) {
-        $id = $definition['id'] ?? null;
-        if (!$id) {
-            continue;
-        }
-        $type = $definition['type'] ?? 'number';
-        $value = $values[$id] ?? ($definition['default'] ?? null);
-        if ($type === 'set') {
-            $normalized[$id] = is_array($value) ? array_values(array_unique($value)) : [];
-        } elseif ($type === 'boolean') {
-            $normalized[$id] = (bool) $value;
-        } elseif ($type === 'number' || $type === 'time') {
-            $normalized[$id] = $value !== null && $value !== '' ? (float) $value : null;
-        } elseif ($type === 'text' || $type === 'textarea') {
-            if ($value === null) {
-                $normalized[$id] = null;
-            } else {
-                $stringValue = (string) $value;
-                $normalized[$id] = $stringValue === '' ? null : $stringValue;
-            }
-        } else {
-            $normalized[$id] = $value;
-        }
-    }
-    return $normalized;
-}
-
-function judge_normalize_component_values(array $components, array $values): array
-{
-    $normalized = [];
-    foreach ($components as $component) {
-        $id = $component['id'] ?? null;
-        if (!$id) {
-            continue;
-        }
-        $normalized[$id] = $values[$id] ?? null;
-    }
-    return $normalized;
-}
-
-function judge_parse_fields(array $definitions, array $payload): array
-{
-    $parsed = [];
-    foreach ($definitions as $definition) {
-        $id = $definition['id'] ?? null;
-        if (!$id) {
-            continue;
-        }
-        $type = $definition['type'] ?? 'number';
-        $raw = $payload[$id] ?? null;
-        if ($type === 'set') {
-            $parsed[$id] = is_array($raw) ? array_values(array_unique(array_filter($raw, static fn($item) => $item !== '' && $item !== null))) : [];
-        } elseif ($type === 'boolean') {
-            $parsed[$id] = !empty($raw);
-        } elseif ($type === 'number' || $type === 'time') {
-            $parsed[$id] = $raw === '' || $raw === null ? null : (float) $raw;
-        } elseif ($type === 'text' || $type === 'textarea') {
-            if ($raw === null) {
-                $parsed[$id] = null;
-            } else {
-                $stringValue = (string) $raw;
-                $parsed[$id] = $stringValue === '' ? null : $stringValue;
-            }
-        } else {
-            $parsed[$id] = $raw;
-        }
-    }
-    return $parsed;
-}
-
-function judge_parse_components(array $definitions, array $payload): array
-{
-    $parsed = [];
-    foreach ($definitions as $definition) {
-        $id = $definition['id'] ?? null;
-        if (!$id) {
-            continue;
-        }
-        $value = $payload[$id] ?? null;
-        $parsed[$id] = $value === '' || $value === null ? null : (float) $value;
-    }
-    return $parsed;
-}
