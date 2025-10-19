@@ -23,14 +23,24 @@ $groupedMenu = [];
 foreach ($menu as $path => $item) {
     $group = $item['group'] ?? 'overview';
     $groupPriority = $item['group_priority'] ?? null;
+    $groupLabelKey = $item['group_label_key'] ?? null;
+    $groupLabelTranslations = $item['group_label_translations'] ?? [];
     if (!isset($groupedMenu[$group])) {
         $groupedMenu[$group] = [
             'priority' => $groupPriority ?? 999,
             'items' => [],
+            'label_key' => $groupLabelKey,
+            'label_translations' => is_array($groupLabelTranslations) ? $groupLabelTranslations : [],
         ];
     }
     if ($groupPriority !== null) {
         $groupedMenu[$group]['priority'] = min($groupedMenu[$group]['priority'], $groupPriority);
+    }
+    if ($groupLabelKey !== null) {
+        $groupedMenu[$group]['label_key'] = $groupLabelKey;
+    }
+    if (!empty($groupLabelTranslations) && is_array($groupLabelTranslations)) {
+        $groupedMenu[$group]['label_translations'] = array_merge($groupedMenu[$group]['label_translations'], array_filter($groupLabelTranslations, static fn ($value) => is_string($value) && $value !== ''));
     }
     $groupedMenu[$group]['items'][$path] = $item;
 }
@@ -77,7 +87,7 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                     <div class="small text-uppercase text-muted fw-semibold mb-1 d-none d-lg-flex align-items-center gap-2">
                         <?= htmlspecialchars(t('layout.nav.quick_access'), ENT_QUOTES, 'UTF-8') ?>
                         <?php if (($user['role'] ?? null) === 'admin'): ?>
-                            <a class="link-light small" href="instance.php#nav-config"><?= htmlspecialchars(t('layout.nav.quick_edit'), ENT_QUOTES, 'UTF-8') ?></a>
+                            <a class="link-light small" href="navigation.php"><?= htmlspecialchars(t('layout.nav.quick_edit'), ENT_QUOTES, 'UTF-8') ?></a>
                         <?php endif; ?>
                     </div>
                     <div class="app-topbar__quick-list d-flex flex-lg-wrap gap-2 overflow-auto">
@@ -92,7 +102,7 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                 <div class="app-topbar__quick-actions ms-3 d-none d-lg-block">
                     <div class="small text-uppercase text-muted fw-semibold mb-1 d-flex align-items-center gap-2">
                         <?= htmlspecialchars(t('layout.nav.quick_access'), ENT_QUOTES, 'UTF-8') ?>
-                        <a class="link-light small" href="instance.php#nav-config"><?= htmlspecialchars(t('layout.nav.quick_edit'), ENT_QUOTES, 'UTF-8') ?></a>
+                        <a class="link-light small" href="navigation.php"><?= htmlspecialchars(t('layout.nav.quick_edit'), ENT_QUOTES, 'UTF-8') ?></a>
                     </div>
                     <div class="text-muted small"><?= htmlspecialchars(t('layout.nav.quick_empty_admin'), ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
@@ -160,9 +170,20 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                         $primaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'primary');
                         $secondaryItems = array_filter($groupItems, static fn ($item) => ($item['variant'] ?? 'primary') === 'secondary');
                         ?>
+                        <?php
+                        $groupTranslations = $groupData['label_translations'] ?? [];
+                        $groupLabel = '';
+                        if (is_array($groupTranslations) && isset($groupTranslations[$currentLocale]) && $groupTranslations[$currentLocale] !== '') {
+                            $groupLabel = $groupTranslations[$currentLocale];
+                        } elseif (!empty($groupData['label_key'])) {
+                            $groupLabel = t($groupData['label_key']);
+                        } else {
+                            $groupLabel = t('nav.groups.' . $group);
+                        }
+                        ?>
                         <div class="app-sidebar__group">
                             <button class="app-sidebar__group-toggle text-uppercase small text-muted" id="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-expanded="<?= $containsActive ? 'true' : 'false' ?>" aria-controls="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>">
-                                <span><?= htmlspecialchars(t('nav.groups.' . $group), ENT_QUOTES, 'UTF-8') ?></span>
+                                <span><?= htmlspecialchars($groupLabel, ENT_QUOTES, 'UTF-8') ?></span>
                                 <span class="app-sidebar__group-caret" aria-hidden="true"></span>
                             </button>
                             <div class="collapse app-sidebar__collapse-group<?= $containsActive ? ' show' : '' ?>" id="<?= htmlspecialchars($groupCollapseId, ENT_QUOTES, 'UTF-8') ?>" aria-labelledby="<?= htmlspecialchars($groupLabelId, ENT_QUOTES, 'UTF-8') ?>">
