@@ -2,212 +2,228 @@
 
 ## Deutsch
 
-### Überblick
-Das Scoring-Regel-System beschreibt als JSON-Objekt, wie Richterbewertungen, Zusatzfelder und Zeitstrafen zu einem Endergebnis verarbeitet werden. Jede Regel wird beim Speichern mit Standardwerten ergänzt, damit auch unvollständige Eingaben gültig bleiben.
+# Übersicht: Scoring-Schema-Definition
 
-### Top-Level-Struktur
-- `version` (String) – Regelversion zur Nachverfolgung.
-- `id` (String) & `label` (String) – interne Kennung und sprechender Name der Regel.
-- `input` (Objekt) – Definition der erwarteten Eingaben (siehe unten).
-- `penalties` (Array) – konfigurierbare Strafpunkte oder Eliminierungen.
-- `time` (Objekt) – Zeitmodus und Parameter (z. B. erlaubte Zeit, Bonus/Faults).
-- `per_judge_formula` (String) – Ausdruck zur Berechnung der Richter-Einzelnoten.
-- `aggregate_formula` (String) – Ausdruck für die Gesamtnote nach Aggregation, Zeit und Strafen.
-- `ranking` (Objekt) – Sortierreihenfolge und Tie-Break-Kette.
-- `output` (Objekt) – Rundung, Einheit und Anzeigeoptionen.
-
-### Eingaben (`input`)
-- `judges`
-  - `min` / `max` – erlaubte Anzahl an Richtern (Validierung vor Berechnung).
-  - `aggregation`
-    - `method` – `mean`, `median` oder `weighted_mean` (Default: `mean`).
-    - `drop_high` / `drop_low` – Anzahl höchster/tiefster Noten, die vor der Aggregation entfernt werden.
-    - `weights` – Gewichtung pro Richter-ID für `weighted_mean`.
-- `fields` – zusätzliche Eingabefelder außerhalb der Richterwerte (z. B. Zeit, Fehlerpunkte). Jeder Eintrag enthält `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required` sowie Grenzen (`min`, `max`). Für `type: "set"` wird zusätzlich ein `options`-Array mit erlaubten Werten erwartet, `number` kann über `step` und `decimals` gesteuert werden. Textfelder (`text`) sind einzeilig, mehrzeilige Textfelder (`textarea`) können optional über `rows` in der Höhe angepasst werden. Die Felddaten stehen später im Kontext `fields.<id>` für Formeln und Validierungen bereit.
-- `components` – pro Richter zu erfassende Bewertungskomponenten mit `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Komponenten müssen eindeutige IDs besitzen; sonst schlägt die Validierung fehl. Ein einfaches Beispiel:
-  ```json
-  "components": [
-    { "id": "C1", "label": "Trabverstärkungen", "min": 0, "max": 10, "step": 0.5, "weight": 1 },
-    { "id": "IMP", "label": "Impression", "min": 0, "max": 10, "step": 0.5, "weight": 0.5 }
-  ]
-  ```
-  Ältere Regeln mit `lessons` werden automatisch in dieses Komponenten-Format überführt, sobald sie geladen oder gespeichert werden.
-
-### Strafen (`penalties`)
-Jede Strafe ist ein Objekt mit folgenden Feldern:
-- `id` (optional) & `label` – Kennung und Beschreibung.
-- `when` – Ausdruck, der entscheidet, ob die Strafe angewendet wird. Fehlt `when`, wird die Strafe immer angewendet.
-- `points` – Ausdruck, der die Strafpunkte berechnet. Wird ignoriert, wenn `eliminate` gesetzt ist.
-- `eliminate` (bool) – markiert den Teilnehmer als eliminiert und beendet die Strafverarbeitung.
-
-### Zeitkonfiguration (`time`)
-- `mode` – `none`, `faults_from_time` (Überzeit erzeugt Strafpunkte) oder `score_bonus` (Unterzeit erzeugt Bonus).
-- `allowed_s` – erlaubte Zeit in Sekunden.
-- `fault_per_s` – Faktor für Strafpunkte bzw. Bonus pro Sekunde Differenz.
-- `cap_s` – optionales Maximum für berücksichtigte Überzeit (nur `faults_from_time`).
-
-### Formeln und Ausdrücke
-Formeln sind Mini-Ausdrücke, die vom Ausdrucksparser ausgewertet werden. Kontextvariablen:
-- `components` – Map der Richter-Komponenten (im Aggregat bei `aggregate_formula`).
-- `fields` – zusätzliche Felddaten (z. B. Zeit).
-- `aggregate.score` – Durchschnitt/Median der Richterwertungen.
-- `penalties.total` und `penalties.applied` – bisherige Strafpunkte.
-- `time.faults`, `time.bonus`, `time.seconds` – Ergebnis der Zeitberechnung.
-
-Verfügbare Funktionen: `sum`, `mean`, `min`, `max`, `if`, `clamp`, `round`, `coalesce`, `weighted`, `contains` sowie kontextbasierte Funktionen aus `__functions` (derzeit keine Standardfunktionen). Booleans und Vergleichsoperatoren (`<`, `<=`, `>`, `>=`, `==`, `!=`) werden unterstützt. Arrays erhalten automatisch Methoden wie `.contains(x)` über die Punktnotation.
-
-### Ranking
-- `order` – `desc` für absteigend (höhere Werte sind besser) oder `asc` für aufsteigend (niedrigere Werte sind besser).
-- `tiebreak_chain` – Liste von Kriterien:
-  - `best_component:<ID>` – vergleicht eine einzelne Komponente.
-  - `least_time` – bevorzugt geringere Zeitwerte.
-  - `lowest_penalties` – bevorzugt weniger Strafpunkte.
-  - `random_draw` / `run_off` – Zufallsauswahl bzw. manueller Stechen-Hinweis.
-
-### Ausgabe (`output`)
-- `rounding` – Anzahl Dezimalstellen der Endnote.
-- `unit` – Einheit (z. B. `pts`, `Fehler`).
-- `show_breakdown` – steuert die Anzeige der Einzelwertungen in der UI.
-
-### Validierung & Snapshots
-Die Engine prüft die Anzahl der Richter, Wertebereiche der Komponenten und vervollständigt fehlende Felder mit Defaults. Fehlerhafte Regeln (z. B. doppelte Komponenten ohne ID) werfen eine Exception. Für Ergebnissnapshots wird eine sortierte Version der Regel inkl. Hash gespeichert.
-
-### Beispiel
-```json
-{
-  "version": "1",
-  "id": "dressage.generic.v1",
-  "label": "Dressur v1",
-  "input": {
-    "judges": {
-      "min": 1,
-      "max": 3,
-      "aggregation": { "method": "mean" }
-    },
-    "fields": [],
-    "components": [
-      { "id": "C1", "label": "Trab", "min": 0, "max": 10, "step": 0.5, "weight": 1 }
-    ]
-  },
-  "penalties": [],
-  "time": { "mode": "none" },
-  "per_judge_formula": "weighted(components)",
-  "aggregate_formula": "aggregate.score - penalties.total",
-  "ranking": {
-    "order": "desc",
-    "tiebreak_chain": ["best_component:C1"]
-  },
-  "output": { "rounding": 2, "unit": "Punkte" }
-}
-```
+Das **Scoring-Schema** beschreibt die gesamte Bewertungslogik einer Prüfung
+in einem standardisierten JSON-Format. Es ist modular aufgebaut und kann
+Dressur, Western, Springen, Vielseitigkeit oder andere Reitdisziplinen abbilden.
 
 ---
 
-## English
+## Top-Level-Struktur
 
-### Overview
-The scoring rule system uses a JSON object to describe how judge inputs, auxiliary fields, penalties, and timing are combined into a final score. Whenever a rule is saved, missing fields are filled with defaults to keep the structure valid.
+| Feld          | Typ                                              | Beschreibung                                             |
+| ------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| `id`          | String                                           | Eindeutiger Schlüssel (z. B. `dressage.a.fn.v1`)         |
+| `label`       | String                                           | Menschlich lesbarer Name der Regel                       |
+| `description` | String                                           | (Optional) Langtext zur Beschreibung                     |
+| `mode`        | Enum: `scale`, `adjustment`, `penalty`, `hybrid` | Bewertungslogik auf globaler Ebene                       |
+| `judges`      | Objekt                                           | Definition der Richter (Anzahl, Gewichtung, Aggregation) |
+| `scoring`     | Objekt                                           | Kern der Bewertungslogik: Komponenten, Strafen, Formeln  |
+| `metadata`    | Objekt                                           | Disziplin- und Organisationsinfos (z. B. FN, AQHA etc.)  |
 
-### Top-Level Structure
-- `version` (string) – rule version for traceability.
-- `id` & `label` (string) – internal identifier and human-readable name.
-- `input` (object) – describes expected inputs (see below).
-- `penalties` (array) – configurable penalties or eliminations.
-- `time` (object) – timing mode and parameters (allowed time, fault/bonus rate, etc.).
-- `per_judge_formula` (string) – expression for per-judge scores.
-- `aggregate_formula` (string) – expression for the final total after aggregation, penalties, and time adjustments.
-- `ranking` (object) – sorting direction and tie-break chain.
-- `output` (object) – rounding precision, unit, and display preferences.
+---
 
-### Inputs (`input`)
-- `judges`
-  - `min` / `max` – allowed number of judges (validated before scoring).
-  - `aggregation`
-    - `method` – `mean`, `median`, or `weighted_mean` (default: `mean`).
-    - `drop_high` / `drop_low` – count of highest/lowest scores to discard before aggregation.
-    - `weights` – per-judge weights for `weighted_mean`.
-- `fields` – additional inputs outside judge components (e.g., time, fault points). Each entry carries `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required`, and numeric bounds (`min`, `max`). For `type: "set"` provide an `options` array of allowed values, while `number` may specify `step` and `decimals`. Single-line text inputs use `type: "text"`, while multi-line inputs use `type: "textarea"` and may optionally define `rows` to control their height. Collected values are later exposed to formulas and validators via `fields.<id>`.
-- `components` – judge-entered components with `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Every component must have a unique `id`; otherwise validation fails. Each component can also define a `scoreType` (alias `calcType`) that controls how the entered value is translated into points:
-  - `scale` (default) – numeric scale with `min`/`max`/`step` (e.g. dressage 0–10).
-  - `delta` – numeric delta scores (e.g. western maneuver -1.5…+1.5).
-  - `binary` – boolean input; values >0 or truthy words (`yes`, `pass`, …) yield the configured `max` points, otherwise `min`.
-  - `count` – frequency counts multiplied by `factor` (defaults to 1.0).
-  - `time` – raw seconds with optional `toPointsExpr` expression (`value` = seconds) to derive points.
-  - `custom` – arbitrary `calcExpr` expression with access to `value`, `raw`, `fields`, `components`, and `raw_components`.
+## Bewertungsmodi (`mode`)
 
-  Example:
-  ```json
-  "components": [
-    { "id": "C1", "label": "Trot extensions", "scoreType": "scale", "min": 0, "max": 10, "step": 0.5, "weight": 1 },
-    { "id": "IMP", "label": "Impression", "scoreType": "scale", "min": 0, "max": 10, "step": 0.5, "weight": 0.5 }
-  ]
-  ```
-  Legacy rules that still contain a `lessons` array are migrated to this component structure during load/save operations.
+| Modus        | Beschreibung                                  | Beispiel                  |
+| ------------ | --------------------------------------------- | ------------------------- |
+| `scale`      | Bewertung jeder Lektion mit Note (z. B. 0–10) | Dressur, Western Dressage |
+| `adjustment` | Startwert + / − Anpassungen (Maneuvers)       | Western Riding            |
+| `penalty`    | Fehler-/Zeitpunktesystem                      | Springen, Eventing        |
+| `hybrid`     | Kombination (z. B. Kür: Note + Strafen)       | Dressur Kür, Trail        |
 
-### Penalties (`penalties`)
-Each penalty entry contains:
-- `id` (optional) & `label` – identifier and description.
-- `when` – expression deciding whether the penalty applies. If omitted, the penalty always applies.
-- `points` – expression producing penalty points. Ignored when `eliminate` is set.
-- `eliminate` (bool) – flags the competitor as eliminated and stops penalty processing.
+---
 
-### Time Configuration (`time`)
-- `mode` – `none`, `faults_from_time` (overtime adds faults), or `score_bonus` (undertime adds bonus).
-- `allowed_s` – allowed time in seconds.
-- `fault_per_s` – rate for faults/bonus per second difference.
-- `cap_s` – optional cap for overtime considered in `faults_from_time`.
+## Richterkonfiguration (`judges`)
 
-### Formulas & Expressions
-Expressions are parsed and executed by the expression engine. Available context variables include:
-- `components` – component scores (per judge or aggregated).
-- `fields` – additional field inputs.
-- `aggregate.score` – judge aggregation result.
-- `penalties.total` / `penalties.applied` – accumulated penalties.
-- `time.faults`, `time.bonus`, `time.seconds` – computed timing data.
-
-Supported functions: `sum`, `mean`, `min`, `max`, `if`, `clamp`, `round`, `coalesce`, `weighted`, `contains`, plus any callable registered via `__functions`. Logical and comparison operators (`<`, `<=`, `>`, `>=`, `==`, `!=`) are available. Arrays offer helper access like `.contains(x)` through dot notation.
-
-### Ranking
-- `order` – `desc` for higher-is-better or `asc` for lower-is-better rankings.
-- `tiebreak_chain` – list of criteria applied in order:
-  - `best_component:<ID>` – compare a single component score.
-  - `least_time` – prefer smaller time values.
-  - `lowest_penalties` – prefer lower total penalties.
-  - `random_draw` / `run_off` – random seed or manual runoff hint.
-
-### Output (`output`)
-- `rounding` – decimal places for the rounded total.
-- `unit` – measurement unit (e.g., `pts`, `faults`).
-- `show_breakdown` – controls whether judge breakdowns appear in the UI.
-
-### Validation & Snapshots
-The engine validates judge counts, component ranges, and fills missing fields with defaults. Rules without component IDs trigger exceptions. For published results, a normalized rule snapshot including a SHA-256 hash is stored.
-
-### Example
 ```json
-{
-  "version": "1",
-  "id": "dressage.generic.v1",
-  "label": "Dressage v1",
-  "input": {
-    "judges": {
-      "min": 1,
-      "max": 3,
-      "aggregation": { "method": "mean" }
-    },
-    "fields": [],
-    "components": [
-      { "id": "C1", "label": "Trot", "min": 0, "max": 10, "step": 0.5, "weight": 1 }
-    ]
-  },
-  "penalties": [],
-  "time": { "mode": "none" },
-  "per_judge_formula": "weighted(components)",
-  "aggregate_formula": "aggregate.score - penalties.total",
-  "ranking": {
-    "order": "desc",
-    "tiebreak_chain": ["best_component:C1"]
-  },
-  "output": { "rounding": 2, "unit": "points" }
+"judges": {
+  "min": 1,
+  "max": 3,
+  "positions": ["C", "E", "M"],
+  "aggregationMethod": "mean",
+  "weights": { "C": 1.0, "E": 0.9, "M": 0.9 },
+  "dropHigh": 0,
+  "dropLow": 0
 }
 ```
+
+### Optionen
+
+* `aggregationMethod`: `mean`, `median`, `weightedMean`, `sum`, `custom`
+* `dropHigh` / `dropLow`: entfernt Ausreißer vor Aggregation
+* `customAggregation`: Script- oder Ausdruck, wenn nötig
+* `weights`: Gewichtung pro Richter oder Position
+* `positions`: für FEI- oder FN-konforme Wertungen
+
+---
+
+## Bewertungslogik (`scoring`)
+
+### 1. Components – Lektionen, Manöver, Sammelnoten
+
+Jede zu bewertende Einheit ist ein **Component**.
+
+```json
+{
+  "id": "L1",
+  "label": "Einreiten, Halten, Grüßen",
+  "scoreType": "scale",
+  "min": 0, "max": 10, "step": 0.5,
+  "weight": 1,
+  "group": "lesson",
+  "section": "Einfahrt",
+  "code": "L1"
+}
+```
+
+| Feld                                | Beschreibung                                        |
+| ----------------------------------- | --------------------------------------------------- |
+| `id`                                | Eindeutige Kennung                                  |
+| `label`                             | Anzeigetext                                         |
+| `scoreType`                         | Berechnungs-/Eingabetyp (siehe unten)               |
+| `min` / `max` / `step` / `decimals` | Zahlenbereich & Schrittweite                        |
+| `weight` / `coefficient`            | Gewichtung in der Endnote                           |
+| `group`                             | `"lesson"`, `"collective"`, `"maneuver"`, `"other"` |
+| `section`                           | Visuelle Gruppierung (z. B. Trab, Galopp)           |
+| `code`                              | Referenz aus Aufgabenheft                           |
+| `ui`                                | Anzeige-Optionen (`hint`, `visible`, `readonly`)    |
+
+---
+
+### 2. scoreType (pro Komponente)
+
+| scoreType | Beschreibung                            | Typische UI                 |
+| --------- | --------------------------------------- | --------------------------- |
+| `scale`   | Klassische 0–10 Note                    | Button-Group (Radio Toggle) |
+| `delta`   | Startwert ± Anpassung (z. B. −1.5…+1.5) | Neg./Pos. Buttons           |
+| `count`   | Häufigkeit × Faktor                     | Spinner/Counter             |
+| `time`    | Zeitwert (mm:ss → Punkte)               | Eingabefeld + Stoppuhr      |
+| `binary`  | Ja/Nein = 0/10                          | Switch/Checkbox             |
+| `custom`  | Berechnet aus Ausdruck (`calcExpr`)     | Read-Only                   |
+
+---
+
+### 3. Startwert & Adjustments
+
+```json
+"startValue": 70,
+"adjustments": [
+  { "id": "M1", "label": "Maneuver 1", "min": -1.5, "max": 1.5, "step": 0.5 }
+]
+```
+
+> Wird genutzt, wenn `mode = adjustment` oder `hybrid`.
+> Beispiel: Western Riding mit Startwert 70 und ± Manöverwertungen.
+
+---
+
+### 4. Penalties & Time
+
+#### Penalties
+
+```json
+"penalties": [
+  { "id": "ERR1", "label": "Fehler in der Aufgabe", "type": "deduction", "value": 2 },
+  { "id": "ELIM", "label": "Eliminierung", "type": "elimination", "eliminate": true }
+]
+```
+
+#### Zeitsteuerung
+
+```json
+"time": {
+  "mode": "faults_from_time",
+  "allowedSeconds": 300,
+  "faultPerSecond": 0.2
+}
+```
+
+> Modus:
+>
+> * `faults_from_time` = Überzeit → Strafpunkte
+> * `score_bonus` = Unterzeit → Bonus
+> * `elimination_from_time` = Disqualifikation
+
+---
+
+### 5. Formeln
+
+| Ebene         | Feld               | Beispiel                              |
+| ------------- | ------------------ | ------------------------------------- |
+| Pro Richter   | `perJudgeFormula`  | `"weighted(components)"`              |
+| Gesamtwertung | `aggregateFormula` | `"aggregate.score - penalties.total"` |
+
+Optional:
+`calcExpr` / `toPointsExpr` innerhalb einzelner Components (z. B. `time` oder `custom`).
+
+---
+
+### 6. Rundung & Ausgabe
+
+```json
+"rounding": {
+  "decimals": 2,
+  "unit": "%",
+  "normalizeToPercent": true
+}
+```
+
+* **normalizeToPercent**: rechnet automatisch auf 0–100 % bezogen auf theoretisches Maximum.
+* Einheit: `"%"`, `"Punkte"`, `"Sek."` etc.
+
+---
+
+### 7. Tiebreakers
+
+```json
+"tiebreakers": [
+  { "type": "highestComponent", "componentId": "C3" },
+  { "type": "lowestPenalties" },
+  { "type": "random" }
+]
+```
+
+| Typ                                    | Beschreibung                             |
+| -------------------------------------- | ---------------------------------------- |
+| `highestComponent` / `lowestComponent` | Direktvergleich bestimmter Komponente    |
+| `bestOfGroup`                          | Mittelwert einer Gruppe (z. B. „lesson“) |
+| `lowestPenalties`                      | Geringste Strafpunkte                    |
+| `fastestTime`                          | Kürzeste Zeit                            |
+| `runOff` / `random`                    | Stechen / Zufallsauswahl                 |
+| `custom`                               | Ausdruck definierbar                     |
+
+---
+
+## 🏁 Workflow
+
+1. **Regel anlegen** (JSON-Objekt nach Schema)
+2. **Validierung** → Schema-Check + Ausdrucksprüfung
+3. **UI generieren** (Widgets je scoreType)
+4. **Eingabe der Werte** durch Richter:innen
+5. **Formelauswertung** (`perJudgeFormula` → `aggregateFormula`)
+6. **Normalisierung** & Rundung
+7. **Ranking** nach `tiebreakers`
+
+---
+
+## 🧾 Beispiel (FN A-Dressur)
+
+```json
+{
+  "id": "dressage.a.fn.v1",
+  "label": "FN A-Dressur",
+  "mode": "scale",
+  "judges": { "min": 1, "max": 3, "aggregationMethod": "mean" },
+  "scoring": {
+    "components": [
+      { "id": "L1", "label": "Einreiten, Halten, Grüßen", "scoreType": "scale", "min": 0, "max": 10, "step": 0.5, "weight": 1, "group": "lesson" },
+      { "id": "C3", "label": "Sitz & Einwirkung", "scoreType": "scale", "min": 0, "max": 10, "step": 0.5, "weight": 2, "group": "collective" }
+    ],
+    "perJudgeFormula": "weighted(components)",
+    "aggregateFormula": "aggregate.score - penalties.total",
+    "rounding": { "decimals": 2, "unit": "%", "normalizeToPercent": true }
+  },
+  "metadata": { "discipline": "Dressur", "level": "A", "organization": "FN" }
+}
