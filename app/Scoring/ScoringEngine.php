@@ -43,14 +43,12 @@ class ScoringEngine
         $fields = $input['fields'] ?? [];
         $judges = $input['judges'] ?? [];
         $componentDefinitions = $rule['input']['components'] ?? [];
-        $lessonDefinitions = $rule['input']['lessons'] ?? [];
         $result = [];
         foreach ($judges as $key => $judgeInput) {
-            $components = $this->extractJudgeValues($componentDefinitions, $judgeInput['components'] ?? []);
-            $lessons = $this->extractJudgeValues($lessonDefinitions, $judgeInput['lessons'] ?? []);
+            $rawValues = $this->mergeJudgeComponentPayload($judgeInput);
+            $components = $this->extractJudgeValues($componentDefinitions, $rawValues);
             $context = [
                 'components' => $components,
-                'lessons' => $lessons,
                 'fields' => $fields,
                 '__weights' => $weights,
             ];
@@ -60,7 +58,6 @@ class ScoringEngine
                 'id' => $judgeInput['id'] ?? (is_string($key) ? $key : 'judge_' . $key),
                 'score' => (float) $score,
                 'components' => $components,
-                'lessons' => $lessons,
             ];
         }
         return $result;
@@ -125,28 +122,14 @@ class ScoringEngine
         }
 
         $componentTotals = [];
-        $lessonTotals = [];
         foreach ($kept as $entry) {
-            foreach ($entry['components'] as $componentId => $componentValue) {
+            foreach ($this->combinedJudgeComponents($entry) as $componentId => $componentValue) {
                 $componentTotals[$componentId][] = (float) $componentValue;
-            }
-            foreach ($entry['lessons'] ?? [] as $lessonId => $lessonValue) {
-                if ($lessonValue === null) {
-                    continue;
-                }
-                $lessonTotals[$lessonId][] = (float) $lessonValue;
             }
         }
         $componentScores = [];
         foreach ($componentTotals as $componentId => $values) {
             $componentScores[$componentId] = [
-                'score' => $values ? array_sum($values) / count($values) : 0.0,
-                'judges' => $values,
-            ];
-        }
-        $lessonScores = [];
-        foreach ($lessonTotals as $lessonId => $values) {
-            $lessonScores[$lessonId] = [
                 'score' => $values ? array_sum($values) / count($values) : 0.0,
                 'judges' => $values,
             ];
@@ -158,7 +141,6 @@ class ScoringEngine
             'method' => $method,
             'dropped' => array_values($droppedIds),
             'components' => $componentScores,
-            'lessons' => $lessonScores,
         ];
     }
 
@@ -280,11 +262,6 @@ class ScoringEngine
                 $weights[$component['id']] = (float) ($component['weight'] ?? 1.0);
             }
         }
-        foreach (($rule['input']['lessons'] ?? []) as $lesson) {
-            if (!empty($lesson['id'])) {
-                $weights[$lesson['id']] = (float) ($lesson['weight'] ?? 1.0);
-            }
-        }
         return $weights;
     }
 
@@ -294,7 +271,6 @@ class ScoringEngine
             'aggregate' => ['score' => $aggregate['score'] ?? 0.0],
             'per_judge' => array_map(static fn($entry) => $entry['score'], $perJudge),
             'components' => $aggregate['components'] ?? [],
-            'lessons' => $aggregate['lessons'] ?? [],
             'fields' => $fields,
             'penalties' => $penalties + ['total' => $penalties['total'] ?? 0.0],
             'time' => $time ?? ['mode' => 'none'],
@@ -306,9 +282,6 @@ class ScoringEngine
     {
         $weights = [];
         foreach ($aggregate['components'] ?? [] as $id => $component) {
-            $weights[$id] = 1.0;
-        }
-        foreach ($aggregate['lessons'] ?? [] as $id => $lesson) {
             $weights[$id] = 1.0;
         }
         return $weights;
@@ -428,15 +401,10 @@ class ScoringEngine
                 $components[$component['id']] = $component;
             }
         }
-        $lessons = [];
-        foreach ($rule['input']['lessons'] ?? [] as $lesson) {
-            if (!empty($lesson['id'])) {
-                $lessons[$lesson['id']] = $lesson;
-            }
-        }
         foreach (($input['judges'] ?? []) as $judge) {
+            $payload = $this->mergeJudgeComponentPayload($judge);
             foreach ($components as $componentId => $definition) {
-                $value = $judge['components'][$componentId] ?? null;
+                $value = $payload[$componentId] ?? null;
                 if ($value === null && !empty($definition['required'])) {
                     $errors[] = 'Komponente ' . $componentId . ' fehlt';
                     continue;
@@ -451,26 +419,10 @@ class ScoringEngine
                     }
                 }
             }
-            foreach ($lessons as $lessonId => $definition) {
-                $value = $judge['lessons'][$lessonId] ?? null;
-                if ($value === null && !empty($definition['required'])) {
-                    $errors[] = 'Lektion ' . $lessonId . ' fehlt';
-                    continue;
-                }
-                if ($value !== null) {
-                    $floatValue = (float) $value;
-                    if (isset($definition['min']) && $floatValue < (float) $definition['min']) {
-                        $errors[] = 'Lektion ' . $lessonId . ' unter Minimum';
-                    }
-                    if (isset($definition['max']) && $floatValue > (float) $definition['max']) {
-                        $errors[] = 'Lektion ' . $lessonId . ' über Maximum';
-                    }
-                }
-            }
         }
         return $errors ?: true;
     }
-    
+
     private function extractJudgeValues(array $definitions, array $values): array
     {
         $normalized = [];
@@ -487,5 +439,33 @@ class ScoringEngine
             $normalized[$id] = (float) $raw;
         }
         return $normalized;
+    }
+
+    private function mergeJudgeComponentPayload(array $judgeInput): array
+    {
+        $components = is_array($judgeInput['components'] ?? null) ? $judgeInput['components'] : [];
+        $lessons = is_array($judgeInput['lessons'] ?? null) ? $judgeInput['lessons'] : [];
+
+        foreach ($lessons as $id => $value) {
+            if (!array_key_exists($id, $components)) {
+                $components[$id] = $value;
+            }
+        }
+
+        return $components;
+    }
+
+    private function combinedJudgeComponents(array $entry): array
+    {
+        $components = is_array($entry['components'] ?? null) ? $entry['components'] : [];
+        $lessons = is_array($entry['lessons'] ?? null) ? $entry['lessons'] : [];
+
+        foreach ($lessons as $id => $value) {
+            if (!array_key_exists($id, $components)) {
+                $components[$id] = $value;
+            }
+        }
+
+        return $components;
     }
 }

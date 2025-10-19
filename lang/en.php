@@ -1516,7 +1516,6 @@ return [
                     'penalties_none' => 'none',
                     'time' => 'Time:',
                     'components' => 'Components:',
-                    'lessons' => 'Lessons:',
                     'tiebreak' => 'Tiebreak:',
                     'rule' => 'Rule:',
                 ],

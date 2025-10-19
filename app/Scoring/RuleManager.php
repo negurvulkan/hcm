@@ -67,7 +67,6 @@ class RuleManager
                     ['id' => 'penalties', 'label' => 'Penalties', 'type' => 'set', 'options' => [1, 2, 5]],
                 ],
                 'components' => [],
-                'lessons' => [],
             ],
             'penalties' => [],
             'time' => [
@@ -88,7 +87,11 @@ class RuleManager
                 'show_breakdown' => true,
             ],
         ];
-        return self::recursiveMerge($defaults, $rule);
+        $merged = self::recursiveMerge($defaults, $rule);
+        $merged = self::migrateLegacyLessons($merged);
+        $merged['input']['components'] = self::normalizeComponentList($merged['input']['components'] ?? []);
+
+        return $merged;
     }
 
     public static function normalizeForSnapshot(array $rule): array
@@ -106,14 +109,6 @@ class RuleManager
         foreach ($rule['input']['components'] as $component) {
             if (!isset($component['id'])) {
                 throw new RuntimeException('Komponente ohne ID');
-            }
-        }
-        if (isset($rule['input']['lessons']) && !is_array($rule['input']['lessons'])) {
-            throw new RuntimeException('lessons muss ein Array sein');
-        }
-        foreach ($rule['input']['lessons'] ?? [] as $lesson) {
-            if (!isset($lesson['id'])) {
-                throw new RuntimeException('Lektion ohne ID');
             }
         }
     }
@@ -238,7 +233,6 @@ class RuleManager
                             ['id' => 'C3', 'label' => 'Übergänge', 'min' => 0, 'max' => 10, 'step' => 0.5, 'weight' => 1],
                             ['id' => 'IMP', 'label' => 'Impression', 'min' => 0, 'max' => 10, 'step' => 0.5, 'weight' => 0.5],
                         ],
-                        'lessons' => [],
                     ],
                     'penalties' => [],
                     'time' => ['mode' => 'none'],
@@ -274,7 +268,6 @@ class RuleManager
                             ['id' => 'faults', 'label' => 'Fehlerpunkte', 'type' => 'number', 'min' => 0],
                         ],
                         'components' => [],
-                        'lessons' => [],
                     ],
                     'penalties' => [
                         ['id' => 'faults', 'when' => 'fields.faults > 0', 'points' => 'fields.faults', 'label' => 'Hindernisfehler'],
@@ -318,7 +311,6 @@ class RuleManager
                             ['id' => 'M2', 'label' => 'Spin', 'min' => -1.5, 'max' => 1.5, 'step' => 0.5],
                             ['id' => 'M3', 'label' => 'Lead Change', 'min' => -1.5, 'max' => 1.5, 'step' => 0.5],
                         ],
-                        'lessons' => [],
                     ],
                     'penalties' => [
                         ['id' => 'p1', 'when' => 'fields.penalties.contains(1)', 'points' => '1', 'label' => 'Kleine Fehler'],
@@ -358,6 +350,50 @@ class RuleManager
             }
         }
         return $defaults;
+    }
+
+    private static function migrateLegacyLessons(array $rule): array
+    {
+        if (!isset($rule['input']) || !is_array($rule['input'])) {
+            return $rule;
+        }
+
+        $components = is_array($rule['input']['components'] ?? null) ? $rule['input']['components'] : [];
+        $lessons = is_array($rule['input']['lessons'] ?? null) ? $rule['input']['lessons'] : [];
+
+        if ($lessons) {
+            foreach ($lessons as $lesson) {
+                if (!is_array($lesson)) {
+                    continue;
+                }
+                $components[] = $lesson;
+            }
+        }
+
+        unset($rule['input']['lessons']);
+        $rule['input']['components'] = $components;
+
+        return $rule;
+    }
+
+    private static function normalizeComponentList(array $components): array
+    {
+        $normalized = [];
+        foreach ($components as $component) {
+            if (!is_array($component)) {
+                continue;
+            }
+            $id = $component['id'] ?? null;
+            if (!$id) {
+                continue;
+            }
+            if (!isset($normalized[$id])) {
+                $normalized[$id] = [];
+            }
+            $normalized[$id] = array_merge($normalized[$id], $component);
+        }
+
+        return array_values($normalized);
     }
 
     private static function sortRecursive(array $data): array

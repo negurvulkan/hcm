@@ -36,6 +36,7 @@ $evaluation = $engine->evaluate($rule, $input);
 assertSame(2, count($evaluation['per_judge']), 'Two judges expected');
 assertTrue(abs($evaluation['per_judge'][0]['score'] - 7.642857) < 0.001, 'Weighted sum judge A');
 assertTrue(abs($evaluation['aggregate']['score'] - 7.464285) < 0.001, 'Average aggregate');
+assertTrue(!isset($evaluation['aggregate']['lessons']), 'Legacy lessons breakdown removed');
 
 $western = RuleManager::westernPreset();
 $westernInput = [
@@ -49,6 +50,32 @@ $westernInput = [
 $westernEval = $engine->evaluate($western, $westernInput);
 assertTrue(abs($westernEval['aggregate']['score'] - 70.0) < 0.001, 'Drop high/low mean');
 assertSame(1.0, $westernEval['totals']['penalties']['total'], 'Penalty applied');
+
+$legacyRule = RuleManager::mergeDefaults([
+    'id' => 'legacy.lessons',
+    'input' => [
+        'judges' => ['min' => 1, 'max' => 1],
+        'components' => [
+            ['id' => 'A', 'label' => 'A'],
+        ],
+        'lessons' => [
+            ['id' => 'L1', 'label' => 'Legacy', 'min' => 0, 'max' => 10],
+        ],
+    ],
+    'per_judge_formula' => 'sum(components)',
+    'aggregate_formula' => 'aggregate.score',
+]);
+assertTrue(!isset($legacyRule['input']['lessons']), 'Legacy lessons removed from merged rule');
+$legacyEval = $engine->evaluate($legacyRule, [
+    'fields' => [],
+    'judges' => [
+        ['id' => 'legacy', 'components' => ['A' => 5.0], 'lessons' => ['L1' => 7.0]],
+    ],
+]);
+assertTrue(abs(($legacyEval['per_judge'][0]['components']['L1'] ?? 0) - 7.0) < 0.001, 'Legacy lesson merged into components');
+assertTrue(abs(($legacyEval['per_judge'][0]['components']['A'] ?? 0) - 5.0) < 0.001, 'Component preserved alongside legacy lesson');
+assertTrue(isset($legacyEval['aggregate']['components']['L1']), 'Legacy lesson aggregated as component');
+assertTrue(!isset($legacyEval['aggregate']['lessons']), 'Aggregate no longer exposes lessons');
 
 $ruleWithElim = RuleManager::mergeDefaults([
     'id' => 'test.elim',
