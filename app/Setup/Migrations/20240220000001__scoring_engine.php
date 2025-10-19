@@ -1,7 +1,5 @@
 <?php
 
-use PDO;
-
 return [
     'description' => 'Add scoring engine columns',
     'up' => function (PDO $pdo, string $driver): void {

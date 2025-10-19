@@ -109,7 +109,11 @@ class NavigationRepository
 
     public function deleteGroup(int $id, string $role): void
     {
-        $this->pdo->beginTransaction();
+        $startedTransaction = false;
+        if (!$this->pdo->inTransaction()) {
+            $this->pdo->beginTransaction();
+            $startedTransaction = true;
+        }
         try {
             $deleteItems = $this->pdo->prepare('DELETE FROM navigation_items WHERE role = :role AND group_id = :group_id');
             $deleteItems->execute([
@@ -123,9 +127,13 @@ class NavigationRepository
                 'role' => $role,
             ]);
 
-            $this->pdo->commit();
+            if ($startedTransaction) {
+                $this->pdo->commit();
+            }
         } catch (Throwable $exception) {
-            $this->pdo->rollBack();
+            if ($startedTransaction) {
+                $this->pdo->rollBack();
+            }
             throw $exception;
         }
     }
@@ -135,7 +143,11 @@ class NavigationRepository
      */
     public function replaceItems(string $role, array $items): void
     {
-        $this->pdo->beginTransaction();
+        $startedTransaction = false;
+        if (!$this->pdo->inTransaction()) {
+            $this->pdo->beginTransaction();
+            $startedTransaction = true;
+        }
         try {
             $select = $this->pdo->prepare('SELECT id, item_key FROM navigation_items WHERE role = :role');
             $select->execute(['role' => $role]);
@@ -188,9 +200,13 @@ class NavigationRepository
                 }
             }
 
-            $this->pdo->commit();
+            if ($startedTransaction) {
+                $this->pdo->commit();
+            }
         } catch (Throwable $exception) {
-            $this->pdo->rollBack();
+            if ($startedTransaction) {
+                $this->pdo->rollBack();
+            }
             throw $exception;
         }
     }
@@ -201,7 +217,11 @@ class NavigationRepository
      */
     public function replaceLayout(string $role, array $groups, array $items): void
     {
-        $this->pdo->beginTransaction();
+        $startedTransaction = false;
+        if (!$this->pdo->inTransaction()) {
+            $this->pdo->beginTransaction();
+            $startedTransaction = true;
+        }
         try {
             $this->pdo->prepare('DELETE FROM navigation_items WHERE role = :role')->execute(['role' => $role]);
             $this->pdo->prepare('DELETE FROM navigation_groups WHERE role = :role')->execute(['role' => $role]);
@@ -243,9 +263,13 @@ class NavigationRepository
                 ]);
             }
 
-            $this->pdo->commit();
+            if ($startedTransaction) {
+                $this->pdo->commit();
+            }
         } catch (Throwable $exception) {
-            $this->pdo->rollBack();
+            if ($startedTransaction) {
+                $this->pdo->rollBack();
+            }
             throw $exception;
         }
     }
