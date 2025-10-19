@@ -19,6 +19,18 @@
         return /^\d+$/.test(part);
     }
 
+    function toList(value, cloneItems) {
+        if (Array.isArray(value)) {
+            return cloneItems ? value.map(function (item) { return deepClone(item); }) : value;
+        }
+        if (!value || typeof value !== 'object') {
+            return [];
+        }
+        return Object.keys(value).map(function (key) {
+            return cloneItems ? deepClone(value[key]) : value[key];
+        });
+    }
+
     function mergeWithDefaults(defaults, source) {
         var result = deepClone(defaults || {});
         if (!source || typeof source !== 'object') {
@@ -30,7 +42,9 @@
                 result[key] = value.map(function (item) { return deepClone(item); });
             } else if (value && typeof value === 'object' && !Array.isArray(value)) {
                 var defaultChild = defaults ? defaults[key] : undefined;
-                if (defaultChild && typeof defaultChild === 'object' && !Array.isArray(defaultChild)) {
+                if (Array.isArray(defaultChild)) {
+                    result[key] = toList(value, true);
+                } else if (defaultChild && typeof defaultChild === 'object' && !Array.isArray(defaultChild)) {
                     result[key] = mergeWithDefaults(defaultChild, value);
                 } else {
                     result[key] = deepClone(value);
@@ -222,27 +236,17 @@
         if (!this.state || typeof this.state !== 'object') {
             this.state = deepClone(this.defaults);
         }
-        if (!this.state.input) {
+        if (!this.state.input || typeof this.state.input !== 'object') {
             this.state.input = {};
         }
-        if (!Array.isArray(this.state.input.fields)) {
-            this.state.input.fields = [];
-        }
-        if (!Array.isArray(this.state.input.components)) {
-            this.state.input.components = [];
-        }
-        if (!Array.isArray(this.state.input.lessons)) {
-            this.state.input.lessons = [];
-        }
-        if (!Array.isArray(this.state.penalties)) {
-            this.state.penalties = [];
-        }
+        this.state.input.fields = toList(this.state.input.fields, false);
+        this.state.input.components = toList(this.state.input.components, false);
+        this.state.input.lessons = toList(this.state.input.lessons, false);
+        this.state.penalties = toList(this.state.penalties, false);
         if (!this.state.ranking) {
             this.state.ranking = {};
         }
-        if (!Array.isArray(this.state.ranking.tiebreak_chain)) {
-            this.state.ranking.tiebreak_chain = [];
-        }
+        this.state.ranking.tiebreak_chain = toList(this.state.ranking.tiebreak_chain, false);
 
         this.renderList('fields', this.state.input.fields, this.renderFieldRow.bind(this));
         this.renderList('components', this.state.input.components, this.renderComponentRow.bind(this));
