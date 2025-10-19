@@ -105,22 +105,27 @@ return [
             'choose_group' => 'Gruppe wählen …',
             'variant_primary' => 'Primär',
             'variant_secondary' => 'Sekundär',
+            'item_label' => 'Titel ({locale})',
+            'custom_item' => 'Benutzerdefinierter Link',
         ],
         'sections' => [
             'groups' => 'Gruppen',
             'add_group' => 'Neue Gruppe anlegen',
             'items' => 'Navigationspunkte',
+            'add_custom_item' => 'Benutzerdefinierten Link anlegen',
         ],
         'actions' => [
             'save_groups' => 'Gruppen speichern',
             'add_group' => 'Gruppe hinzufügen',
             'save_items' => 'Navigation speichern',
             'reset' => 'Auf Standard zurücksetzen',
+            'add_item' => 'Link erstellen',
         ],
         'hints' => [
             'custom_group' => 'Eigenes Gruppenlabel',
             'no_groups' => 'Noch keine Gruppen für diese Rolle hinterlegt.',
             'groups_required' => 'Bitte erst Gruppen anlegen, um Navigationspunkte zuzuweisen.',
+            'custom_item' => 'Wird pro Sprache genau wie eingegeben angezeigt.',
         ],
         'flash' => [
             'group_created' => 'Neue Gruppe gespeichert.',
@@ -128,6 +133,7 @@ return [
             'group_deleted' => 'Gruppe entfernt.',
             'items_saved' => 'Navigation wurde gespeichert.',
             'reset' => 'Navigation auf Standard zurückgesetzt.',
+            'custom_created' => 'Navigationslink erstellt.',
         ],
         'validation' => [
             'csrf' => 'Session abgelaufen – bitte erneut versuchen.',
@@ -135,6 +141,8 @@ return [
             'group_required' => 'Für „:item“ muss eine Gruppe ausgewählt werden.',
             'target_invalid' => 'Für „:item“ muss eine gültige PHP-Datei angegeben werden.',
             'reset_failed' => 'Standardnavigation konnte nicht geladen werden.',
+            'label_required' => 'Bitte mindestens eine Bezeichnung für den Link angeben.',
+            'custom_key_failed' => 'Der Navigationslink konnte nicht erstellt werden. Bitte erneut versuchen.',
         ],
         'confirm' => [
             'delete_group' => 'Gruppe wirklich löschen? Zugeordnete Links werden entfernt.',
@@ -143,6 +151,8 @@ return [
         'placeholders' => [
             'group_label' => 'z. B. Abläufe',
             'group_fallback' => 'Unbenannte Gruppe',
+            'item_label' => 'z. B. Auswertung',
+            'item_target' => 'auswertung.php',
         ],
     ],
     'pages' => [

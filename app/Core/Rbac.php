@@ -452,6 +452,27 @@ class Rbac
             $group = $groupMap[$groupId];
 
             $path = $item['target'];
+            if (!is_string($path) || $path === '') {
+                continue;
+            }
+
+            if (!empty($item['is_custom'])) {
+                $menuItem = [
+                    'key' => $item['item_key'],
+                    'label_key' => null,
+                    'label_translations' => $item['label_translations'] ?? [],
+                    'variant' => $item['variant'] !== '' ? $item['variant'] : 'primary',
+                    'priority' => $item['position'],
+                    'group_priority' => $group['position'],
+                    'group' => 'group-' . $group['id'],
+                    'group_label_key' => $group['label_key'] ?? null,
+                    'group_label_translations' => $group['label_translations'] ?? [],
+                ];
+
+                $menu[$path] = $menuItem;
+                continue;
+            }
+
             $definition = $definitions[$path] ?? null;
             if ($definition === null && isset($definitionsByKey[$item['item_key']])) {
                 $definition = $definitionsByKey[$item['item_key']]['definition'];
@@ -473,6 +494,7 @@ class Rbac
             $menuItem['group'] = 'group-' . $group['id'];
             $menuItem['group_label_key'] = $group['label_key'] ?? null;
             $menuItem['group_label_translations'] = $group['label_translations'] ?? [];
+            $menuItem['label_translations'] = $item['label_translations'] ?? [];
 
             $menu[$path] = $menuItem;
         }

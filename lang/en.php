@@ -105,22 +105,27 @@ return [
             'choose_group' => 'Select group…',
             'variant_primary' => 'Primary',
             'variant_secondary' => 'Secondary',
+            'item_label' => 'Label ({locale})',
+            'custom_item' => 'Custom link',
         ],
         'sections' => [
             'groups' => 'Groups',
             'add_group' => 'Add group',
             'items' => 'Navigation items',
+            'add_custom_item' => 'Add custom link',
         ],
         'actions' => [
             'save_groups' => 'Save groups',
             'add_group' => 'Create group',
             'save_items' => 'Save navigation',
             'reset' => 'Reset to default',
+            'add_item' => 'Create link',
         ],
         'hints' => [
             'custom_group' => 'Custom group label',
             'no_groups' => 'No groups configured for this role yet.',
             'groups_required' => 'Create groups before assigning navigation items.',
+            'custom_item' => 'Visible exactly as entered for each language.',
         ],
         'flash' => [
             'group_created' => 'Group created.',
@@ -128,6 +133,7 @@ return [
             'group_deleted' => 'Group deleted.',
             'items_saved' => 'Navigation saved.',
             'reset' => 'Navigation restored to defaults.',
+            'custom_created' => 'Navigation link created.',
         ],
         'validation' => [
             'csrf' => 'Session expired – please try again.',
@@ -135,6 +141,8 @@ return [
             'group_required' => 'Please select a group for “:item”.',
             'target_invalid' => 'Please provide a valid PHP target for “:item”.',
             'reset_failed' => 'Default navigation could not be loaded.',
+            'label_required' => 'Enter at least one label for the custom link.',
+            'custom_key_failed' => 'Unable to generate a new navigation link. Please try again.',
         ],
         'confirm' => [
             'delete_group' => 'Delete this group? Assigned links will be removed.',
@@ -143,6 +151,8 @@ return [
         'placeholders' => [
             'group_label' => 'e.g. Operations',
             'group_fallback' => 'Unnamed group',
+            'item_label' => 'e.g. Reports',
+            'item_target' => 'reports.php',
         ],
     ],
     'pages' => [
