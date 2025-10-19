@@ -63,6 +63,20 @@ $strings = [
         $timeInfo = $breakdown['time'] ?? ($totals['time'] ?? []);
         $aggregate = $breakdown['aggregate'] ?? ($totals['aggregate'] ?? []);
         $components = $aggregate['components'] ?? [];
+        $componentDefinitions = [];
+        if (!empty($item['rule_details']['input']['components']) && is_array($item['rule_details']['input']['components'])) {
+            foreach ($item['rule_details']['input']['components'] as $definition) {
+                if (empty($definition['id'])) {
+                    continue;
+                }
+                $componentDefinitions[$definition['id']] = [
+                    'label' => is_string($definition['label'] ?? null) && $definition['label'] !== ''
+                        ? $definition['label']
+                        : $definition['id'],
+                    'weight' => isset($definition['weight']) ? (float) $definition['weight'] : null,
+                ];
+            }
+        }
         $unit = $item['unit'] ?? ($aggregate['unit'] ?? null);
         $rank = $item['rank'] ?? ($index + 1);
         ?>
@@ -112,7 +126,29 @@ $strings = [
                         <?php
                         $componentTexts = [];
                         foreach ($components as $componentId => $componentData) {
-                            $componentTexts[] = $componentId . ': ' . format_number($componentData['score'] ?? 0, 2);
+                            $definition = $componentDefinitions[$componentId] ?? [];
+                            $label = $definition['label'] ?? ($componentData['label'] ?? $componentId);
+                            $weight = $definition['weight'] ?? null;
+                            $score = format_number($componentData['score'] ?? 0, 2);
+                            $entry = $label;
+                            if ($weight !== null && abs($weight - 1.0) > 0.0001) {
+                                $entry .= ' (' . format_number($weight, 2) . '×)';
+                            }
+                            $entry .= ': ' . $score;
+                            $judgeScores = [];
+                            if (!empty($componentData['judges']) && is_array($componentData['judges'])) {
+                                foreach ($componentData['judges'] as $judgeScore) {
+                                    $formattedJudgeScore = format_number($judgeScore, 2);
+                                    if ($formattedJudgeScore === '') {
+                                        continue;
+                                    }
+                                    $judgeScores[] = $formattedJudgeScore;
+                                }
+                            }
+                            if ($judgeScores) {
+                                $entry .= ' [' . implode(' / ', $judgeScores) . ']';
+                            }
+                            $componentTexts[] = $entry;
                         }
                         ?>
                         <?= htmlspecialchars(implode(', ', $componentTexts), ENT_QUOTES, 'UTF-8') ?>
