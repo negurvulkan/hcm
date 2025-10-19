@@ -127,11 +127,19 @@ The scoring rule system uses a JSON object to describe how judge inputs, auxilia
     - `drop_high` / `drop_low` – count of highest/lowest scores to discard before aggregation.
     - `weights` – per-judge weights for `weighted_mean`.
 - `fields` – additional inputs outside judge components (e.g., time, fault points). Each entry carries `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required`, and numeric bounds (`min`, `max`). For `type: "set"` provide an `options` array of allowed values, while `number` may specify `step` and `decimals`. Single-line text inputs use `type: "text"`, while multi-line inputs use `type: "textarea"` and may optionally define `rows` to control their height. Collected values are later exposed to formulas and validators via `fields.<id>`.
-- `components` – judge-entered components with `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Every component must have a unique `id`; otherwise validation fails. Example:
+- `components` – judge-entered components with `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Every component must have a unique `id`; otherwise validation fails. Each component can also define a `scoreType` (alias `calcType`) that controls how the entered value is translated into points:
+  - `scale` (default) – numeric scale with `min`/`max`/`step` (e.g. dressage 0–10).
+  - `delta` – numeric delta scores (e.g. western maneuver -1.5…+1.5).
+  - `binary` – boolean input; values >0 or truthy words (`yes`, `pass`, …) yield the configured `max` points, otherwise `min`.
+  - `count` – frequency counts multiplied by `factor` (defaults to 1.0).
+  - `time` – raw seconds with optional `toPointsExpr` expression (`value` = seconds) to derive points.
+  - `custom` – arbitrary `calcExpr` expression with access to `value`, `raw`, `fields`, `components`, and `raw_components`.
+
+  Example:
   ```json
   "components": [
-    { "id": "C1", "label": "Trot extensions", "min": 0, "max": 10, "step": 0.5, "weight": 1 },
-    { "id": "IMP", "label": "Impression", "min": 0, "max": 10, "step": 0.5, "weight": 0.5 }
+    { "id": "C1", "label": "Trot extensions", "scoreType": "scale", "min": 0, "max": 10, "step": 0.5, "weight": 1 },
+    { "id": "IMP", "label": "Impression", "scoreType": "scale", "min": 0, "max": 10, "step": 0.5, "weight": 0.5 }
   ]
   ```
   Legacy rules that still contain a `lessons` array are migrated to this component structure during load/save operations.

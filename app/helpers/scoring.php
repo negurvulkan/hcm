@@ -111,12 +111,36 @@ function scoring_fake_input(array $rule): array
     for ($j = 0; $j < $judgeCount; $j++) {
         $componentValues = [];
         foreach ($components as $component) {
-            $min = isset($component['min']) ? (float) $component['min'] : 0.0;
-            $max = isset($component['max']) ? (float) $component['max'] : 10.0;
-            $step = isset($component['step']) ? (float) $component['step'] : 0.5;
-            $steps = (int) (($max - $min) / max($step, 0.1));
-            $value = $min + $step * random_int(0, max(0, $steps));
-            $componentValues[$component['id']] = round($value, 3);
+            $scoreType = strtolower((string) ($component['scoreType'] ?? ($component['calcType'] ?? 'scale')));
+            switch ($scoreType) {
+                case 'binary':
+                    $value = random_int(0, 1);
+                    break;
+                case 'count':
+                    $min = isset($component['min']) ? (int) $component['min'] : 0;
+                    $max = isset($component['max']) ? (int) $component['max'] : max($min, $min + 3);
+                    $step = max(1, (int) ($component['step'] ?? 1));
+                    $range = max(0, (int) floor(($max - $min) / $step));
+                    $value = $min + $step * random_int(0, $range ?: 0);
+                    break;
+                case 'time':
+                    $min = isset($component['min']) ? (float) $component['min'] : 30.0;
+                    $max = isset($component['max']) ? (float) $component['max'] : max($min + 60.0, $min + 1.0);
+                    $value = random_int((int) round($min), (int) round($max));
+                    break;
+                case 'custom':
+                    $value = null;
+                    break;
+                default:
+                    $min = isset($component['min']) ? (float) $component['min'] : 0.0;
+                    $max = isset($component['max']) ? (float) $component['max'] : 10.0;
+                    $step = isset($component['step']) ? (float) $component['step'] : 0.5;
+                    $step = $step > 0 ? $step : 0.5;
+                    $steps = (int) (($max - $min) / $step);
+                    $value = $min + $step * random_int(0, max(0, $steps));
+                    break;
+            }
+            $componentValues[$component['id']] = $value === null ? null : round((float) $value, 3);
         }
         $input['judges'][] = [
             'id' => 'judge_' . ($j + 1),
