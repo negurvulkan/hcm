@@ -1323,6 +1323,18 @@ return [
             'delete' => 'Löschen',
             'save' => 'Wertung speichern',
             'weight_hint' => 'Gewichtung: {weight}',
+            'score_widgets' => [
+                'manual_label' => 'Manuelle Eingabe',
+                'scale_hint' => 'Wert antippen oder manuell eingeben.',
+                'delta_hint' => 'Differenz wählen oder manuell eingeben.',
+                'count_hint' => 'Über die Buttons anpassen oder Zahl eingeben.',
+                'count_down' => 'Wert verringern',
+                'count_up' => 'Wert erhöhen',
+                'time_placeholder' => 'mm:ss',
+                'time_hint' => 'Minuten und Sekunden im Format mm:ss oder Sekunden eingeben.',
+                'custom_badge' => 'Berechnet',
+                'custom_refs' => 'Verwendet:',
+            ],
             'no_score' => '–',
             'no_value' => '–',
             'signature_status' => [

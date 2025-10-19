@@ -1334,6 +1334,18 @@ return [
             'delete' => 'Delete',
             'save' => 'Save score',
             'weight_hint' => 'Weight: {weight}',
+            'score_widgets' => [
+                'manual_label' => 'Manual entry',
+                'scale_hint' => 'Select a score or type a custom value.',
+                'delta_hint' => 'Select a delta or type a custom value.',
+                'count_hint' => 'Use the buttons to adjust the count or type a number.',
+                'count_down' => 'Decrease value',
+                'count_up' => 'Increase value',
+                'time_placeholder' => 'mm:ss',
+                'time_hint' => 'Enter minutes and seconds (mm:ss) or raw seconds.',
+                'custom_badge' => 'Calculated',
+                'custom_refs' => 'Depends on:',
+            ],
             'no_score' => '–',
             'no_value' => '–',
             'signature_status' => [

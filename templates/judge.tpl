@@ -24,6 +24,94 @@ if (!function_exists('judge_prepare_entity_fields')) {
     }
 }
 
+if (!function_exists('judge_decimal_places')) {
+    function judge_decimal_places(?float $value): int
+    {
+        if ($value === null || !is_finite($value)) {
+            return 0;
+        }
+        $string = rtrim(rtrim(sprintf('%.6F', $value), '0'), '.');
+        $position = strpos($string, '.');
+        return $position === false ? 0 : max(0, strlen($string) - $position - 1);
+    }
+}
+
+if (!function_exists('judge_format_number')) {
+    function judge_format_number(mixed $value, ?int $precision = null): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        $number = (float) $value;
+        if ($precision === null) {
+            $precision = 3;
+        }
+        $formatted = number_format($number, $precision, '.', '');
+        $formatted = rtrim(rtrim($formatted, '0'), '.');
+        if ($formatted === '-0') {
+            $formatted = '0';
+        }
+        return $formatted;
+    }
+}
+
+if (!function_exists('judge_component_range')) {
+    function judge_component_range(float $min, float $max, float $step): array
+    {
+        $values = [];
+        if ($step <= 0) {
+            $step = 1.0;
+        }
+        $current = $min;
+        // Prevent infinite loops with floating point precision issues.
+        $iterations = 0;
+        $limit = 500;
+        while ($current <= $max + 0.0001 && $iterations < $limit) {
+            $values[] = round($current, 4);
+            $current += $step;
+            $iterations++;
+        }
+        if (empty($values) || end($values) < $max - 0.0001) {
+            $values[] = round($max, 4);
+        }
+        return $values;
+    }
+}
+
+if (!function_exists('judge_component_dom_id')) {
+    function judge_component_dom_id(string $componentId, string $suffix = ''): string
+    {
+        $base = preg_replace('/[^a-z0-9_\-]+/i', '-', $componentId);
+        $base = trim((string) $base, '-');
+        if ($base === '') {
+            $base = uniqid('component', false);
+        }
+        return $suffix === '' ? $base : $base . '-' . $suffix;
+    }
+}
+
+if (!function_exists('judge_format_time')) {
+    function judge_format_time(?float $seconds): string
+    {
+        if ($seconds === null || !is_finite($seconds)) {
+            return '';
+        }
+        $totalMilliseconds = (int) round(max(0.0, $seconds) * 1000);
+        $minutes = (int) floor($totalMilliseconds / 60000);
+        $remainingMs = $totalMilliseconds - ($minutes * 60000);
+        $secondsPart = (int) floor($remainingMs / 1000);
+        $msPart = $remainingMs - ($secondsPart * 1000);
+        $formattedSeconds = str_pad((string) $secondsPart, 2, '0', STR_PAD_LEFT);
+        if ($msPart > 0) {
+            $fraction = rtrim(sprintf('%03d', $msPart), '0');
+            if ($fraction !== '') {
+                $formattedSeconds .= '.' . $fraction;
+            }
+        }
+        return $minutes . ':' . $formattedSeconds;
+    }
+}
+
 $riderInfoPayload = null;
 $horseInfoPayload = null;
 $riderInfoJson = null;
@@ -265,20 +353,194 @@ if ($start) {
             <h3 class="h6"><?= htmlspecialchars(t('judge.form.judge_inputs', ['judge' => $judgeKey]), ENT_QUOTES, 'UTF-8') ?></h3>
             <div class="row g-3">
                 <?php foreach (($rule['input']['components'] ?? []) as $component): ?>
-                    <?php $componentId = $component['id'] ?? null; if (!$componentId) { continue; }
-                    $value = $judgeComponents[$componentId] ?? null; ?>
-                    <div class="col-md-4">
-                        <label class="form-label"><?= htmlspecialchars($component['label'] ?? $componentId, ENT_QUOTES, 'UTF-8') ?></label>
-                        <input type="number"
-                               class="form-control"
-                               name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"
-                               value="<?= $value !== null ? htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') : '' ?>"
-                               <?php if (isset($component['min'])): ?>min="<?= (float) $component['min'] ?>"<?php endif; ?>
-                               <?php if (isset($component['max'])): ?>max="<?= (float) $component['max'] ?>"<?php endif; ?>
-                               step="<?= isset($component['step']) ? (float) $component['step'] : 0.1 ?>">
-                        <?php if (!empty($component['weight'])): ?>
-                            <div class="form-text"><?= htmlspecialchars(t('judge.form.weight_hint', ['weight' => $component['weight']]), ENT_QUOTES, 'UTF-8') ?></div>
-                        <?php endif; ?>
+                    <?php
+                    $componentId = $component['id'] ?? null;
+                    if (!$componentId) {
+                        continue;
+                    }
+                    $value = $judgeComponents[$componentId] ?? null;
+                    $scoreType = strtolower((string) ($component['scoreType'] ?? ($component['calcType'] ?? 'scale')));
+                    $widgetType = in_array($scoreType, ['scale', 'delta', 'count', 'time', 'custom'], true) ? $scoreType : 'default';
+                    $min = isset($component['min']) ? (float) $component['min'] : null;
+                    $max = isset($component['max']) ? (float) $component['max'] : null;
+                    $step = isset($component['step']) ? (float) $component['step'] : null;
+                    if ($step !== null && $step <= 0) {
+                        $step = null;
+                    }
+                    switch ($widgetType) {
+                        case 'scale':
+                            $min = $min ?? 0.0;
+                            $max = $max ?? 10.0;
+                            $step = $step ?? 0.5;
+                            break;
+                        case 'delta':
+                            $min = $min ?? -1.5;
+                            $max = $max ?? 1.5;
+                            $step = $step ?? 0.5;
+                            break;
+                        case 'count':
+                            $min = $min ?? 0.0;
+                            $step = $step ?? 1.0;
+                            break;
+                        case 'time':
+                            $min = $min ?? 0.0;
+                            $step = $step ?? 0.1;
+                            break;
+                        default:
+                            $step = $step ?? 0.1;
+                            break;
+                    }
+                    $stepPrecision = judge_decimal_places($step);
+                    $precision = max($stepPrecision, judge_decimal_places($min), judge_decimal_places($max));
+                    $precision = max(0, $precision);
+                    $hiddenPrecision = max(3, $precision);
+                    $hiddenValue = judge_format_number($value, $hiddenPrecision);
+                    $minValue = $min !== null ? judge_format_number($min, $hiddenPrecision) : null;
+                    $maxValue = $max !== null ? judge_format_number($max, $hiddenPrecision) : null;
+                    $stepValue = $step !== null ? judge_format_number($step, $hiddenPrecision) : null;
+                    $label = $component['label'] ?? $componentId;
+                    $controlSuffix = match ($widgetType) {
+                        'scale', 'delta' => 'manual',
+                        'count' => 'count',
+                        'time' => 'time',
+                        default => 'input',
+                    };
+                    $controlId = judge_component_dom_id((string) $componentId, $controlSuffix);
+                    $timeDisplay = $widgetType === 'time' ? judge_format_time($value !== null ? (float) $value : null) : '';
+                    $expression = (string) ($component['calcExpr'] ?? ($component['calc_expr'] ?? ''));
+                    $references = [];
+                    if ($expression !== '') {
+                        if (preg_match_all('/\b(fields|components)\.([a-zA-Z0-9_]+)/', $expression, $matches, PREG_SET_ORDER)) {
+                            foreach ($matches as $match) {
+                                $references[$match[1] . '.' . $match[2]] = $match[1] . '.' . $match[2];
+                            }
+                        }
+                    }
+                    $hasInteractiveWidget = in_array($widgetType, ['scale', 'delta', 'count', 'time'], true);
+                    $usesHidden = in_array($widgetType, ['time', 'custom'], true);
+                    ?>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="score-widget"
+                             <?= $hasInteractiveWidget ? 'data-score-widget' : '' ?>
+                             data-score-type="<?= htmlspecialchars($widgetType, ENT_QUOTES, 'UTF-8') ?>"
+                             <?php if ($precision > 0): ?>data-score-precision="<?= (int) $precision ?>"<?php endif; ?>
+                             <?php if ($minValue !== null): ?> data-score-min="<?= htmlspecialchars($minValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                             <?php if ($maxValue !== null): ?> data-score-max="<?= htmlspecialchars($maxValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                             <?php if ($stepValue !== null): ?> data-score-step="<?= htmlspecialchars($stepValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>>
+                            <label class="form-label"<?= $widgetType === 'custom' ? '' : ' for="' . htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') . '"' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></label>
+                            <?php if ($usesHidden): ?>
+                                <input type="hidden"
+                                       name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"
+                                       value="<?= htmlspecialchars($hiddenValue, ENT_QUOTES, 'UTF-8') ?>"
+                                       data-score-value>
+                            <?php endif; ?>
+                            <?php if ($widgetType === 'scale' || $widgetType === 'delta'): ?>
+                                <?php $options = judge_component_range((float) $min, (float) $max, (float) $step); ?>
+                                <div class="btn-group flex-wrap w-100" role="group" aria-label="<?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>">
+                                    <?php foreach ($options as $option): ?>
+                                        <?php
+                                        $optionFormatted = judge_format_number($option, max(1, $precision));
+                                        $optionLabel = $widgetType === 'delta' && $option > 0 ? '+' . $optionFormatted : $optionFormatted;
+                                        $optionId = judge_component_dom_id((string) $componentId, 'option-' . preg_replace('/[^a-z0-9]+/i', '-', (string) $optionFormatted));
+                                        $buttonClass = $widgetType === 'delta'
+                                            ? ($option < 0 ? 'btn-outline-danger' : ($option > 0 ? 'btn-outline-success' : 'btn-outline-secondary'))
+                                            : 'btn-outline-primary';
+                                        $isChecked = $hiddenValue !== '' && abs((float) $hiddenValue - (float) $optionFormatted) < 0.0001;
+                                        ?>
+                                        <input type="radio"
+                                               class="btn-check"
+                                               name="score-toggle-<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>"
+                                               id="<?= htmlspecialchars($optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                               value="<?= htmlspecialchars($optionFormatted, ENT_QUOTES, 'UTF-8') ?>"
+                                               data-score-option <?= $isChecked ? 'checked' : '' ?>>
+                                        <label class="btn <?= $buttonClass ?> mb-1"
+                                               for="<?= htmlspecialchars($optionId, ENT_QUOTES, 'UTF-8') ?>">
+                                            <?= htmlspecialchars($optionLabel, ENT_QUOTES, 'UTF-8') ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <div class="mt-2">
+                                    <label class="form-label visually-hidden" for="<?= htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('judge.form.score_widgets.manual_label'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <input type="number"
+                                           class="form-control form-control-sm"
+                                           id="<?= htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') ?>"
+                                           data-score-manual
+                                           <?php if (!$usesHidden): ?>name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"<?php endif; ?>
+                                           inputmode="decimal"
+                                           <?php if ($stepValue !== null): ?>step="<?= htmlspecialchars($stepValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                           <?php if ($minValue !== null): ?>min="<?= htmlspecialchars($minValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                           <?php if ($maxValue !== null): ?>max="<?= htmlspecialchars($maxValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                           value="<?= htmlspecialchars($hiddenValue, ENT_QUOTES, 'UTF-8') ?>">
+                                </div>
+                                <div class="form-text small text-muted">
+                                    <?= htmlspecialchars(t('judge.form.score_widgets.' . ($widgetType === 'delta' ? 'delta_hint' : 'scale_hint')), ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php elseif ($widgetType === 'count'): ?>
+                                <div class="input-group input-group-sm">
+                                    <button class="btn btn-outline-secondary" type="button" data-score-count-down aria-label="<?= htmlspecialchars(t('judge.form.score_widgets.count_down'), ENT_QUOTES, 'UTF-8') ?>">&minus;</button>
+                                    <input type="number"
+                                           class="form-control text-center"
+                                           id="<?= htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') ?>"
+                                           data-score-count-input
+                                           <?php if (!$usesHidden): ?>name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"<?php endif; ?>
+                                           inputmode="numeric"
+                                           <?php if ($stepValue !== null): ?>step="<?= htmlspecialchars($stepValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                           <?php if ($minValue !== null): ?>min="<?= htmlspecialchars($minValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                           <?php if ($maxValue !== null): ?>max="<?= htmlspecialchars($maxValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                           value="<?= htmlspecialchars($hiddenValue, ENT_QUOTES, 'UTF-8') ?>">
+                                    <button class="btn btn-outline-secondary" type="button" data-score-count-up aria-label="<?= htmlspecialchars(t('judge.form.score_widgets.count_up'), ENT_QUOTES, 'UTF-8') ?>">+</button>
+                                </div>
+                                <div class="form-text small text-muted">
+                                    <?= htmlspecialchars(t('judge.form.score_widgets.count_hint'), ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php elseif ($widgetType === 'time'): ?>
+                                <div class="input-group input-group-sm">
+                                    <input type="text"
+                                           class="form-control"
+                                           id="<?= htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') ?>"
+                                           data-score-time-input
+                                           inputmode="numeric"
+                                           placeholder="<?= htmlspecialchars(t('judge.form.score_widgets.time_placeholder'), ENT_QUOTES, 'UTF-8') ?>"
+                                           value="<?= htmlspecialchars($timeDisplay, ENT_QUOTES, 'UTF-8') ?>">
+                                </div>
+                                <div class="form-text small text-muted">
+                                    <?= htmlspecialchars(t('judge.form.score_widgets.time_hint'), ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php elseif ($widgetType === 'custom'): ?>
+                                <div class="mb-2">
+                                    <span class="badge bg-info text-dark"><?= htmlspecialchars(t('judge.form.score_widgets.custom_badge'), ENT_QUOTES, 'UTF-8') ?></span>
+                                </div>
+                                <?php if ($references): ?>
+                                    <div class="form-text small text-muted mb-1">
+                                        <?= htmlspecialchars(t('judge.form.score_widgets.custom_refs'), ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mb-2">
+                                        <?php foreach ($references as $reference): ?>
+                                            <span class="badge bg-light text-dark"><?= htmlspecialchars($reference, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($expression !== ''): ?>
+                                    <div class="form-text small text-muted font-monospace">
+                                        <?= htmlspecialchars($expression, ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <input type="number"
+                                       class="form-control"
+                                       id="<?= htmlspecialchars($controlId, ENT_QUOTES, 'UTF-8') ?>"
+                                       name="score[components][<?= htmlspecialchars($componentId, ENT_QUOTES, 'UTF-8') ?>]"
+                                       value="<?= htmlspecialchars($hiddenValue, ENT_QUOTES, 'UTF-8') ?>"
+                                       <?php if ($minValue !== null): ?>min="<?= htmlspecialchars($minValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                       <?php if ($maxValue !== null): ?>max="<?= htmlspecialchars($maxValue, ENT_QUOTES, 'UTF-8') ?>"<?php endif; ?>
+                                       step="<?= htmlspecialchars($stepValue ?? '0.1', ENT_QUOTES, 'UTF-8') ?>">
+                            <?php endif; ?>
+                            <?php if (!empty($component['weight'])): ?>
+                                <div class="form-text">
+                                    <?= htmlspecialchars(t('judge.form.weight_hint', ['weight' => $component['weight']]), ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
