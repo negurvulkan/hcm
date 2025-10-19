@@ -131,6 +131,54 @@ assertSame(1, $ranked[0]['rank']);
 assertSame(2, $ranked[1]['rank']);
 assertSame(3, $ranked[2]['rank']);
 
+$newSchemaRule = RuleManager::mergeDefaults([
+    'id' => 'dressage.a.fn.v1',
+    'label' => 'FN A-Dressur',
+    'mode' => 'scale',
+    'judges' => [
+        'min' => 1,
+        'max' => 3,
+        'positions' => ['C', 'E', 'M'],
+        'aggregationMethod' => 'mean',
+        'weights' => ['C' => 1.0, 'E' => 1.0, 'M' => 1.0],
+    ],
+    'scoring' => [
+        'components' => [
+            ['id' => 'L1', 'label' => 'Einreiten', 'scoreType' => 'scale', 'min' => 0, 'max' => 10, 'step' => 0.5, 'weight' => 1],
+            ['id' => 'C3', 'label' => 'Sitz & Einwirkung', 'scoreType' => 'scale', 'min' => 0, 'max' => 10, 'step' => 0.5, 'weight' => 2],
+        ],
+        'penalties' => [
+            ['id' => 'ERR1', 'label' => 'Aufgabenfehler', 'type' => 'deduction', 'value' => 2],
+            ['id' => 'ELIM', 'label' => 'Eliminierung', 'type' => 'elimination', 'eliminate' => true],
+        ],
+        'time' => ['mode' => 'none'],
+        'perJudgeFormula' => 'weighted(components)',
+        'aggregateFormula' => 'aggregate.score - penalties.total',
+        'rounding' => ['decimals' => 2, 'unit' => '%', 'normalizeToPercent' => true],
+        'tiebreakers' => [
+            ['type' => 'highestComponent', 'componentId' => 'C3'],
+            ['type' => 'random'],
+        ],
+    ],
+]);
+assertSame('best_component:C3', $newSchemaRule['ranking']['tiebreak_chain'][0]);
+assertSame('random_draw', $newSchemaRule['ranking']['tiebreak_chain'][1]);
+
+$newSchemaInput = [
+    'judges' => [
+        ['id' => 'C', 'components' => ['L1' => 7.0, 'C3' => 8.0]],
+        ['id' => 'E', 'components' => ['L1' => 7.5, 'C3' => 7.5]],
+    ],
+    'penalties' => ['ERR1'],
+];
+$newSchemaEval = $engine->evaluate($newSchemaRule, $newSchemaInput);
+assertTrue(abs($newSchemaEval['per_judge'][0]['score'] - 7.6666) < 0.01, 'Per judge weighted average');
+assertSame(2.0, $newSchemaEval['totals']['penalties']['total'], 'Manual penalty deducted');
+assertSame('ERR1', $newSchemaEval['totals']['penalties']['applied'][0]['id']);
+assertTrue(isset($newSchemaEval['totals']['normalization_target']) && abs($newSchemaEval['totals']['normalization_target'] - 10.0) < 0.001, 'Normalization target for percent');
+assertTrue(abs($newSchemaEval['totals']['total_rounded'] - 55.83) < 0.05, 'Normalized percentage total');
+assertSame('%', $newSchemaEval['totals']['unit']);
+
 $snapshot = $engine->snapshotRule($rule);
 assertTrue(!empty($snapshot['hash']), 'Snapshot hash missing');
 assertTrue(str_contains($snapshot['json'], 'dressage'), 'Snapshot json should contain rule id');

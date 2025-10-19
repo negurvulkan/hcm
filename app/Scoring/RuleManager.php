@@ -48,6 +48,7 @@ class RuleManager
 
     public static function mergeDefaults(array $rule): array
     {
+        $rule = self::transformNewSchema($rule);
         $defaults = [
             'version' => '1',
             'id' => 'generic.score.v1',
@@ -85,6 +86,7 @@ class RuleManager
                 'rounding' => 2,
                 'unit' => 'pts',
                 'show_breakdown' => true,
+                'normalize_to_percent' => false,
             ],
         ];
         $merged = self::recursiveMerge($defaults, $rule);
@@ -408,6 +410,14 @@ class RuleManager
             $component['scoreType'] = 'scale';
         }
 
+        if (isset($component['coefficient']) && !isset($component['weight'])) {
+            $component['weight'] = $component['coefficient'];
+        }
+
+        if (isset($component['weight'])) {
+            $component['weight'] = (float) $component['weight'];
+        }
+
         return $component;
     }
 
@@ -427,5 +437,166 @@ class RuleManager
     private static function isAssoc(array $array): bool
     {
         return array_keys($array) !== range(0, count($array) - 1);
+    }
+
+    private static function transformNewSchema(array $rule): array
+    {
+        $hasScoringBlock = isset($rule['scoring']) && is_array($rule['scoring']);
+        $hasJudgeBlock = isset($rule['judges']) && is_array($rule['judges']);
+
+        if (!$hasScoringBlock && !$hasJudgeBlock) {
+            return $rule;
+        }
+
+        $scoring = $hasScoringBlock ? $rule['scoring'] : [];
+        $input = is_array($rule['input'] ?? null) ? $rule['input'] : [];
+
+        if ($hasJudgeBlock) {
+            $input['judges'] = self::mapJudgeConfiguration($rule['judges']);
+        }
+
+        if (!empty($scoring['components']) && is_array($scoring['components'])) {
+            $input['components'] = $scoring['components'];
+        }
+
+        if (!isset($input['fields']) && !empty($scoring['fields']) && is_array($scoring['fields'])) {
+            $input['fields'] = $scoring['fields'];
+        }
+
+        $rule['input'] = $input;
+
+        if (!empty($scoring['penalties']) && is_array($scoring['penalties'])) {
+            $rule['penalties'] = $scoring['penalties'];
+        }
+
+        if (!empty($scoring['time']) && is_array($scoring['time'])) {
+            $rule['time'] = self::normalizeTimeConfig($scoring['time']);
+        }
+
+        if (!empty($scoring['perJudgeFormula'])) {
+            $rule['per_judge_formula'] = $scoring['perJudgeFormula'];
+        }
+
+        if (!empty($scoring['aggregateFormula'])) {
+            $rule['aggregate_formula'] = $scoring['aggregateFormula'];
+        }
+
+        if (!empty($scoring['rounding']) && is_array($scoring['rounding'])) {
+            $rule['output'] = is_array($rule['output'] ?? null) ? $rule['output'] : [];
+            if (array_key_exists('decimals', $scoring['rounding'])) {
+                $rule['output']['rounding'] = (int) $scoring['rounding']['decimals'];
+            }
+            if (!empty($scoring['rounding']['unit'])) {
+                $rule['output']['unit'] = $scoring['rounding']['unit'];
+            }
+            if (array_key_exists('normalizeToPercent', $scoring['rounding'])) {
+                $rule['output']['normalize_to_percent'] = (bool) $scoring['rounding']['normalizeToPercent'];
+            }
+        }
+
+        if (!empty($scoring['tiebreakers']) && is_array($scoring['tiebreakers'])) {
+            $rule['ranking'] = is_array($rule['ranking'] ?? null) ? $rule['ranking'] : [];
+            $rule['ranking']['tiebreak_chain'] = self::mapTiebreakers($scoring['tiebreakers']);
+        }
+
+        return $rule;
+    }
+
+    private static function mapJudgeConfiguration(array $judges): array
+    {
+        $aggregationMethod = $judges['aggregationMethod'] ?? $judges['aggregation_method'] ?? null;
+        $aggregation = [
+            'method' => self::mapAggregationMethod($aggregationMethod),
+            'drop_high' => (int) ($judges['dropHigh'] ?? $judges['drop_high'] ?? 0),
+            'drop_low' => (int) ($judges['dropLow'] ?? $judges['drop_low'] ?? 0),
+        ];
+
+        if (!empty($judges['weights']) && is_array($judges['weights'])) {
+            $aggregation['weights'] = $judges['weights'];
+        }
+
+        if (!empty($judges['customAggregation'])) {
+            $aggregation['custom'] = $judges['customAggregation'];
+        }
+
+        $result = [
+            'min' => (int) ($judges['min'] ?? 1),
+            'max' => (int) ($judges['max'] ?? ($judges['min'] ?? 1)),
+            'aggregation' => $aggregation,
+        ];
+
+        if (!empty($judges['positions']) && is_array($judges['positions'])) {
+            $result['positions'] = $judges['positions'];
+        }
+
+        return $result;
+    }
+
+    private static function mapAggregationMethod(?string $method): string
+    {
+        if ($method === null) {
+            return 'mean';
+        }
+
+        $normalized = strtolower((string) $method);
+        return match ($normalized) {
+            'median' => 'median',
+            'weightedmean', 'weighted_mean' => 'weighted_mean',
+            'sum' => 'sum',
+            default => 'mean',
+        };
+    }
+
+    private static function normalizeTimeConfig(array $time): array
+    {
+        $normalized = $time;
+
+        if (isset($time['allowedSeconds']) && !isset($normalized['allowed_s'])) {
+            $normalized['allowed_s'] = $time['allowedSeconds'];
+        }
+        if (isset($time['faultPerSecond']) && !isset($normalized['fault_per_s'])) {
+            $normalized['fault_per_s'] = $time['faultPerSecond'];
+        }
+        if (isset($time['bonusPerSecond']) && !isset($normalized['bonus_per_s'])) {
+            $normalized['bonus_per_s'] = $time['bonusPerSecond'];
+        }
+        if (isset($time['capSeconds']) && !isset($normalized['cap_s'])) {
+            $normalized['cap_s'] = $time['capSeconds'];
+        }
+
+        return $normalized;
+    }
+
+    private static function mapTiebreakers(array $tiebreakers): array
+    {
+        $chain = [];
+        foreach ($tiebreakers as $breaker) {
+            if (!is_array($breaker)) {
+                continue;
+            }
+            $type = strtolower((string) ($breaker['type'] ?? ''));
+            switch ($type) {
+                case 'highestcomponent':
+                    $componentId = $breaker['componentId'] ?? $breaker['component_id'] ?? null;
+                    if ($componentId) {
+                        $chain[] = 'best_component:' . $componentId;
+                    }
+                    break;
+                case 'lowestpenalties':
+                    $chain[] = 'lowest_penalties';
+                    break;
+                case 'fastesttime':
+                    $chain[] = 'least_time';
+                    break;
+                case 'random':
+                    $chain[] = 'random_draw';
+                    break;
+                case 'runoff':
+                    $chain[] = 'run_off';
+                    break;
+            }
+        }
+
+        return $chain;
     }
 }
