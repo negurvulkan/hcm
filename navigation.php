@@ -20,8 +20,7 @@ if (!function_exists('navigation_generate_custom_item_key')) {
 }
 
 $user = auth_require('instance');
-$pdo = app_pdo();
-$repository = new NavigationRepository($pdo);
+$repository = new NavigationRepository();
 
 $roles = Rbac::ROLES;
 $selectedRole = $_POST['role'] ?? $_GET['role'] ?? 'admin';
