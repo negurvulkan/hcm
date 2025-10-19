@@ -24,7 +24,14 @@ Das Scoring-Regel-System beschreibt als JSON-Objekt, wie Richterbewertungen, Zus
     - `drop_high` / `drop_low` – Anzahl höchster/tiefster Noten, die vor der Aggregation entfernt werden.
     - `weights` – Gewichtung pro Richter-ID für `weighted_mean`.
 - `fields` – zusätzliche Eingabefelder außerhalb der Richterwerte (z. B. Zeit, Fehlerpunkte). Jeder Eintrag enthält `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required` sowie Grenzen (`min`, `max`). Für `type: "set"` wird zusätzlich ein `options`-Array mit erlaubten Werten erwartet, `number` kann über `step` und `decimals` gesteuert werden. Textfelder (`text`) sind einzeilig, mehrzeilige Textfelder (`textarea`) können optional über `rows` in der Höhe angepasst werden. Die Felddaten stehen später im Kontext `fields.<id>` für Formeln und Validierungen bereit.
-- `components` – pro Richter zu erfassende Bewertungskomponenten mit `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Komponenten müssen eindeutige IDs besitzen; sonst schlägt die Validierung fehl.
+- `components` – pro Richter zu erfassende Bewertungskomponenten mit `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Komponenten müssen eindeutige IDs besitzen; sonst schlägt die Validierung fehl. Ein einfaches Beispiel:
+  ```json
+  "components": [
+    { "id": "C1", "label": "Trabverstärkungen", "min": 0, "max": 10, "step": 0.5, "weight": 1 },
+    { "id": "IMP", "label": "Impression", "min": 0, "max": 10, "step": 0.5, "weight": 0.5 }
+  ]
+  ```
+  Ältere Regeln mit `lessons` werden automatisch in dieses Komponenten-Format überführt, sobald sie geladen oder gespeichert werden.
 
 ### Strafen (`penalties`)
 Jede Strafe ist ein Objekt mit folgenden Feldern:
@@ -120,7 +127,14 @@ The scoring rule system uses a JSON object to describe how judge inputs, auxilia
     - `drop_high` / `drop_low` – count of highest/lowest scores to discard before aggregation.
     - `weights` – per-judge weights for `weighted_mean`.
 - `fields` – additional inputs outside judge components (e.g., time, fault points). Each entry carries `id`, `label`, `type` (`number`, `set`, `boolean`, `text`, `textarea`, `time`), optional `required`, and numeric bounds (`min`, `max`). For `type: "set"` provide an `options` array of allowed values, while `number` may specify `step` and `decimals`. Single-line text inputs use `type: "text"`, while multi-line inputs use `type: "textarea"` and may optionally define `rows` to control their height. Collected values are later exposed to formulas and validators via `fields.<id>`.
-- `components` – judge-entered components with `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Every component must have a unique `id`; otherwise validation fails.
+- `components` – judge-entered components with `id`, `label`, optional `min`, `max`, `step`, `weight`, `required`. Every component must have a unique `id`; otherwise validation fails. Example:
+  ```json
+  "components": [
+    { "id": "C1", "label": "Trot extensions", "min": 0, "max": 10, "step": 0.5, "weight": 1 },
+    { "id": "IMP", "label": "Impression", "min": 0, "max": 10, "step": 0.5, "weight": 0.5 }
+  ]
+  ```
+  Legacy rules that still contain a `lessons` array are migrated to this component structure during load/save operations.
 
 ### Penalties (`penalties`)
 Each penalty entry contains:
