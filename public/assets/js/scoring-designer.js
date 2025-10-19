@@ -466,6 +466,14 @@
 
     ScoringDesigner.prototype.handleChange = function (event) {
         var target = event.target;
+        if (target && target.hasAttribute('data-preset-select')) {
+            var preset = target.value;
+            if (preset) {
+                this.loadPreset(preset);
+            }
+            target.value = '';
+            return;
+        }
         if (target.hasAttribute('data-scoring-path')) {
             this.updateFromElement(target);
         }
@@ -489,9 +497,6 @@
             var listName = button.getAttribute('data-list');
             var index = parseInt(button.getAttribute('data-index'), 10);
             this.removeItem(listName, index);
-        } else if (action === 'load-preset') {
-            var preset = button.getAttribute('data-preset');
-            this.loadPreset(preset);
         } else if (action === 'reset-default') {
             this.resetDefaults();
         }

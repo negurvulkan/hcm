@@ -1,0 +1,35 @@
+{
+  "label": "Western (Klassenbasiert)",
+  "rule": {
+    "mode": "western",
+    "scope": "class",
+    "sequence": {
+      "start": 100,
+      "step": 5,
+      "range": [
+        100,
+        499
+      ],
+      "reset": "per_class"
+    },
+    "format": {
+      "prefix": "W",
+      "width": 2,
+      "suffix": "",
+      "separator": ""
+    },
+    "allocation": {
+      "entity": "pair",
+      "time": "on_startlist",
+      "reuse": "after_scratch",
+      "lock_after": "sign_off"
+    },
+    "constraints": {
+      "unique_per": "class",
+      "blocklists": [],
+      "club_spacing": 0,
+      "horse_cooldown_min": 30
+    },
+    "overrides": []
+  }
+}

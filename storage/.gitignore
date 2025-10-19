@@ -1,2 +1,7 @@
 *
 !.gitignore
+!/presets/
+!/presets/scoring/
+!/presets/start_numbers/
+!/presets/scoring/*.json
+!/presets/start_numbers/*.json

@@ -17,6 +17,23 @@ function scoring_rule_presets(): array
     return RuleManager::presets();
 }
 
+function scoring_rule_preset_options(): array
+{
+    $presets = RuleManager::presets();
+    $meta = RuleManager::presetMetadata();
+    $options = [];
+
+    foreach (array_keys($presets) as $key) {
+        $label = $meta[$key]['label'] ?? ($presets[$key]['label'] ?? ucfirst(str_replace('_', ' ', $key)));
+        $options[] = [
+            'key' => $key,
+            'label' => $label,
+        ];
+    }
+
+    return $options;
+}
+
 function scoring_rule_safe_json(array $data): string
 {
     try {

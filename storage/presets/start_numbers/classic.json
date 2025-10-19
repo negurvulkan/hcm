@@ -1,0 +1,37 @@
+{
+  "label": "Classic (Turnier)",
+  "rule": {
+    "mode": "classic",
+    "scope": "tournament",
+    "sequence": {
+      "start": 1,
+      "step": 1,
+      "range": [
+        1,
+        450
+      ],
+      "reset": "per_day"
+    },
+    "format": {
+      "prefix": "",
+      "width": 3,
+      "suffix": "",
+      "separator": ""
+    },
+    "allocation": {
+      "entity": "start",
+      "time": "on_startlist",
+      "reuse": "after_scratch",
+      "lock_after": "start_called"
+    },
+    "constraints": {
+      "unique_per": "tournament",
+      "blocklists": [
+        "13"
+      ],
+      "club_spacing": 1,
+      "horse_cooldown_min": 0
+    },
+    "overrides": []
+  }
+}
