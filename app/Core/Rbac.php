@@ -415,13 +415,9 @@ class Rbac
 
     private static function menuFromDatabase(string $role): ?array
     {
-        $pdo = App::get('pdo');
-        if (!$pdo instanceof \PDO) {
-            return null;
-        }
-
         try {
-            $repository = new NavigationRepository($pdo);
+            $pdo = App::get('pdo');
+            $repository = $pdo instanceof \PDO ? new NavigationRepository($pdo) : new NavigationRepository();
             $groups = $repository->groupsForRole($role);
             $items = $repository->itemsForRole($role);
         } catch (Throwable) {

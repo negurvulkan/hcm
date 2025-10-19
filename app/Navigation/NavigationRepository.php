@@ -4,14 +4,26 @@ declare(strict_types=1);
 
 namespace App\Navigation;
 
-use DateTimeImmutable;
 use PDO;
-use Throwable;
+use RuntimeException;
 
 class NavigationRepository
 {
-    public function __construct(private PDO $pdo)
+    private string $storagePath;
+
+    public function __construct(PDO|string|null $storage = null)
     {
+        if ($storage instanceof PDO) {
+            $this->storagePath = $this->defaultStoragePath();
+            return;
+        }
+
+        if (is_string($storage) && $storage !== '') {
+            $this->storagePath = $storage;
+            return;
+        }
+
+        $this->storagePath = $this->defaultStoragePath();
     }
 
     /**
@@ -19,35 +31,23 @@ class NavigationRepository
      */
     public function groupsForRole(string $role): array
     {
-        $stmt = $this->pdo->prepare('SELECT id, role, label_key, label_i18n, position FROM navigation_groups WHERE role = :role ORDER BY position ASC, id ASC');
-        $stmt->execute(['role' => $role]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $data = $this->load();
+        $groups = $data['roles'][$role]['groups'] ?? [];
 
-        return array_map(static function (array $row): array {
-            $translations = [];
-            $raw = $row['label_i18n'] ?? null;
-            if (is_string($raw) && $raw !== '') {
-                try {
-                    /** @var array<string, string> $decoded */
-                    $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-                    foreach ($decoded as $locale => $value) {
-                        if (is_string($value) && $value !== '') {
-                            $translations[$locale] = $value;
-                        }
-                    }
-                } catch (\JsonException) {
-                    $translations = [];
-                }
-            }
-
-            return [
-                'id' => (int) $row['id'],
-                'role' => (string) $row['role'],
-                'label_key' => $row['label_key'] !== null ? (string) $row['label_key'] : null,
-                'label_translations' => $translations,
-                'position' => (int) $row['position'],
+        $normalized = [];
+        foreach ($groups as $group) {
+            $normalized[] = [
+                'id' => (int) ($group['id'] ?? 0),
+                'role' => $role,
+                'label_key' => isset($group['label_key']) ? (is_string($group['label_key']) ? $group['label_key'] : null) : null,
+                'label_translations' => $this->sanitizeLabels($group['label_translations'] ?? []),
+                'position' => (int) ($group['position'] ?? 0),
             ];
-        }, $rows ?: []);
+        }
+
+        $this->sortGroups($normalized);
+
+        return $normalized;
     }
 
     /**
@@ -55,138 +55,121 @@ class NavigationRepository
      */
     public function itemsForRole(string $role): array
     {
-        $stmt = $this->pdo->prepare('SELECT id, role, item_key, target, group_id, variant, position, is_custom, label_i18n FROM navigation_items WHERE role = :role ORDER BY position ASC, id ASC');
-        $stmt->execute(['role' => $role]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $data = $this->load();
+        $items = $data['roles'][$role]['items'] ?? [];
 
-        return array_map(static function (array $row): array {
-            $translations = [];
-            $raw = $row['label_i18n'] ?? null;
-            if (is_string($raw) && $raw !== '') {
-                try {
-                    /** @var array<string, string> $decoded */
-                    $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-                    foreach ($decoded as $locale => $value) {
-                        if (is_string($value) && $value !== '') {
-                            $translations[$locale] = $value;
-                        }
-                    }
-                } catch (\JsonException) {
-                    $translations = [];
-                }
-            }
-
-            return [
-                'id' => (int) $row['id'],
-                'role' => (string) $row['role'],
-                'item_key' => (string) $row['item_key'],
-                'target' => (string) $row['target'],
-                'group_id' => $row['group_id'] !== null ? (int) $row['group_id'] : null,
-                'variant' => $row['variant'] !== null && $row['variant'] !== '' ? (string) $row['variant'] : 'primary',
-                'position' => (int) $row['position'],
-                'is_custom' => (bool) $row['is_custom'],
-                'label_translations' => $translations,
+        $normalized = [];
+        foreach ($items as $item) {
+            $normalized[] = [
+                'id' => (int) ($item['id'] ?? 0),
+                'role' => $role,
+                'item_key' => (string) ($item['item_key'] ?? ''),
+                'target' => (string) ($item['target'] ?? ''),
+                'group_id' => isset($item['group_id']) ? (int) $item['group_id'] : null,
+                'variant' => $item['variant'] === 'secondary' ? 'secondary' : 'primary',
+                'position' => (int) ($item['position'] ?? 0),
+                'is_custom' => (bool) ($item['is_custom'] ?? false),
+                'label_translations' => $this->sanitizeLabels($item['label_translations'] ?? []),
             ];
-        }, $rows ?: []);
+        }
+
+        $this->sortItems($normalized);
+
+        return $normalized;
     }
 
     public function itemExists(string $role, string $itemKey): bool
     {
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM navigation_items WHERE role = :role AND item_key = :item_key');
-        $stmt->execute([
-            'role' => $role,
-            'item_key' => $itemKey,
-        ]);
+        $data = $this->load();
+        $items = $data['roles'][$role]['items'] ?? [];
 
-        return (bool) $stmt->fetchColumn();
+        foreach ($items as $item) {
+            if (($item['item_key'] ?? null) === $itemKey) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function createCustomItem(string $role, string $itemKey, array $labels, string $target, int $groupId, string $variant, int $position): int
     {
-        $now = (new DateTimeImmutable())->format('c');
-        $labelTranslations = array_filter($labels, static fn ($value) => is_string($value) && $value !== '');
-        $json = $labelTranslations ? json_encode($labelTranslations, JSON_THROW_ON_ERROR) : null;
+        $data = $this->load();
+        $this->ensureRole($data, $role);
 
-        $stmt = $this->pdo->prepare('INSERT INTO navigation_items (role, item_key, target, group_id, variant, position, is_custom, label_i18n, created_at, updated_at) VALUES (:role, :item_key, :target, :group_id, :variant, :position, 1, :label_i18n, :created_at, :updated_at)');
-        $stmt->execute([
-            'role' => $role,
+        $id = $this->nextItemId($data);
+        $data['roles'][$role]['items'][] = [
+            'id' => $id,
             'item_key' => $itemKey,
-            'target' => $target,
-            'group_id' => $groupId,
-            'variant' => $variant,
+            'target' => (string) $target,
+            'group_id' => (int) $groupId,
+            'variant' => $variant === 'secondary' ? 'secondary' : 'primary',
             'position' => $position,
-            'label_i18n' => $json,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+            'is_custom' => true,
+            'label_translations' => $this->sanitizeLabels($labels),
+        ];
 
-        return (int) $this->pdo->lastInsertId();
+        $this->sortItems($data['roles'][$role]['items']);
+        $this->persist($data);
+
+        return $id;
     }
 
     public function createGroup(string $role, array $labels, int $position, ?string $labelKey = null): int
     {
-        $now = (new DateTimeImmutable())->format('c');
-        $labelTranslations = array_filter($labels, static fn ($value) => is_string($value) && $value !== '');
-        $json = $labelTranslations ? json_encode($labelTranslations, JSON_THROW_ON_ERROR) : null;
+        $data = $this->load();
+        $this->ensureRole($data, $role);
 
-        $stmt = $this->pdo->prepare('INSERT INTO navigation_groups (role, label_key, label_i18n, position, created_at, updated_at) VALUES (:role, :label_key, :label_i18n, :position, :created_at, :updated_at)');
-        $stmt->execute([
-            'role' => $role,
+        $id = $this->nextGroupId($data);
+        $data['roles'][$role]['groups'][] = [
+            'id' => $id,
             'label_key' => $labelKey,
-            'label_i18n' => $json,
+            'label_translations' => $this->sanitizeLabels($labels),
             'position' => $position,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        ];
 
-        return (int) $this->pdo->lastInsertId();
+        $this->sortGroups($data['roles'][$role]['groups']);
+        $this->persist($data);
+
+        return $id;
     }
 
     public function updateGroup(int $id, string $role, array $labels, int $position): void
     {
-        $now = (new DateTimeImmutable())->format('c');
-        $labelTranslations = array_filter($labels, static fn ($value) => is_string($value) && $value !== '');
-        $json = $labelTranslations ? json_encode($labelTranslations, JSON_THROW_ON_ERROR) : null;
+        $data = $this->load();
+        $this->ensureRole($data, $role);
 
-        $stmt = $this->pdo->prepare('UPDATE navigation_groups SET label_i18n = :label_i18n, position = :position, updated_at = :updated_at WHERE id = :id AND role = :role');
-        $stmt->execute([
-            'label_i18n' => $json,
-            'position' => $position,
-            'updated_at' => $now,
-            'id' => $id,
-            'role' => $role,
-        ]);
+        foreach ($data['roles'][$role]['groups'] as &$group) {
+            if ((int) ($group['id'] ?? 0) === $id) {
+                $group['label_translations'] = $this->sanitizeLabels($labels);
+                $group['position'] = $position;
+                break;
+            }
+        }
+        unset($group);
+
+        $this->sortGroups($data['roles'][$role]['groups']);
+        $this->persist($data);
     }
 
     public function deleteGroup(int $id, string $role): void
     {
-        $startedTransaction = false;
-        if (!$this->pdo->inTransaction()) {
-            $this->pdo->beginTransaction();
-            $startedTransaction = true;
-        }
-        try {
-            $deleteItems = $this->pdo->prepare('DELETE FROM navigation_items WHERE role = :role AND group_id = :group_id');
-            $deleteItems->execute([
-                'role' => $role,
-                'group_id' => $id,
-            ]);
+        $data = $this->load();
+        $this->ensureRole($data, $role);
 
-            $deleteGroup = $this->pdo->prepare('DELETE FROM navigation_groups WHERE id = :id AND role = :role');
-            $deleteGroup->execute([
-                'id' => $id,
-                'role' => $role,
-            ]);
+        $data['roles'][$role]['groups'] = array_values(array_filter(
+            $data['roles'][$role]['groups'],
+            static fn (array $group): bool => (int) ($group['id'] ?? 0) !== $id
+        ));
 
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
-        } catch (Throwable $exception) {
-            if ($startedTransaction) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
-        }
+        $data['roles'][$role]['items'] = array_values(array_filter(
+            $data['roles'][$role]['items'],
+            static fn (array $item): bool => (int) ($item['group_id'] ?? 0) !== $id
+        ));
+
+        $this->sortGroups($data['roles'][$role]['groups']);
+        $this->sortItems($data['roles'][$role]['items']);
+        $this->persist($data);
     }
 
     /**
@@ -194,79 +177,35 @@ class NavigationRepository
      */
     public function replaceItems(string $role, array $items): void
     {
-        $startedTransaction = false;
-        if (!$this->pdo->inTransaction()) {
-            $this->pdo->beginTransaction();
-            $startedTransaction = true;
+        $data = $this->load();
+        $this->ensureRole($data, $role);
+
+        $existing = [];
+        foreach ($data['roles'][$role]['items'] as $item) {
+            $existing[$item['item_key']] = $item;
         }
-        try {
-            $select = $this->pdo->prepare('SELECT id, item_key FROM navigation_items WHERE role = :role');
-            $select->execute(['role' => $role]);
-            $existing = [];
-            foreach ($select->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $existing[(string) $row['item_key']] = (int) $row['id'];
-            }
 
-            $now = (new DateTimeImmutable())->format('c');
-            $upserted = [];
+        $updated = [];
+        foreach ($items as $item) {
+            $itemKey = $item['item_key'];
+            $current = $existing[$itemKey] ?? null;
+            $id = isset($current['id']) ? (int) $current['id'] : $this->nextItemId($data);
 
-            $update = $this->pdo->prepare('UPDATE navigation_items SET target = :target, group_id = :group_id, variant = :variant, position = :position, is_custom = :is_custom, label_i18n = :label_i18n, updated_at = :updated_at WHERE id = :id AND role = :role');
-            $insert = $this->pdo->prepare('INSERT INTO navigation_items (role, item_key, target, group_id, variant, position, is_custom, label_i18n, created_at, updated_at) VALUES (:role, :item_key, :target, :group_id, :variant, :position, :is_custom, :label_i18n, :created_at, :updated_at)');
-
-            foreach ($items as $item) {
-                $itemKey = $item['item_key'];
-                $upserted[] = $itemKey;
-
-                $labelTranslations = array_filter($item['labels'] ?? [], static fn ($value) => is_string($value) && $value !== '');
-                $json = $labelTranslations ? json_encode($labelTranslations, JSON_THROW_ON_ERROR) : null;
-
-                if (isset($existing[$itemKey])) {
-                    $update->execute([
-                        'target' => $item['target'],
-                        'group_id' => $item['group_id'],
-                        'variant' => $item['variant'],
-                        'position' => $item['position'],
-                        'is_custom' => $item['is_custom'] ? 1 : 0,
-                        'label_i18n' => $json,
-                        'updated_at' => $now,
-                        'id' => $existing[$itemKey],
-                        'role' => $role,
-                    ]);
-                } else {
-                    $insert->execute([
-                        'role' => $role,
-                        'item_key' => $itemKey,
-                        'target' => $item['target'],
-                        'group_id' => $item['group_id'],
-                        'variant' => $item['variant'],
-                        'position' => $item['position'],
-                        'is_custom' => $item['is_custom'] ? 1 : 0,
-                        'label_i18n' => $json,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]);
-                }
-            }
-
-            $delete = $this->pdo->prepare('DELETE FROM navigation_items WHERE role = :role AND item_key = :item_key');
-            foreach ($existing as $itemKey => $id) {
-                if (!in_array($itemKey, $upserted, true)) {
-                    $delete->execute([
-                        'role' => $role,
-                        'item_key' => $itemKey,
-                    ]);
-                }
-            }
-
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
-        } catch (Throwable $exception) {
-            if ($startedTransaction) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
+            $updated[] = [
+                'id' => $id,
+                'item_key' => $itemKey,
+                'target' => (string) $item['target'],
+                'group_id' => isset($item['group_id']) ? (int) $item['group_id'] : null,
+                'variant' => $item['variant'] === 'secondary' ? 'secondary' : 'primary',
+                'position' => $item['position'],
+                'is_custom' => (bool) $item['is_custom'],
+                'label_translations' => $this->sanitizeLabels($item['labels'] ?? []),
+            ];
         }
+
+        $data['roles'][$role]['items'] = $updated;
+        $this->sortItems($data['roles'][$role]['items']);
+        $this->persist($data);
     }
 
     /**
@@ -275,73 +214,224 @@ class NavigationRepository
      */
     public function replaceLayout(string $role, array $groups, array $items): void
     {
-        $startedTransaction = false;
-        if (!$this->pdo->inTransaction()) {
-            $this->pdo->beginTransaction();
-            $startedTransaction = true;
+        $data = $this->load();
+        $this->ensureRole($data, $role);
+
+        $data['roles'][$role]['groups'] = [];
+        $data['roles'][$role]['items'] = [];
+
+        $groupIds = [];
+        foreach ($groups as $group) {
+            $id = $this->nextGroupId($data);
+            $data['roles'][$role]['groups'][] = [
+                'id' => $id,
+                'label_key' => $group['label_key'] ?? null,
+                'label_translations' => $this->sanitizeLabels($group['labels'] ?? []),
+                'position' => (int) ($group['position'] ?? 0),
+            ];
+            $groupIds[$group['key']] = $id;
         }
-        try {
-            $this->pdo->prepare('DELETE FROM navigation_items WHERE role = :role')->execute(['role' => $role]);
-            $this->pdo->prepare('DELETE FROM navigation_groups WHERE role = :role')->execute(['role' => $role]);
 
-            $now = (new DateTimeImmutable())->format('c');
-            $groupInsert = $this->pdo->prepare('INSERT INTO navigation_groups (role, label_key, label_i18n, position, created_at, updated_at) VALUES (:role, :label_key, :label_i18n, :position, :created_at, :updated_at)');
-            $itemInsert = $this->pdo->prepare('INSERT INTO navigation_items (role, item_key, target, group_id, variant, position, is_custom, label_i18n, created_at, updated_at) VALUES (:role, :item_key, :target, :group_id, :variant, :position, :is_custom, :label_i18n, :created_at, :updated_at)');
-
-            $groupIds = [];
-            foreach ($groups as $group) {
-                $labelTranslations = array_filter($group['labels'], static fn ($value) => is_string($value) && $value !== '');
-                $json = $labelTranslations ? json_encode($labelTranslations, JSON_THROW_ON_ERROR) : null;
-                $groupInsert->execute([
-                    'role' => $role,
-                    'label_key' => $group['label_key'] ?? null,
-                    'label_i18n' => $json,
-                    'position' => $group['position'],
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                $groupIds[$group['key']] = (int) $this->pdo->lastInsertId();
+        foreach ($items as $item) {
+            $groupKey = $item['group_key'];
+            if (!isset($groupIds[$groupKey])) {
+                continue;
             }
 
-            foreach ($items as $item) {
-                $groupKey = $item['group_key'];
-                $groupId = $groupIds[$groupKey] ?? null;
-                if ($groupId === null) {
-                    continue;
-                }
-                $itemInsert->execute([
-                    'role' => $role,
-                    'item_key' => $item['item_key'],
-                    'target' => $item['target'],
-                    'group_id' => $groupId,
-                    'variant' => $item['variant'],
-                    'position' => $item['position'],
-                    'is_custom' => 0,
-                    'label_i18n' => null,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-            }
-
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
-        } catch (Throwable $exception) {
-            if ($startedTransaction) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
+            $data['roles'][$role]['items'][] = [
+                'id' => $this->nextItemId($data),
+                'item_key' => (string) $item['item_key'],
+                'target' => (string) $item['target'],
+                'group_id' => $groupIds[$groupKey],
+                'variant' => $item['variant'] === 'secondary' ? 'secondary' : 'primary',
+                'position' => (int) ($item['position'] ?? 0),
+                'is_custom' => false,
+                'label_translations' => [],
+            ];
         }
+
+        $this->sortGroups($data['roles'][$role]['groups']);
+        $this->sortItems($data['roles'][$role]['items']);
+        $this->persist($data);
     }
 
     public function groupBelongsToRole(int $groupId, string $role): bool
     {
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM navigation_groups WHERE id = :id AND role = :role');
-        $stmt->execute([
-            'id' => $groupId,
-            'role' => $role,
-        ]);
+        $data = $this->load();
+        $groups = $data['roles'][$role]['groups'] ?? [];
 
-        return (bool) $stmt->fetchColumn();
+        foreach ($groups as $group) {
+            if ((int) ($group['id'] ?? 0) === $groupId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function defaultStoragePath(): string
+    {
+        return dirname(__DIR__, 2) . '/storage/navigation/navigation.json';
+    }
+
+    private function load(): array
+    {
+        if (!is_file($this->storagePath)) {
+            return [
+                'next_group_id' => 1,
+                'next_item_id' => 1,
+                'roles' => [],
+            ];
+        }
+
+        $contents = file_get_contents($this->storagePath);
+        if ($contents === false || $contents === '') {
+            return [
+                'next_group_id' => 1,
+                'next_item_id' => 1,
+                'roles' => [],
+            ];
+        }
+
+        $decoded = json_decode($contents, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Invalid navigation storage');
+        }
+
+        $decoded['next_group_id'] = isset($decoded['next_group_id']) ? (int) $decoded['next_group_id'] : 1;
+        if ($decoded['next_group_id'] < 1) {
+            $decoded['next_group_id'] = 1;
+        }
+
+        $decoded['next_item_id'] = isset($decoded['next_item_id']) ? (int) $decoded['next_item_id'] : 1;
+        if ($decoded['next_item_id'] < 1) {
+            $decoded['next_item_id'] = 1;
+        }
+
+        if (!isset($decoded['roles']) || !is_array($decoded['roles'])) {
+            $decoded['roles'] = [];
+        }
+
+        return $decoded;
+    }
+
+    private function persist(array $data): void
+    {
+        $directory = dirname($this->storagePath);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new RuntimeException('Unable to create navigation storage directory');
+        }
+
+        $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($encoded === false) {
+            throw new RuntimeException('Unable to encode navigation data');
+        }
+
+        $tempFile = tempnam($directory, 'nav_');
+        if ($tempFile === false) {
+            throw new RuntimeException('Unable to create temporary navigation storage');
+        }
+
+        $bytes = file_put_contents($tempFile, $encoded);
+        if ($bytes === false) {
+            @unlink($tempFile);
+            throw new RuntimeException('Unable to write navigation storage');
+        }
+
+        if (!@rename($tempFile, $this->storagePath)) {
+            @unlink($tempFile);
+            throw new RuntimeException('Unable to persist navigation storage');
+        }
+    }
+
+    private function ensureRole(array &$data, string $role): void
+    {
+        if (!isset($data['roles']) || !is_array($data['roles'])) {
+            $data['roles'] = [];
+        }
+
+        if (!isset($data['roles'][$role])) {
+            $data['roles'][$role] = [
+                'groups' => [],
+                'items' => [],
+            ];
+        }
+
+        if (!is_array($data['roles'][$role]['groups'] ?? null)) {
+            $data['roles'][$role]['groups'] = [];
+        }
+
+        if (!is_array($data['roles'][$role]['items'] ?? null)) {
+            $data['roles'][$role]['items'] = [];
+        }
+    }
+
+    private function nextGroupId(array &$data): int
+    {
+        $next = (int) ($data['next_group_id'] ?? 1);
+        $data['next_group_id'] = $next + 1;
+
+        return $next;
+    }
+
+    private function nextItemId(array &$data): int
+    {
+        $next = (int) ($data['next_item_id'] ?? 1);
+        $data['next_item_id'] = $next + 1;
+
+        return $next;
+    }
+
+    /**
+     * @param array<string, mixed> $labels
+     * @return array<string, string>
+     */
+    private function sanitizeLabels(array $labels): array
+    {
+        $sanitized = [];
+        foreach ($labels as $locale => $value) {
+            if (!is_string($locale) || !is_string($value)) {
+                continue;
+            }
+
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                continue;
+            }
+
+            $sanitized[$locale] = $trimmed;
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $groups
+     */
+    private function sortGroups(array &$groups): void
+    {
+        usort($groups, static function (array $left, array $right): int {
+            $positionComparison = ((int) ($left['position'] ?? 0)) <=> ((int) ($right['position'] ?? 0));
+            if ($positionComparison !== 0) {
+                return $positionComparison;
+            }
+
+            return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+        });
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     */
+    private function sortItems(array &$items): void
+    {
+        usort($items, static function (array $left, array $right): int {
+            $positionComparison = ((int) ($left['position'] ?? 0)) <=> ((int) ($right['position'] ?? 0));
+            if ($positionComparison !== 0) {
+                return $positionComparison;
+            }
+
+            return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+        });
     }
 }
