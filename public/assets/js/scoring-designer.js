@@ -182,12 +182,28 @@
         return value.join(', ');
     }
 
+    function stripLessonsSection(target) {
+        if (!target || typeof target !== 'object') {
+            return;
+        }
+        if (target.input && typeof target.input === 'object' && Object.prototype.hasOwnProperty.call(target.input, 'lessons')) {
+            delete target.input.lessons;
+        }
+    }
+
     function ScoringDesigner(root) {
         this.root = root;
         this.targetSelector = root.getAttribute('data-target');
         this.target = this.targetSelector ? window.document.querySelector(this.targetSelector) : null;
         this.defaults = deepClone(parseJsonSafe(root.getAttribute('data-default'), {}));
+        stripLessonsSection(this.defaults);
         this.presets = parseJsonSafe(root.getAttribute('data-presets'), {});
+        if (this.presets && typeof this.presets === 'object') {
+            var self = this;
+            Object.keys(this.presets).forEach(function (key) {
+                stripLessonsSection(self.presets[key]);
+            });
+        }
         this.state = deepClone(this.defaults);
         this.modal = root.closest('.modal');
         this.handleShow = this.handleShow.bind(this);
@@ -230,6 +246,7 @@
             return;
         }
         this.state = mergeWithDefaults(this.defaults, parsed);
+        stripLessonsSection(this.state);
     };
 
     ScoringDesigner.prototype.renderStructure = function () {
@@ -239,9 +256,9 @@
         if (!this.state.input || typeof this.state.input !== 'object') {
             this.state.input = {};
         }
+        stripLessonsSection(this.state);
         this.state.input.fields = toList(this.state.input.fields, false);
         this.state.input.components = toList(this.state.input.components, false);
-        this.state.input.lessons = toList(this.state.input.lessons, false);
         this.state.penalties = toList(this.state.penalties, false);
         if (!this.state.ranking) {
             this.state.ranking = {};
@@ -250,7 +267,6 @@
 
         this.renderList('fields', this.state.input.fields, this.renderFieldRow.bind(this));
         this.renderList('components', this.state.input.components, this.renderComponentRow.bind(this));
-        this.renderList('lessons', this.state.input.lessons, this.renderLessonRow.bind(this));
         this.renderList('penalties', this.state.penalties, this.renderPenaltyRow.bind(this));
         this.renderList('tiebreakers', this.state.ranking.tiebreak_chain, this.renderTiebreakRow.bind(this));
         this.applyValues();
@@ -371,45 +387,6 @@
             '  <div class="col-md-3">' +
             '    <label class="form-label">Gewichtung</label>' +
             '    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="input.components.' + index + '.weight" step="0.01">' +
-            '  </div>' +
-            '</div>';
-        return wrapper;
-    };
-
-    ScoringDesigner.prototype.renderLessonRow = function (lesson, index) {
-        var wrapper = window.document.createElement('div');
-        wrapper.className = 'border rounded p-3';
-        wrapper.innerHTML = '' +
-            '<div class="d-flex justify-content-between align-items-center mb-3">' +
-            '  <h5 class="h6 mb-0">Lektion ' + (index + 1) + '</h5>' +
-            '  <button class="btn btn-sm btn-outline-danger" type="button" data-action="remove-item" data-list="lessons" data-index="' + index + '">Entfernen</button>' +
-            '</div>' +
-            '<div class="row g-3">' +
-            '  <div class="col-md-3">' +
-            '    <label class="form-label">ID</label>' +
-            '    <input type="text" class="form-control form-control-sm" data-scoring-path="input.lessons.' + index + '.id">' +
-            '  </div>' +
-            '  <div class="col-md-3">' +
-            '    <label class="form-label">Label</label>' +
-            '    <input type="text" class="form-control form-control-sm" data-scoring-path="input.lessons.' + index + '.label">' +
-            '  </div>' +
-            '  <div class="col-md-2">' +
-            '    <label class="form-label">Min</label>' +
-            '    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="input.lessons.' + index + '.min" step="0.01">' +
-            '  </div>' +
-            '  <div class="col-md-2">' +
-            '    <label class="form-label">Max</label>' +
-            '    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="input.lessons.' + index + '.max" step="0.01">' +
-            '  </div>' +
-            '  <div class="col-md-2">' +
-            '    <label class="form-label">Schritt</label>' +
-            '    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="input.lessons.' + index + '.step" step="0.01">' +
-            '  </div>' +
-            '</div>' +
-            '<div class="row g-3 mt-2">' +
-            '  <div class="col-md-3">' +
-            '    <label class="form-label">Gewichtung</label>' +
-            '    <input type="number" class="form-control form-control-sm" data-type="number" data-scoring-path="input.lessons.' + index + '.weight" step="0.01">' +
             '  </div>' +
             '</div>';
         return wrapper;
@@ -536,8 +513,6 @@
             this.addField();
         } else if (action === 'add-component') {
             this.addComponent();
-        } else if (action === 'add-lesson') {
-            this.addLesson();
         } else if (action === 'add-penalty') {
             this.addPenalty();
         } else if (action === 'add-tiebreak') {
@@ -595,23 +570,6 @@
         this.updateTextarea();
     };
 
-    ScoringDesigner.prototype.addLesson = function () {
-        if (!Array.isArray(this.state.input.lessons)) {
-            this.state.input.lessons = [];
-        }
-        var index = this.state.input.lessons.length + 1;
-        this.state.input.lessons.push({
-            id: 'lesson_' + index,
-            label: 'Lektion ' + index,
-            min: 0,
-            max: 10,
-            step: 0.5,
-            weight: 1
-        });
-        this.renderStructure();
-        this.updateTextarea();
-    };
-
     ScoringDesigner.prototype.addPenalty = function () {
         if (!Array.isArray(this.state.penalties)) {
             this.state.penalties = [];
@@ -644,8 +602,6 @@
             this.state.input.fields.splice(index, 1);
         } else if (listName === 'components' && Array.isArray(this.state.input.components)) {
             this.state.input.components.splice(index, 1);
-        } else if (listName === 'lessons' && Array.isArray(this.state.input.lessons)) {
-            this.state.input.lessons.splice(index, 1);
         } else if (listName === 'penalties' && Array.isArray(this.state.penalties)) {
             this.state.penalties.splice(index, 1);
         } else if (listName === 'tiebreakers' && Array.isArray(this.state.ranking.tiebreak_chain)) {
@@ -664,12 +620,14 @@
             return;
         }
         this.state = mergeWithDefaults(this.defaults, preset);
+        stripLessonsSection(this.state);
         this.renderStructure();
         this.updateTextarea();
     };
 
     ScoringDesigner.prototype.resetDefaults = function () {
         this.state = deepClone(this.defaults);
+        stripLessonsSection(this.state);
         this.renderStructure();
         this.updateTextarea();
     };
