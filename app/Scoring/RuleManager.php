@@ -390,10 +390,25 @@ class RuleManager
             if (!isset($normalized[$id])) {
                 $normalized[$id] = [];
             }
-            $normalized[$id] = array_merge($normalized[$id], $component);
+            $normalized[$id] = self::normalizeComponentDefinition(array_merge($normalized[$id], $component));
         }
 
         return array_values($normalized);
+    }
+
+    private static function normalizeComponentDefinition(array $component): array
+    {
+        if (isset($component['calcType']) && !isset($component['scoreType'])) {
+            $component['scoreType'] = $component['calcType'];
+        }
+
+        if (isset($component['scoreType'])) {
+            $component['scoreType'] = strtolower((string) $component['scoreType']);
+        } else {
+            $component['scoreType'] = 'scale';
+        }
+
+        return $component;
     }
 
     private static function sortRecursive(array $data): array

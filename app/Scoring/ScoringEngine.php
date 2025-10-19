@@ -46,7 +46,8 @@ class ScoringEngine
         $result = [];
         foreach ($judges as $key => $judgeInput) {
             $rawValues = $this->mergeJudgeComponentPayload($judgeInput);
-            $components = $this->extractJudgeValues($componentDefinitions, $rawValues);
+            $componentData = $this->prepareJudgeComponents($componentDefinitions, $rawValues, $fields);
+            $components = $componentData['scores'];
             $context = [
                 'components' => $components,
                 'fields' => $fields,
@@ -395,50 +396,237 @@ class ScoringEngine
         if ($maxJudges > 0 && $judgeCount > $maxJudges) {
             $errors[] = 'Zu viele Richter';
         }
-        $components = [];
+        $componentMap = [];
         foreach ($rule['input']['components'] ?? [] as $component) {
             if (!empty($component['id'])) {
-                $components[$component['id']] = $component;
+                $componentMap[$component['id']] = $component;
             }
         }
+        $componentDefinitions = array_values($componentMap);
         foreach (($input['judges'] ?? []) as $judge) {
             $payload = $this->mergeJudgeComponentPayload($judge);
-            foreach ($components as $componentId => $definition) {
-                $value = $payload[$componentId] ?? null;
-                if ($value === null && !empty($definition['required'])) {
-                    $errors[] = 'Komponente ' . $componentId . ' fehlt';
+            try {
+                $componentData = $this->prepareJudgeComponents($componentDefinitions, $payload, $fields);
+            } catch (\RuntimeException $e) {
+                $errors[] = $e->getMessage();
+                continue;
+            }
+            foreach ($componentMap as $componentId => $definition) {
+                $value = $componentData['raw'][$componentId] ?? null;
+                if ($value === null) {
+                    if (!empty($definition['required'])) {
+                        $errors[] = 'Komponente ' . $componentId . ' fehlt';
+                    }
                     continue;
                 }
-                if ($value !== null) {
-                    $floatValue = (float) $value;
-                    if (isset($definition['min']) && $floatValue < (float) $definition['min']) {
-                        $errors[] = 'Komponente ' . $componentId . ' unter Minimum';
-                    }
-                    if (isset($definition['max']) && $floatValue > (float) $definition['max']) {
-                        $errors[] = 'Komponente ' . $componentId . ' über Maximum';
-                    }
+                if (isset($definition['min']) && $value < (float) $definition['min']) {
+                    $errors[] = 'Komponente ' . $componentId . ' unter Minimum';
+                }
+                if (isset($definition['max']) && $value > (float) $definition['max']) {
+                    $errors[] = 'Komponente ' . $componentId . ' über Maximum';
                 }
             }
         }
         return $errors ?: true;
     }
 
-    private function extractJudgeValues(array $definitions, array $values): array
+    private function prepareJudgeComponents(array $definitions, array $values, array $fields): array
     {
-        $normalized = [];
+        $scores = [];
+        $raw = [];
         foreach ($definitions as $definition) {
             $id = $definition['id'] ?? null;
             if (!$id) {
                 continue;
             }
-            $raw = $values[$id] ?? null;
-            if ($raw === '' || $raw === null) {
-                $normalized[$id] = null;
-                continue;
-            }
-            $normalized[$id] = (float) $raw;
+            [$rawValue, $score] = $this->calculateComponentValue($definition, $values[$id] ?? null, $fields, $scores, $raw, $values);
+            $raw[$id] = $rawValue;
+            $scores[$id] = $score;
         }
-        return $normalized;
+
+        return [
+            'scores' => $scores,
+            'raw' => $raw,
+        ];
+    }
+
+    private function calculateComponentValue(array $definition, mixed $inputValue, array $fields, array $scores, array $rawValues, array $payload): array
+    {
+        $id = $definition['id'] ?? 'component';
+        $type = $this->resolveComponentType($definition);
+        $normalized = $this->normalizeRawComponentValue($type, $inputValue);
+        if ($inputValue !== null && $inputValue !== '' && $normalized === null && !in_array($type, ['custom'], true)) {
+            throw new RuntimeException('Komponente ' . $id . ' hat ungültigen Wert');
+        }
+
+        $combinedScores = $scores;
+        $combinedScores[$id] = $normalized;
+        $combinedRaw = $rawValues;
+        $combinedRaw[$id] = $normalized;
+
+        $score = $this->mapComponentScore(
+            $type,
+            $definition,
+            $normalized,
+            $inputValue,
+            $fields,
+            $combinedScores,
+            $combinedRaw,
+            $payload
+        );
+
+        return [$normalized, $score];
+    }
+
+    private function resolveComponentType(array $definition): string
+    {
+        $type = $definition['scoreType'] ?? ($definition['calcType'] ?? 'scale');
+
+        return strtolower((string) $type);
+    }
+
+    private function normalizeRawComponentValue(string $type, mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($type === 'binary') {
+            return $this->normalizeBinaryValue($value);
+        }
+
+        return $this->toNumericValue($value);
+    }
+
+    private function normalizeBinaryValue(mixed $value): ?float
+    {
+        if (is_bool($value)) {
+            return $value ? 1.0 : 0.0;
+        }
+        if (is_numeric($value)) {
+            return ((float) $value) > 0 ? 1.0 : 0.0;
+        }
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if ($normalized === '') {
+                return null;
+            }
+            $truthy = ['1', 'true', 'yes', 'y', 'ok', 'pass', 'ja'];
+            $falsy = ['0', 'false', 'no', 'n', 'fail', 'nein'];
+            if (in_array($normalized, $truthy, true)) {
+                return 1.0;
+            }
+            if (in_array($normalized, $falsy, true)) {
+                return 0.0;
+            }
+        }
+
+        return null;
+    }
+
+    private function toNumericValue(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_bool($value)) {
+            return $value ? 1.0 : 0.0;
+        }
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+            if (is_numeric($trimmed)) {
+                return (float) $trimmed;
+            }
+        }
+
+        return null;
+    }
+
+    private function mapComponentScore(string $type, array $definition, ?float $normalized, mixed $inputValue, array $fields, array $scores, array $rawValues, array $payload): ?float
+    {
+        $id = $definition['id'] ?? 'component';
+        return match ($type) {
+            'binary' => $normalized === null
+                ? null
+                : ($normalized > 0 ? (float) ($definition['max'] ?? 1.0) : (float) ($definition['min'] ?? 0.0)),
+            'count' => $normalized === null ? null : $normalized * (float) ($definition['factor'] ?? 1.0),
+            'time' => $this->evaluateComponentWithExpression(
+                $definition['toPointsExpr'] ?? null,
+                $definition,
+                $normalized,
+                $inputValue,
+                $fields,
+                $scores,
+                $rawValues,
+                $payload,
+                $normalized
+            ),
+            'custom' => $this->evaluateComponentWithExpression(
+                $definition['calcExpr'] ?? null,
+                $definition,
+                $normalized,
+                $inputValue,
+                $fields,
+                $scores,
+                $rawValues,
+                $payload,
+                $normalized
+            ),
+            default => $normalized,
+        };
+    }
+
+    private function evaluateComponentWithExpression(
+        ?string $expression,
+        array $definition,
+        ?float $normalized,
+        mixed $inputValue,
+        array $fields,
+        array $scores,
+        array $rawValues,
+        array $payload,
+        ?float $fallback
+    ): ?float {
+        $expression = $expression !== null ? trim((string) $expression) : '';
+        if ($expression === '') {
+            return $fallback;
+        }
+
+        $context = [
+            'value' => $normalized,
+            'raw' => $inputValue,
+            'fields' => $fields,
+            'components' => $scores,
+            'raw_components' => $rawValues,
+            'input' => $payload,
+            'definition' => $definition,
+        ];
+
+        try {
+            $result = Expression::evaluate($expression, $context);
+        } catch (\Throwable $e) {
+            $id = $definition['id'] ?? 'component';
+            throw new RuntimeException('Ausdrucksfehler in Komponente ' . $id . ': ' . $e->getMessage(), 0, $e);
+        }
+
+        if (is_bool($result)) {
+            return $result ? 1.0 : 0.0;
+        }
+        if ($result === null || $result === '') {
+            return null;
+        }
+        if (!is_numeric($result)) {
+            $id = $definition['id'] ?? 'component';
+            throw new RuntimeException('Ausdruck in Komponente ' . $id . ' liefert keinen numerischen Wert');
+        }
+
+        return (float) $result;
     }
 
     private function mergeJudgeComponentPayload(array $judgeInput): array
