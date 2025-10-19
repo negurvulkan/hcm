@@ -1,9 +1,5 @@
 <?php
 
-use DateTimeImmutable;
-use PDO;
-use Throwable;
-
 return [
     'description' => 'Umstellung auf Party/Rollen-Modell für Personen und Organisationen',
     'up' => static function (PDO $pdo, string $driver): void {
