@@ -3,6 +3,7 @@
 namespace App\Signage;
 
 use App\Core\App;
+use App\Services\InstanceConfiguration;
 use App\Signage\Exceptions\ValidationException;
 use DateTimeImmutable;
 use PDO;
@@ -652,16 +653,18 @@ class SignageRepository
     {
         [$activeEvent, $eventId] = $this->resolveEventContext($layout);
 
+        $instanceConfig = $this->resolveInstanceConfig();
+
         $eventData = $activeEvent ? [
             'id' => (int) $activeEvent['id'],
             'title' => $activeEvent['title'] ?? '',
             'start_date' => $activeEvent['start_date'] ?? null,
             'end_date' => $activeEvent['end_date'] ?? null,
             'venues' => $this->decode($activeEvent['venues'] ?? '[]', []),
-            'branding' => [
-                'logo' => \instance_config()->get('branding_logo'),
-                'primary_color' => \instance_config()->get('branding_primary'),
-            ],
+            'branding' => $instanceConfig ? [
+                'logo' => $instanceConfig->get('branding_logo'),
+                'primary_color' => $instanceConfig->get('branding_primary'),
+            ] : [],
         ] : null;
 
         $live = $this->fetchLiveData($eventId);
@@ -695,6 +698,19 @@ class SignageRepository
         }
 
         return [$activeEvent, $eventId];
+    }
+
+    private function resolveInstanceConfig(): ?InstanceConfiguration
+    {
+        if (function_exists('instance_config')) {
+            $candidate = \instance_config();
+            if ($candidate instanceof InstanceConfiguration) {
+                return $candidate;
+            }
+        }
+
+        $candidate = App::get('instance');
+        return $candidate instanceof InstanceConfiguration ? $candidate : null;
     }
 
     private function lookupActiveEvent(): ?array
