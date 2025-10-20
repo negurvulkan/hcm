@@ -1,13 +1,11 @@
 <?php
 
-use DateTimeImmutable;
-
 return [
     'description' => 'Digital Signage Grundtabellen',
     'up' => static function (\PDO $pdo, string $driver): void {
         $idColumn = $driver === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
         $textType = 'TEXT';
-        $now = (new DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+        $now = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
 
         $pdo->exec(
             <<<SQL
