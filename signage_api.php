@@ -6,7 +6,6 @@ use App\Signage\Exceptions\NotFoundException;
 use App\Signage\Exceptions\ValidationException;
 use App\Signage\SignageApiHandler;
 use App\Signage\SignageRepository;
-use DateTimeImmutable;
 
 header('Content-Type: application/json');
 
@@ -42,7 +41,7 @@ if ($action === 'player_heartbeat' && $method === 'POST') {
         return;
     }
     $repository->touchDisplay((int) $display['id'], $payload['hardware'] ?? null);
-    echo json_encode(['status' => 'ok', 'heartbeat_at' => (new DateTimeImmutable('now'))->format('c')], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['status' => 'ok', 'heartbeat_at' => (new \DateTimeImmutable('now'))->format('c')], JSON_UNESCAPED_UNICODE);
     return;
 }
 
