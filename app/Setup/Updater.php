@@ -73,6 +73,10 @@ class Updater
             $version = $parts[0];
             $definition = require $file;
 
+            if (isset($migrations[$version])) {
+                throw new RuntimeException(sprintf('Migration %s verwendet eine bereits bestehende Versionsnummer %s.', $file, $version));
+            }
+
             if (!is_array($definition) || !isset($definition['up']) || !is_callable($definition['up'])) {
                 throw new RuntimeException(sprintf('Migration %s muss ein Array mit einem aufrufbaren "up"-Schlüssel zurückgeben.', $file));
             }
