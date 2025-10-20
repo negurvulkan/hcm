@@ -68,6 +68,10 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label" for="entry-department-input"><?= htmlspecialchars(t('entries.form.department'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="text" name="department" id="entry-department-input" class="form-control" maxlength="120" placeholder="<?= htmlspecialchars(t('entries.form.department_placeholder'), ENT_QUOTES, 'UTF-8') ?>" value="<?= htmlspecialchars($editEntry['department'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label"><?= htmlspecialchars(t('entries.form.status'), ENT_QUOTES, 'UTF-8') ?></label>
                         <select name="status" class="form-select">
                             <option value="open" <?= !$editEntry || $editEntry['status'] === 'open' ? 'selected' : '' ?>><?= htmlspecialchars(t('entries.status.open'), ENT_QUOTES, 'UTF-8') ?></option>
@@ -150,6 +154,7 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                                 <th><?= htmlspecialchars(t('entries.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></th>
                                 <th><?= htmlspecialchars(t('entries.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></th>
                                 <th><?= htmlspecialchars(t('entries.table.columns.class'), ENT_QUOTES, 'UTF-8') ?></th>
+                                <th><?= htmlspecialchars(t('entries.table.columns.department'), ENT_QUOTES, 'UTF-8') ?></th>
                                 <th><?= htmlspecialchars(t('entries.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
                                 <?php foreach ($entryCustomFieldColumns as $column): ?>
                                     <th><?= htmlspecialchars($column['label'], ENT_QUOTES, 'UTF-8') ?></th>
@@ -169,6 +174,7 @@ $ownerSelectValue = (int) ($defaultHorseOwnerId ?? 0);
                                     </td>
                                     <td><?= htmlspecialchars($entry['horse'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars($entry['class_label'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= $entry['department'] !== null && $entry['department'] !== '' ? htmlspecialchars($entry['department'], ENT_QUOTES, 'UTF-8') : '–' ?></td>
                                     <td>
                                         <span class="badge <?= $entry['status'] === 'paid' ? 'bg-success' : 'bg-warning text-dark' ?>">
                                             <?= htmlspecialchars(t('entries.status.' . $entry['status']), ENT_QUOTES, 'UTF-8') ?>
