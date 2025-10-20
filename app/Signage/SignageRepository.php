@@ -650,18 +650,7 @@ class SignageRepository
 
     private function buildDataPayload(?array $layout): array
     {
-        $activeEvent = \event_active();
-        $eventId = $activeEvent['id'] ?? null;
-
-        if ($layout && !empty($layout['event_id'])) {
-            $stmt = $this->pdo->prepare('SELECT * FROM events WHERE id = :id LIMIT 1');
-            $stmt->execute(['id' => $layout['event_id']]);
-            $forcedEvent = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($forcedEvent) {
-                $activeEvent = $forcedEvent;
-                $eventId = $forcedEvent['id'];
-            }
-        }
+        [$activeEvent, $eventId] = $this->resolveEventContext($layout);
 
         $eventData = $activeEvent ? [
             'id' => (int) $activeEvent['id'],
@@ -690,6 +679,57 @@ class SignageRepository
             'sponsors' => $sponsors,
             'clock' => $clock,
         ];
+    }
+
+    private function resolveEventContext(?array $layout): array
+    {
+        $activeEvent = $this->lookupActiveEvent();
+        $eventId = $activeEvent ? (int) $activeEvent['id'] : null;
+
+        if ($layout && !empty($layout['event_id'])) {
+            $forcedEvent = $this->fetchEventById((int) $layout['event_id']);
+            if ($forcedEvent) {
+                $activeEvent = $forcedEvent;
+                $eventId = (int) $forcedEvent['id'];
+            }
+        }
+
+        return [$activeEvent, $eventId];
+    }
+
+    private function lookupActiveEvent(): ?array
+    {
+        if (function_exists('event_active')) {
+            $event = \event_active();
+            if (is_array($event) && !empty($event['id'])) {
+                return $event;
+            }
+        }
+
+        try {
+            $stmt = $this->pdo->query('SELECT * FROM events WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
+            if ($stmt) {
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                return $row ?: null;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return null;
+    }
+
+    private function fetchEventById(int $eventId): ?array
+    {
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM events WHERE id = :id LIMIT 1');
+            $stmt->execute(['id' => $eventId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return $row ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function fetchLiveData(?int $eventId): array
