@@ -7,6 +7,7 @@ use App\Scoring\ScoringEngine;
 require __DIR__ . '/../app/Scoring/Expression.php';
 require __DIR__ . '/../app/Scoring/RuleManager.php';
 require __DIR__ . '/../app/Scoring/ScoringEngine.php';
+require __DIR__ . '/../app/helpers/scoring.php';
 
 function assertSame(mixed $expected, mixed $actual, string $message = ''): void
 {
@@ -178,6 +179,27 @@ assertSame('ERR1', $newSchemaEval['totals']['penalties']['applied'][0]['id']);
 assertTrue(isset($newSchemaEval['totals']['normalization_target']) && abs($newSchemaEval['totals']['normalization_target'] - 10.0) < 0.001, 'Normalization target for percent');
 assertTrue(abs($newSchemaEval['totals']['total_rounded'] - 55.83) < 0.05, 'Normalized percentage total');
 assertSame('%', $newSchemaEval['totals']['unit']);
+
+$departmentRule = RuleManager::mergeDefaults([
+    'grouping' => [
+        'department' => [
+            'enabled' => true,
+            'aggregation' => 'mean',
+            'rounding' => 1,
+            'label' => 'Abteilung',
+            'min_members' => 1,
+        ],
+    ],
+]);
+$departmentResults = scoring_department_results([
+    ['id' => 1, 'department' => 'A1', 'total' => 70.0, 'rank' => 1, 'eliminated' => 0, 'rider' => 'Anna', 'horse' => 'Alpha', 'start_number_display' => '1'],
+    ['id' => 2, 'department' => 'A1', 'total' => 68.0, 'rank' => 2, 'eliminated' => 0, 'rider' => 'Ben', 'horse' => 'Beta', 'start_number_display' => '2'],
+    ['id' => 3, 'department' => 'B1', 'total' => 60.0, 'rank' => 3, 'eliminated' => 0, 'rider' => 'Cara', 'horse' => 'Gamma', 'start_number_display' => '3'],
+], $departmentRule);
+assertTrue($departmentResults['enabled'] === true, 'Department results should be enabled');
+assertSame(2, count($departmentResults['entries']), 'Two squads aggregated');
+assertSame(1, $departmentResults['entries'][0]['rank'], 'First squad rank');
+assertTrue($departmentResults['entries'][0]['score'] > $departmentResults['entries'][1]['score'], 'Higher squad score first');
 
 $snapshot = $engine->snapshotRule($rule);
 assertTrue(!empty($snapshot['hash']), 'Snapshot hash missing');

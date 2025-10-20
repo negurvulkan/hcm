@@ -47,6 +47,8 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     }
 }
 
+$rule = scoring_rule_for_class($selectedClass);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', t('results.validation.csrf_invalid'));
@@ -105,10 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, pr.display_name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
+$results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, e.department, pr.display_name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
 if ($results && array_reduce($results, static fn(bool $carry, array $row): bool => $carry || $row['rank'] === null, false)) {
     scoring_recalculate_class($classId, $user, 'results_view');
-    $results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, pr.display_name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
+    $results = db_all('SELECT r.*, si.start_number_display, si.start_number_raw, e.department, pr.display_name AS rider, h.name AS horse FROM results r JOIN startlist_items si ON si.id = r.startlist_id JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id WHERE si.class_id = :class_id ORDER BY r.status DESC, r.rank IS NULL, r.rank ASC, r.total DESC', ['class_id' => $classId]);
 }
 foreach ($results as &$row) {
     $row['breakdown'] = $row['breakdown_json'] ? json_decode($row['breakdown_json'], true, 512, JSON_THROW_ON_ERROR) : [];
@@ -116,6 +118,7 @@ foreach ($results as &$row) {
     $row['tiebreak_path'] = $row['tiebreak_path'] ? json_decode($row['tiebreak_path'], true, 512, JSON_THROW_ON_ERROR) : [];
 }
 unset($row);
+$departmentResults = scoring_department_results($results, $rule);
 $audits = db_all('SELECT * FROM audit_log WHERE entity = "results" AND entity_id IN (SELECT r.id FROM results r JOIN startlist_items si ON si.id = r.startlist_id WHERE si.class_id = :class_id) ORDER BY id DESC LIMIT 20', ['class_id' => $classId]);
 
 render_page('results.tpl', [
@@ -124,5 +127,6 @@ render_page('results.tpl', [
     'classes' => $classes,
     'selectedClass' => $selectedClass,
     'results' => $results,
+    'departmentResults' => $departmentResults,
     'audits' => $audits,
 ]);

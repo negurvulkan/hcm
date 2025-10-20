@@ -1438,6 +1438,16 @@ return [
             'empty' => 'Keine Ergebnisse erfasst.',
             'rule_hash' => 'Hash: {hash}',
         ],
+        'department' => [
+            'title' => 'Abteilungswertung',
+            'columns' => [
+                'rank' => 'Rang',
+                'department' => 'Abteilung',
+                'score' => 'Wertung',
+                'members' => 'Reiter',
+            ],
+            'empty' => 'Keine Abteilungswertung verfügbar.',
+        ],
         'status' => [
             'draft' => 'Entwurf',
             'submitted' => 'eingereicht',
