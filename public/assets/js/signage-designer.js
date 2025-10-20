@@ -1446,22 +1446,39 @@
             this.renderActiveLayout();
         }
 
-        api(action, payload) {
+        api(action, payload, options = {}) {
+            const { retry = true } = options;
             const headers = {
                 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
             };
-            const body = Object.assign({}, payload || {}, { _token: this.csrfToken });
+            if (this.csrfToken) {
+                headers['X-CSRF-Token'] = this.csrfToken;
+            }
+            const bodyPayload = Object.assign({}, payload || {});
+            if (this.csrfToken) {
+                bodyPayload._token = this.csrfToken;
+            }
             return fetch(`${this.apiEndpoint}?action=${encodeURIComponent(action)}`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(body),
+                credentials: 'same-origin',
+                body: JSON.stringify(bodyPayload),
             }).then(async (response) => {
                 const data = await response.json().catch(() => null);
-                if (!response.ok || (data && data.status === 'error')) {
-                    throw new Error(data?.message || 'Request failed');
-                }
-                if (data?.csrf) {
+                if (data && typeof data.csrf === 'string' && data.csrf) {
                     this.csrfToken = data.csrf;
+                }
+                if (!response.ok || (data && data.status === 'error')) {
+                    if (response.status === 419 && retry && this.csrfToken) {
+                        return this.api(action, payload, { retry: false });
+                    }
+                    const error = new Error(data?.message || 'Request failed');
+                    if (data && data.code) {
+                        error.code = data.code;
+                    }
+                    error.status = response.status;
+                    throw error;
                 }
                 return data;
             });

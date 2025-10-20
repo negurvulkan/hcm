@@ -109,7 +109,10 @@ function parse_json_payload(): array
 
 function respond_ok(array $payload = []): void
 {
-    echo json_encode(array_merge(['status' => 'ok'], $payload), JSON_UNESCAPED_UNICODE);
+    echo json_encode(array_merge([
+        'status' => 'ok',
+        'csrf' => csrf_token(),
+    ], $payload), JSON_UNESCAPED_UNICODE);
 }
 
 function respond_error(string $code, string $message, ?int $status = null): void
@@ -121,5 +124,6 @@ function respond_error(string $code, string $message, ?int $status = null): void
         'status' => 'error',
         'code' => $code,
         'message' => $message,
+        'csrf' => csrf_token(),
     ], JSON_UNESCAPED_UNICODE);
 }
