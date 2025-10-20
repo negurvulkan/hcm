@@ -2,6 +2,7 @@
 
 namespace App\Signage;
 
+use App\Core\App;
 use App\Signage\Exceptions\ValidationException;
 use DateTimeImmutable;
 use PDO;
@@ -13,7 +14,25 @@ class SignageRepository
 
     public function __construct(?PDO $pdo = null)
     {
-        $this->pdo = $pdo ?? \app_pdo();
+        if ($pdo instanceof PDO) {
+            $this->pdo = $pdo;
+            return;
+        }
+
+        if (function_exists('app_pdo')) {
+            $candidate = \app_pdo();
+            if ($candidate instanceof PDO) {
+                $this->pdo = $candidate;
+                return;
+            }
+        }
+
+        $candidate = App::get('pdo');
+        if (!$candidate instanceof PDO) {
+            throw new RuntimeException('Keine Datenbankverbindung für Digital Signage verfügbar.');
+        }
+
+        $this->pdo = $candidate;
     }
 
     public function listLayouts(?int $eventId = null): array
