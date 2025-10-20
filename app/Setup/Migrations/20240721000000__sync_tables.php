@@ -76,32 +76,31 @@ SQL
             ['table' => 'results', 'column' => 'updated_at', 'definition' => $timestamp . ' NULL'],
         ];
 
+        $syncColumnExists = static function (\PDO $pdo, string $driver, string $table, string $column): bool {
+            if ($driver === 'mysql') {
+                $stmt = $pdo->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column');
+                $stmt->execute(['table' => $table, 'column' => $column]);
+                return (bool) $stmt->fetchColumn();
+            }
+
+            $stmt = $pdo->query("PRAGMA table_info('" . $table . "')");
+            if (!$stmt) {
+                return false;
+            }
+
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $info) {
+                if (strcasecmp((string) $info['name'], $column) === 0) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
         foreach ($columns as $column) {
-            if (!sync_column_exists($pdo, $driver, $column['table'], $column['column'])) {
+            if (!$syncColumnExists($pdo, $driver, $column['table'], $column['column'])) {
                 $pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $column['table'], $column['column'], $column['definition']));
             }
         }
     },
 ];
-
-function sync_column_exists(\PDO $pdo, string $driver, string $table, string $column): bool
-{
-    if ($driver === 'mysql') {
-        $stmt = $pdo->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column');
-        $stmt->execute(['table' => $table, 'column' => $column]);
-        return (bool) $stmt->fetchColumn();
-    }
-
-    $stmt = $pdo->query("PRAGMA table_info('" . $table . "')");
-    if (!$stmt) {
-        return false;
-    }
-
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $info) {
-        if (strcasecmp((string) $info['name'], $column) === 0) {
-            return true;
-        }
-    }
-
-    return false;
-}
