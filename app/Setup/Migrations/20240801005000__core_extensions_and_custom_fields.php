@@ -9,20 +9,50 @@ return [
         $timestampType = $driver === 'mysql' ? 'DATETIME' : 'TEXT';
         $booleanType = $driver === 'mysql' ? 'TINYINT(1)' : 'INTEGER';
 
-        $pdo->exec("ALTER TABLE parties ADD COLUMN uuid {$uuidType}");
-        $pdo->exec("ALTER TABLE parties ADD COLUMN given_name VARCHAR(120)");
-        $pdo->exec("ALTER TABLE parties ADD COLUMN family_name VARCHAR(120)");
-        $pdo->exec("ALTER TABLE parties ADD COLUMN date_of_birth DATE");
-        $pdo->exec("ALTER TABLE parties ADD COLUMN nationality VARCHAR(3)");
-        $pdo->exec("ALTER TABLE parties ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
+        $columnExists = static function (PDO $pdo, string $driver, string $table, string $column): bool {
+            if ($driver === 'mysql') {
+                $stmt = $pdo->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column');
+                $stmt->execute(['table' => $table, 'column' => $column]);
+
+                return (bool) $stmt->fetchColumn();
+            }
+
+            $stmt = $pdo->query("PRAGMA table_info('" . $table . "')");
+            if (!$stmt) {
+                return false;
+            }
+
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $info) {
+                if (strcasecmp((string) $info['name'], $column) === 0) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        $addColumn = static function (string $table, string $column, string $definition) use ($pdo, $driver, $columnExists): void {
+            if ($columnExists($pdo, $driver, $table, $column)) {
+                return;
+            }
+
+            $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
+        };
+
+        $addColumn('parties', 'uuid', $uuidType);
+        $addColumn('parties', 'given_name', 'VARCHAR(120)');
+        $addColumn('parties', 'family_name', 'VARCHAR(120)');
+        $addColumn('parties', 'date_of_birth', 'DATE');
+        $addColumn('parties', 'nationality', "VARCHAR(3)");
+        $addColumn('parties', 'status', "VARCHAR(20) DEFAULT 'active'");
         $pdo->exec("UPDATE parties SET status = 'active' WHERE status IS NULL OR status = ''");
         $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS parties_uuid_unique ON parties (uuid)');
 
-        $pdo->exec("ALTER TABLE horses ADD COLUMN uuid {$uuidType}");
-        $pdo->exec("ALTER TABLE horses ADD COLUMN life_number VARCHAR(80)");
-        $pdo->exec("ALTER TABLE horses ADD COLUMN microchip VARCHAR(80)");
-        $pdo->exec("ALTER TABLE horses ADD COLUMN sex VARCHAR(20) DEFAULT 'unknown'");
-        $pdo->exec("ALTER TABLE horses ADD COLUMN birth_year INTEGER");
+        $addColumn('horses', 'uuid', $uuidType);
+        $addColumn('horses', 'life_number', 'VARCHAR(80)');
+        $addColumn('horses', 'microchip', 'VARCHAR(80)');
+        $addColumn('horses', 'sex', "VARCHAR(20) DEFAULT 'unknown'");
+        $addColumn('horses', 'birth_year', 'INTEGER');
         $pdo->exec("UPDATE horses SET sex = COALESCE(NULLIF(sex, ''), 'unknown')");
         $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS horses_uuid_unique ON horses (uuid)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS horses_life_number_idx ON horses (life_number)');
@@ -89,7 +119,7 @@ SQL
 
         $selectPersons = $pdo->query("SELECT id, uuid, display_name, given_name, family_name FROM parties WHERE party_type = 'person'");
         $updatePerson = $pdo->prepare('UPDATE parties SET uuid = :uuid, given_name = :given, family_name = :family WHERE id = :id');
-        while (($row = $selectPersons->fetch(PDO::FETCH_ASSOC)) !== false) {
+        while (($row = $selectPersons->fetch(\PDO::FETCH_ASSOC)) !== false) {
             $uuid = trim((string) ($row['uuid'] ?? ''));
             if ($uuid === '') {
                 $uuid = $generateUuid();
@@ -121,7 +151,7 @@ SQL
 
         $selectHorses = $pdo->query('SELECT id, uuid FROM horses');
         $updateHorse = $pdo->prepare('UPDATE horses SET uuid = :uuid WHERE id = :id');
-        while (($row = $selectHorses->fetch(PDO::FETCH_ASSOC)) !== false) {
+        while (($row = $selectHorses->fetch(\PDO::FETCH_ASSOC)) !== false) {
             $uuid = trim((string) ($row['uuid'] ?? ''));
             if ($uuid === '') {
                 $uuid = $generateUuid();
