@@ -83,6 +83,7 @@ $pdo->exec('CREATE TABLE entries (
     party_id INTEGER,
     horse_id INTEGER,
     status TEXT,
+    department TEXT,
     start_number_assignment_id INTEGER,
     start_number_raw INTEGER,
     start_number_display TEXT,
@@ -166,9 +167,9 @@ $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, divisio
 $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, division) VALUES (2, 1, 'Class B', 'Arena 2', '2024-08-18T09:00:00', 'Youth')");
 
 $now = (new DateTimeImmutable())->format('c');
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (1, 1, 1, 1, 1, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (2, 1, 1, 2, 2, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (3, 1, 2, 1, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (1, 1, 1, 1, 1, "open", NULL, :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (2, 1, 1, 2, 2, "open", NULL, :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (3, 1, 2, 1, 1, "open", NULL, :created)', ['created' => $now]);
 
 $classOverrideRule = [
     'mode' => 'classic',
@@ -184,6 +185,16 @@ $reuseRule = [
     'sequence' => ['start' => 900, 'step' => 1, 'range' => [900, 905], 'reset' => 'per_class'],
     'format' => ['prefix' => '', 'width' => 0, 'suffix' => '', 'separator' => ''],
     'allocation' => ['entity' => 'start', 'time' => 'on_startlist', 'reuse' => 'after_scratch', 'lock_after' => 'start_called'],
+    'constraints' => ['unique_per' => 'class', 'blocklists' => [], 'club_spacing' => 0, 'horse_cooldown_min' => 0],
+    'overrides' => [],
+];
+
+$departmentRule = [
+    'mode' => 'classic',
+    'scope' => 'class',
+    'sequence' => ['start' => 40, 'step' => 1, 'range' => [40, 60], 'reset' => 'per_class'],
+    'format' => ['prefix' => '', 'width' => 0, 'suffix' => '', 'separator' => ''],
+    'allocation' => ['entity' => 'department', 'time' => 'on_startlist', 'reuse' => 'never', 'lock_after' => 'start_called'],
     'constraints' => ['unique_per' => 'class', 'blocklists' => [], 'club_spacing' => 0, 'horse_cooldown_min' => 0],
     'overrides' => [],
 ];
@@ -204,6 +215,19 @@ db_execute(
 db_execute(
     'INSERT INTO classes (id, event_id, label, arena, start_time, division, start_number_rules) VALUES (:id, :event, :label, :arena, :start, :division, :rules)',
     [
+        'id' => 7,
+        'event' => 1,
+        'label' => 'Class Department',
+        'arena' => 'Arena D',
+        'start' => '2024-08-21T08:30:00',
+        'division' => 'Open',
+        'rules' => json_encode($departmentRule, JSON_THROW_ON_ERROR),
+    ]
+);
+
+db_execute(
+    'INSERT INTO classes (id, event_id, label, arena, start_time, division, start_number_rules) VALUES (:id, :event, :label, :arena, :start, :division, :rules)',
+    [
         'id' => 6,
         'event' => 1,
         'label' => 'Class Reuse',
@@ -214,9 +238,12 @@ db_execute(
     ]
 );
 
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (7, 1, 5, 2, 1, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (8, 1, 6, 1, 2, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (9, 1, 6, 2, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (7, 1, 5, 2, 1, "open", NULL, :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (8, 1, 6, 1, 2, "open", NULL, :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (9, 1, 6, 2, 1, "open", NULL, :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (10, 1, 7, 1, 1, "open", "Abt 1", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (11, 1, 7, 2, 2, "open", "abt   1", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (12, 1, 7, 1, 2, "open", "Abt 2", :created)', ['created' => $now]);
 
 $contextA = ['eventId' => 1, 'classId' => 1, 'user' => ['name' => 'Test']];
 assignStartNumber($contextA, ['entry_id' => 1]);
@@ -231,7 +258,7 @@ assertSame('start', $entry1['start_number_allocation_entity']);
 assertTrue(!empty($entry1['start_number_rule_snapshot']), 'Rule snapshot must be stored for exports.');
 
 expectException(function () use ($contextA) {
-    db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (4, 1, 1, 1, 2, "open", :created)', ['created' => (new DateTimeImmutable())->format('c')]);
+    db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (4, 1, 1, 1, 2, "open", NULL, :created)', ['created' => (new DateTimeImmutable())->format('c')]);
     assignStartNumber($contextA, ['entry_id' => 4]);
 }, 'Startnummernbereich erschöpft');
 
@@ -257,6 +284,18 @@ assertSame('start', $entry7['start_number_allocation_entity']);
 assertTrue(!empty($entry7['start_number_rule_snapshot']), 'Class override should snapshot applied rule.');
 $formattedOverride = formatStartNumber(['id' => (int) $entry7['start_number_assignment_id']], ['eventId' => 1, 'classId' => 5]);
 assertSame($entry7['start_number_display'], $formattedOverride, 'Format helper must echo stored display for overrides.');
+
+$contextDepartment = ['eventId' => 1, 'classId' => 7, 'user' => ['name' => 'Test']];
+assignStartNumber($contextDepartment, ['entry_id' => 10]);
+assignStartNumber($contextDepartment, ['entry_id' => 11]);
+assignStartNumber($contextDepartment, ['entry_id' => 12]);
+$entry10 = db_first('SELECT start_number_display, start_number_assignment_id, start_number_raw FROM entries WHERE id = 10');
+$entry11 = db_first('SELECT start_number_display, start_number_assignment_id, start_number_raw FROM entries WHERE id = 11');
+$entry12 = db_first('SELECT start_number_display, start_number_assignment_id, start_number_raw FROM entries WHERE id = 12');
+assertSame($entry10['start_number_display'], $entry11['start_number_display'], 'Department entries should share number within class.');
+assertSame((int) $entry10['start_number_assignment_id'], (int) $entry11['start_number_assignment_id'], 'Department entries should share assignment.');
+assertTrue((int) $entry12['start_number_assignment_id'] !== (int) $entry10['start_number_assignment_id'], 'Different department should receive distinct assignment.');
+assertTrue((int) $entry12['start_number_raw'] > (int) $entry10['start_number_raw'], 'New department should increment sequence.');
 
 $contextReuse = ['eventId' => 1, 'classId' => 6, 'user' => ['name' => 'Test']];
 assertTrue(db_first('SELECT id FROM entries WHERE id = 8') !== null, 'Entry for reuse rule missing.');
@@ -287,8 +326,8 @@ db_execute('INSERT INTO events (id, title, start_number_rules) VALUES (2, "Weste
 $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, division) VALUES (3, 2, 'Trail Youth', 'Trail', '2024-08-17T10:00:00', 'Youth')");
 $pdo->exec("INSERT INTO classes (id, event_id, label, arena, start_time, division) VALUES (4, 2, 'Pleasure Open', 'Arena 3', '2024-08-18T11:00:00', 'Open')");
 
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (5, 2, 3, 1, 1, "open", :created)', ['created' => $now]);
-db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, created_at) VALUES (6, 2, 4, 1, 1, "open", :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (5, 2, 3, 1, 1, "open", NULL, :created)', ['created' => $now]);
+db_execute('INSERT INTO entries (id, event_id, class_id, party_id, horse_id, status, department, created_at) VALUES (6, 2, 4, 1, 1, "open", NULL, :created)', ['created' => $now]);
 
 $contextTrail = ['eventId' => 2, 'classId' => 3, 'user' => ['name' => 'Test']];
 $contextPleasure = ['eventId' => 2, 'classId' => 4, 'user' => ['name' => 'Test']];

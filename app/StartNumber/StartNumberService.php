@@ -663,7 +663,8 @@ class StartNumberService
 
     private function normalizeSubject(array $subject, array $context, array $rule): array
     {
-        $type = $subject['type'] ?? ($rule['allocation']['entity'] === 'pair' ? 'pair' : 'start');
+        $entity = $rule['allocation']['entity'] ?? 'start';
+        $type = $subject['type'] ?? ($entity === 'pair' ? 'pair' : ($entity === 'department' ? 'department' : 'start'));
         if ($type === 'start') {
             $entryId = (int) ($subject['entry_id'] ?? 0);
             $startlistId = (int) ($subject['startlist_id'] ?? 0);
@@ -718,6 +719,36 @@ class StartNumberService
                 'subject_key' => 'pair:' . $riderId . ':' . $horseId,
             ];
         }
+        if ($type === 'department') {
+            $entryId = (int) ($subject['entry_id'] ?? 0);
+            $startlistId = (int) ($subject['startlist_id'] ?? 0);
+            if ($entryId <= 0 && $startlistId > 0) {
+                $row = \db_first('SELECT entry_id FROM startlist_items WHERE id = :id', ['id' => $startlistId]);
+                $entryId = (int) ($row['entry_id'] ?? 0);
+            }
+            if ($entryId <= 0) {
+                throw new RuntimeException('Abteilung benötigt entry_id.');
+            }
+            $row = $this->loadEntry($entryId);
+            $clubId = $row['club_id'] ? (int) $row['club_id'] : null;
+            $departmentRaw = $subject['department'] ?? ($row['department'] ?? '');
+            $departmentKey = $this->normalizeDepartment($departmentRaw);
+            if ($departmentKey === '') {
+                $departmentKey = 'entry-' . $entryId;
+            }
+            $classId = (int) ($context['class']['id'] ?? 0);
+            return [
+                'type' => 'department',
+                'entry_id' => $entryId,
+                'startlist_id' => $startlistId ?: null,
+                'rider_id' => (int) $row['rider_id'],
+                'horse_id' => (int) $row['horse_id'],
+                'club_id' => $clubId,
+                'department' => $departmentKey,
+                'department_label' => $row['department'] ?? null,
+                'subject_key' => 'department:' . $classId . ':' . $departmentKey,
+            ];
+        }
         throw new RuntimeException('Unbekannter Startnummerntyp.');
     }
 
@@ -770,5 +801,15 @@ class StartNumberService
             $errors[] = 'Startnummer gesperrt.';
         }
         return $errors;
+    }
+
+    private function normalizeDepartment(?string $value): string
+    {
+        $trimmed = trim((string) $value);
+        if ($trimmed === '') {
+            return '';
+        }
+        $collapsed = preg_replace('/\s+/', ' ', $trimmed);
+        return function_exists('mb_strtolower') ? mb_strtolower($collapsed, 'UTF-8') : strtolower($collapsed);
     }
 }

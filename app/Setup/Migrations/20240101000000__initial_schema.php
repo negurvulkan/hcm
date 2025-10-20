@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS entries (
     party_id INTEGER NOT NULL,
     horse_id INTEGER NOT NULL,
     status VARCHAR(40) NOT NULL,
+    department VARCHAR(120),
     fee_paid_at {$datetime},
     created_at {$datetime} NOT NULL
 )

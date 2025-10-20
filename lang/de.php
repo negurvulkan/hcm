@@ -359,6 +359,8 @@ return [
             'person' => 'Reiter',
             'horse' => 'Pferd',
             'class' => 'Prüfung',
+            'department' => 'Abteilung',
+            'department_placeholder' => 'z. B. A1',
             'status' => 'Status',
             'select_placeholder' => 'Wählen…',
             'filter_placeholder' => 'Tippen zum Filtern…',
@@ -412,6 +414,7 @@ return [
                 'rider' => 'Reiter',
                 'horse' => 'Pferd',
                 'class' => 'Prüfung',
+                'department' => 'Abteilung',
                 'status' => 'Status',
                 'actions' => 'Aktionen',
             ],
@@ -929,6 +932,7 @@ return [
                 'entity' => [
                     'start' => 'Start',
                     'pair' => 'Reiter/Pferd',
+                    'department' => 'Abteilung',
                 ],
                 'time' => [
                     'on_entry' => 'Bei Nennung',
@@ -1236,6 +1240,7 @@ return [
                 'start_number' => 'Startnr.',
                 'rider' => 'Reiter',
                 'horse' => 'Pferd',
+                'department' => 'Abteilung',
                 'planned_start_note' => 'Geplanter Start & Notiz',
                 'status' => 'Status',
                 'actions' => 'Aktionen',

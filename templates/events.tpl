@@ -324,6 +324,7 @@
                                                     <select class="form-select" data-designer-field="allocation.entity">
                                                         <option value="start"><?= htmlspecialchars(t('start_numbers.designer.options.entity.start'), ENT_QUOTES, 'UTF-8') ?></option>
                                                         <option value="pair"><?= htmlspecialchars(t('start_numbers.designer.options.entity.pair'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="department"><?= htmlspecialchars(t('start_numbers.designer.options.entity.department'), ENT_QUOTES, 'UTF-8') ?></option>
                                                     </select>
                                                 </div>
                                                 <div class="col-sm-3">
