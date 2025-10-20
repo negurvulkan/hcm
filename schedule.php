@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
+require_once __DIR__ . '/app/helpers/startlist.php';
 
 use App\CustomFields\CustomFieldManager;
 use App\CustomFields\CustomFieldRepository;
@@ -50,6 +51,8 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
         exit;
     }
 }
+
+$isGroupClass = !empty($selectedClass['is_group']);
 
 $pdo = app_pdo();
 $customFieldRepository = new CustomFieldRepository($pdo);
@@ -121,16 +124,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_item') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
         $time = trim((string) ($_POST['planned_start'] ?? ''));
-        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            $before = $item;
-            db_execute('UPDATE startlist_items SET planned_start = :start, updated_at = :updated WHERE id = :id', [
-                'start' => $time ?: null,
-                'updated' => (new \DateTimeImmutable())->format('c'),
-                'id' => $itemId,
-            ]);
-            $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
-            audit_log('startlist_items', $itemId, 'time_update', $before, $after);
+            $groupMembers = [$item];
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $group = startlist_find_group_for_item($groups, $itemId);
+                if ($group) {
+                    $groupMembers = $group['members'];
+                }
+            }
+            $timestamp = (new \DateTimeImmutable())->format('c');
+            foreach ($groupMembers as $member) {
+                $memberId = (int) $member['id'];
+                db_execute('UPDATE startlist_items SET planned_start = :start, updated_at = :updated WHERE id = :id', [
+                    'start' => $time !== '' ? $time : null,
+                    'updated' => $timestamp,
+                    'id' => $memberId,
+                ]);
+                $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $memberId]);
+                audit_log('startlist_items', $memberId, 'time_update', $member, $after);
+            }
             flash('success', t('schedule.flash.slot_updated'));
         }
         header('Location: schedule.php?class_id=' . $classId);
@@ -139,18 +154,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete_item') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
-        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            if (!empty($item['start_number_assignment_id'])) {
-                releaseStartNumber([
-                    'id' => (int) $item['start_number_assignment_id'],
-                    'entry_id' => (int) $item['entry_id'],
-                    'startlist_id' => $itemId,
-                ], 'withdraw');
+            $groupMembers = [$item];
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $group = startlist_find_group_for_item($groups, $itemId);
+                if ($group) {
+                    $groupMembers = $group['members'];
+                }
             }
-            db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
-            db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
-            audit_log('startlist_items', $itemId, 'delete', $item, null);
+            foreach ($groupMembers as $member) {
+                $memberId = (int) $member['id'];
+                if (!empty($member['start_number_assignment_id'])) {
+                    releaseStartNumber([
+                        'id' => (int) $member['start_number_assignment_id'],
+                        'entry_id' => (int) $member['entry_id'],
+                        'startlist_id' => $memberId,
+                    ], 'withdraw');
+                }
+                db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $memberId]);
+                db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $memberId]);
+                audit_log('startlist_items', $memberId, 'delete', $member, null);
+            }
             flash('success', t('schedule.flash.slot_deleted'));
         }
         header('Location: schedule.php?class_id=' . $classId);
@@ -158,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$items = db_all('SELECT si.id, si.position, si.planned_start, si.start_number_display, si.start_number_locked_at, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.id AS horse_id, h.name AS horse, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$items = db_all('SELECT si.id, si.position, si.state, si.planned_start, si.start_number_display, si.start_number_locked_at, e.department, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.id AS horse_id, h.name AS horse, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 $riderIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['rider_id'] ?? 0), $items), static fn (int $id): bool => $id > 0));
 $horseIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['horse_id'] ?? 0), $items), static fn (int $id): bool => $id > 0));
 $riderCustomValues = $customFieldRepository->valuesForMany('person', $riderIds);
@@ -170,6 +197,7 @@ foreach ($items as &$item) {
     $item['horse_custom_fields'] = $horseCustomFieldManager->entityInfoFields($horseCustomValues[$horseId] ?? []);
 }
 unset($item);
+$groupedItems = $isGroupClass ? startlist_group_entries($items) : null;
 $shifts = db_all('SELECT shift_minutes, created_at FROM schedule_shifts WHERE class_id = :class_id ORDER BY id DESC LIMIT 10', ['class_id' => $classId]);
 
 render_page('schedule.tpl', [
@@ -178,6 +206,8 @@ render_page('schedule.tpl', [
     'classes' => $classes,
     'selectedClass' => $selectedClass,
     'items' => $items,
+    'groupedItems' => $groupedItems,
+    'isGroupClass' => $isGroupClass,
     'shifts' => $shifts,
     'extraScripts' => ['public/assets/js/entity-info.js', 'public/assets/js/schedule.js'],
 ]);

@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
+require_once __DIR__ . '/app/helpers/startlist.php';
 
 use App\CustomFields\CustomFieldManager;
 use App\CustomFields\CustomFieldRepository;
@@ -51,6 +52,8 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     }
 }
 
+$isGroupClass = !empty($selectedClass['is_group']);
+
 $pdo = app_pdo();
 $customFieldRepository = new CustomFieldRepository($pdo);
 $primaryOrganizationId = instance_primary_organization_id();
@@ -71,18 +74,6 @@ $startNumberContext = [
     'user' => $user,
 ];
 $startNumberRule = getStartNumberRule($startNumberContext);
-
-if (!function_exists('startlist_normalize_department')) {
-    function startlist_normalize_department(?string $value): string
-    {
-        $trimmed = trim((string) $value);
-        if ($trimmed === '') {
-            return '';
-        }
-        $collapsed = preg_replace('/\s+/', ' ', $trimmed);
-        return function_exists('mb_strtolower') ? mb_strtolower($collapsed, 'UTF-8') : strtolower($collapsed);
-    }
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::check($_POST['_token'] ?? null)) {
@@ -219,27 +210,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
         $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            $before = $item;
-            $newState = $item['state'] === 'withdrawn' ? 'scheduled' : 'withdrawn';
-            db_execute('UPDATE startlist_items SET state = :state, updated_at = :updated WHERE id = :id', [
-                'state' => $newState,
-                'updated' => (new \DateTimeImmutable())->format('c'),
-                'id' => $itemId,
-            ]);
-            audit_log('startlist_items', $itemId, 'state_change', $before, ['state' => $newState]);
-            if ($newState === 'withdrawn' && !empty($item['start_number_assignment_id'])) {
-                releaseStartNumber([
-                    'id' => (int) $item['start_number_assignment_id'],
-                    'entry_id' => (int) $item['entry_id'],
-                    'startlist_id' => $itemId,
-                ], 'scratch');
+            $groupMembers = [$item];
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $group = startlist_find_group_for_item($groups, $itemId);
+                if ($group) {
+                    $groupMembers = $group['members'];
+                }
             }
-            if ($newState === 'scheduled' && in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true)) {
-                assignStartNumber($startNumberContext, [
-                    'entry_id' => (int) $item['entry_id'],
-                    'startlist_id' => $itemId,
-                    'department' => $item['department'] ?? null,
+            $shouldWithdraw = false;
+            foreach ($groupMembers as $member) {
+                if (($member['state'] ?? 'scheduled') !== 'withdrawn') {
+                    $shouldWithdraw = true;
+                    break;
+                }
+            }
+            $newState = $shouldWithdraw ? 'withdrawn' : 'scheduled';
+            $timestamp = (new \DateTimeImmutable())->format('c');
+            foreach ($groupMembers as $member) {
+                $memberId = (int) $member['id'];
+                db_execute('UPDATE startlist_items SET state = :state, updated_at = :updated WHERE id = :id', [
+                    'state' => $newState,
+                    'updated' => $timestamp,
+                    'id' => $memberId,
                 ]);
+                audit_log('startlist_items', $memberId, 'state_change', $member, ['state' => $newState]);
+                if ($newState === 'withdrawn' && !empty($member['start_number_assignment_id'])) {
+                    releaseStartNumber([
+                        'id' => (int) $member['start_number_assignment_id'],
+                        'entry_id' => (int) $member['entry_id'],
+                        'startlist_id' => $memberId,
+                    ], 'scratch');
+                }
+                if ($newState === 'scheduled' && in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true)) {
+                    assignStartNumber($startNumberContext, [
+                        'entry_id' => (int) $member['entry_id'],
+                        'startlist_id' => $memberId,
+                        'department' => $member['department'] ?? null,
+                    ]);
+                }
             }
             flash('success', t('startlist.flash.status_updated'));
         }
@@ -253,15 +263,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $note = trim((string) ($_POST['note'] ?? ''));
         $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            $before = $item;
-            db_execute('UPDATE startlist_items SET planned_start = :start, note = :note, updated_at = :updated WHERE id = :id', [
-                'start' => $time ?: null,
-                'note' => $note !== '' ? $note : null,
-                'updated' => (new \DateTimeImmutable())->format('c'),
-                'id' => $itemId,
-            ]);
-            $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
-            audit_log('startlist_items', $itemId, 'time_update', $before, $after);
+            $groupMembers = [$item];
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $group = startlist_find_group_for_item($groups, $itemId);
+                if ($group) {
+                    $groupMembers = $group['members'];
+                }
+            }
+            $timestamp = (new \DateTimeImmutable())->format('c');
+            foreach ($groupMembers as $member) {
+                $memberId = (int) $member['id'];
+                db_execute('UPDATE startlist_items SET planned_start = :start, note = :note, updated_at = :updated WHERE id = :id', [
+                    'start' => $time !== '' ? $time : null,
+                    'note' => $note !== '' ? $note : null,
+                    'updated' => $timestamp,
+                    'id' => $memberId,
+                ]);
+                $after = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $memberId]);
+                audit_log('startlist_items', $memberId, 'time_update', $member, $after);
+            }
             flash('success', t('startlist.flash.time_updated'));
         }
         header('Location: startlist.php?class_id=' . $classId);
@@ -270,18 +292,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete_item') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
-        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            if (!empty($item['start_number_assignment_id'])) {
-                releaseStartNumber([
-                    'id' => (int) $item['start_number_assignment_id'],
-                    'entry_id' => (int) $item['entry_id'],
-                    'startlist_id' => $itemId,
-                ], 'withdraw');
+            $groupMembers = [$item];
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $group = startlist_find_group_for_item($groups, $itemId);
+                if ($group) {
+                    $groupMembers = $group['members'];
+                }
             }
-            db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $itemId]);
-            db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $itemId]);
-            audit_log('startlist_items', $itemId, 'delete', $item, null);
+            foreach ($groupMembers as $member) {
+                $memberId = (int) $member['id'];
+                if (!empty($member['start_number_assignment_id'])) {
+                    releaseStartNumber([
+                        'id' => (int) $member['start_number_assignment_id'],
+                        'entry_id' => (int) $member['entry_id'],
+                        'startlist_id' => $memberId,
+                    ], 'withdraw');
+                }
+                db_execute('DELETE FROM results WHERE startlist_id = :id', ['id' => $memberId]);
+                db_execute('DELETE FROM startlist_items WHERE id = :id', ['id' => $memberId]);
+                audit_log('startlist_items', $memberId, 'delete', $member, null);
+            }
             flash('success', t('startlist.flash.item_removed'));
         }
         header('Location: startlist.php?class_id=' . $classId);
@@ -291,25 +325,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'move') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
         $direction = $_POST['direction'] ?? 'up';
-        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            $newPosition = max(1, (int) $item['position'] + ($direction === 'up' ? -1 : 1));
-            $swap = db_first('SELECT * FROM startlist_items WHERE class_id = :class_id AND position = :position', [
-                'class_id' => $classId,
-                'position' => $newPosition,
-            ]);
-            if ($swap) {
-                db_execute('UPDATE startlist_items SET position = :pos WHERE id = :id', [
-                    'pos' => $item['position'],
-                    'id' => $swap['id'],
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $currentIndex = null;
+                foreach ($groups as $idx => $group) {
+                    foreach ($group['members'] as $member) {
+                        if ((int) $member['id'] === $itemId) {
+                            $currentIndex = $idx;
+                            break 2;
+                        }
+                    }
+                }
+                if ($currentIndex !== null) {
+                    $swapIndex = null;
+                    if ($direction === 'up' && $currentIndex > 0) {
+                        $swapIndex = $currentIndex - 1;
+                    } elseif ($direction === 'down' && $currentIndex < count($groups) - 1) {
+                        $swapIndex = $currentIndex + 1;
+                    }
+                    if ($swapIndex !== null) {
+                        $temp = $groups[$swapIndex];
+                        $groups[$swapIndex] = $groups[$currentIndex];
+                        $groups[$currentIndex] = $temp;
+                        $updates = startlist_resequence_positions($groups);
+                        if ($updates) {
+                            $timestamp = (new \DateTimeImmutable())->format('c');
+                            $positionMap = [];
+                            foreach ($updates as $update) {
+                                $positionMap[$update['id']] = $update['position'];
+                                db_execute('UPDATE startlist_items SET position = :pos, updated_at = :updated WHERE id = :id', [
+                                    'pos' => $update['position'],
+                                    'updated' => $timestamp,
+                                    'id' => $update['id'],
+                                ]);
+                            }
+                            foreach ($groups as $group) {
+                                foreach ($group['members'] as $member) {
+                                    $memberId = (int) $member['id'];
+                                    if (isset($positionMap[$memberId])) {
+                                        audit_log('startlist_items', $memberId, 'reorder', $member, ['position' => $positionMap[$memberId]]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                $newPosition = max(1, (int) $item['position'] + ($direction === 'up' ? -1 : 1));
+                $swap = db_first('SELECT * FROM startlist_items WHERE class_id = :class_id AND position = :position', [
+                    'class_id' => $classId,
+                    'position' => $newPosition,
                 ]);
+                if ($swap) {
+                    db_execute('UPDATE startlist_items SET position = :pos WHERE id = :id', [
+                        'pos' => $item['position'],
+                        'id' => $swap['id'],
+                    ]);
+                }
+                db_execute('UPDATE startlist_items SET position = :pos, updated_at = :updated WHERE id = :id', [
+                    'pos' => $newPosition,
+                    'updated' => (new \DateTimeImmutable())->format('c'),
+                    'id' => $itemId,
+                ]);
+                audit_log('startlist_items', $itemId, 'reorder', $item, ['position' => $newPosition]);
             }
-            db_execute('UPDATE startlist_items SET position = :pos, updated_at = :updated WHERE id = :id', [
-                'pos' => $newPosition,
-                'updated' => (new \DateTimeImmutable())->format('c'),
-                'id' => $itemId,
-            ]);
-            audit_log('startlist_items', $itemId, 'reorder', $item, ['position' => $newPosition]);
         }
         header('Location: startlist.php?class_id=' . $classId);
         exit;
@@ -317,25 +399,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'reassign_number') {
         $itemId = (int) ($_POST['item_id'] ?? 0);
-        $item = db_first('SELECT * FROM startlist_items WHERE id = :id', ['id' => $itemId]);
+        $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id', ['id' => $itemId]);
         if ($item) {
-            $assignment = $item['start_number_assignment_id'] ? db_first('SELECT * FROM start_number_assignments WHERE id = :id', ['id' => (int) $item['start_number_assignment_id']]) : null;
-            if ($assignment && !empty($assignment['locked_at'])) {
+            $groupMembers = [$item];
+            if ($isGroupClass) {
+                $classItems = db_all('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+                $groups = startlist_group_entries($classItems);
+                $group = startlist_find_group_for_item($groups, $itemId);
+                if ($group) {
+                    $groupMembers = $group['members'];
+                }
+            }
+            $assignments = [];
+            $locked = false;
+            foreach ($groupMembers as $member) {
+                $assignment = null;
+                if (!empty($member['start_number_assignment_id'])) {
+                    $assignment = db_first('SELECT * FROM start_number_assignments WHERE id = :id', ['id' => (int) $member['start_number_assignment_id']]);
+                    if ($assignment && !empty($assignment['locked_at'])) {
+                        $locked = true;
+                        break;
+                    }
+                }
+                $assignments[(int) $member['id']] = $assignment;
+            }
+            if ($locked) {
                 flash('error', t('startlist.flash.number_locked'));
             } else {
-                if ($assignment) {
-                    releaseStartNumber([
-                        'id' => (int) $assignment['id'],
-                        'entry_id' => (int) $item['entry_id'],
-                        'startlist_id' => $itemId,
-                    ], 'manual_reassign');
+                $shouldAssign = in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true);
+                foreach ($groupMembers as $member) {
+                    $memberId = (int) $member['id'];
+                    $assignment = $assignments[$memberId] ?? null;
+                    if ($assignment) {
+                        releaseStartNumber([
+                            'id' => (int) $assignment['id'],
+                            'entry_id' => (int) $member['entry_id'],
+                            'startlist_id' => $memberId,
+                        ], 'manual_reassign');
+                    }
+                    if ($shouldAssign) {
+                        assignStartNumber($startNumberContext, [
+                            'entry_id' => (int) $member['entry_id'],
+                            'startlist_id' => $memberId,
+                            'department' => $member['department'] ?? null,
+                        ]);
+                    }
                 }
-                if (in_array($startNumberRule['allocation']['time'] ?? 'on_startlist', ['on_entry', 'on_startlist'], true)) {
-                    assignStartNumber($startNumberContext, [
-                        'entry_id' => (int) $item['entry_id'],
-                        'startlist_id' => $itemId,
-                        'department' => $item['department'] ?? null,
-                    ]);
+                if ($shouldAssign) {
                     flash('success', t('startlist.flash.number_reassigned'));
                 } else {
                     flash('info', t('startlist.flash.number_gate'));
@@ -361,22 +471,35 @@ foreach ($startlist as &$item) {
 }
 unset($item);
 
+$groupedStartlist = $isGroupClass ? startlist_group_entries($startlist) : null;
+
 $conflicts = [];
-foreach ($startlist as $index => $item) {
-    if (!isset($startlist[$index - 1])) {
-        continue;
-    }
-    $previous = $startlist[$index - 1];
-    if ($previous['horse_id'] === $item['horse_id'] && abs($item['position'] - $previous['position']) < 3) {
-        $conflicts[] = [$previous, $item];
+if (!$isGroupClass) {
+    foreach ($startlist as $index => $item) {
+        if (!isset($startlist[$index - 1])) {
+            continue;
+        }
+        $previous = $startlist[$index - 1];
+        if ($previous['horse_id'] === $item['horse_id'] && abs($item['position'] - $previous['position']) < 3) {
+            $conflicts[] = [$previous, $item];
+        }
     }
 }
 
 $hasDepartments = false;
-foreach ($startlist as $item) {
-    if (!empty($item['department']) && trim((string) $item['department']) !== '') {
-        $hasDepartments = true;
-        break;
+if ($isGroupClass) {
+    foreach ($groupedStartlist ?? [] as $group) {
+        if (!empty($group['department'])) {
+            $hasDepartments = true;
+            break;
+        }
+    }
+} else {
+    foreach ($startlist as $item) {
+        if (!empty($item['department']) && trim((string) $item['department']) !== '') {
+            $hasDepartments = true;
+            break;
+        }
     }
 }
 
@@ -386,8 +509,10 @@ render_page('startlist.tpl', [
     'classes' => $classes,
     'selectedClass' => $selectedClass,
     'startlist' => $startlist,
+    'groupedStartlist' => $groupedStartlist,
     'conflicts' => $conflicts,
     'startNumberRule' => $startNumberRule,
     'hasDepartments' => $hasDepartments,
+    'isGroupClass' => $isGroupClass,
     'extraScripts' => ['public/assets/js/entity-info.js'],
 ]);

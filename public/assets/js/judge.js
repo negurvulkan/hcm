@@ -390,13 +390,14 @@
         const buttons = Array.from(filterGroup.querySelectorAll('[data-start-filter]'));
         const starters = Array.from(buttonContainer.querySelectorAll('[data-start-state]'));
         const matchesFilter = (state, filter) => {
+            const normalizedState = state === 'mixed' ? 'scheduled' : state;
             if (filter === 'all') {
                 return true;
             }
             if (filter === 'pending') {
-                return state === 'scheduled';
+                return normalizedState === 'scheduled';
             }
-            return state === filter;
+            return normalizedState === filter;
         };
         filterGroup.addEventListener('click', (event) => {
             const target = event.target.closest('[data-start-filter]');

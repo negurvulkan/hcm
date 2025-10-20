@@ -43,6 +43,13 @@
                         <label class="form-label"><?= htmlspecialchars(t('classes.form.max_starters_label'), ENT_QUOTES, 'UTF-8') ?></label>
                         <input type="number" name="max_starters" class="form-control" min="1" value="<?= htmlspecialchars($editClass['max_starters'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_group" value="1" id="class-group-toggle" <?= !empty($editClass['is_group']) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="class-group-toggle">
+                            <?= htmlspecialchars(t('classes.form.is_group_label'), ENT_QUOTES, 'UTF-8') ?>
+                        </label>
+                        <div class="form-text"><?= htmlspecialchars(t('classes.form.is_group_hint'), ENT_QUOTES, 'UTF-8') ?></div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label"><?= htmlspecialchars(t('classes.form.judges_label'), ENT_QUOTES, 'UTF-8') ?></label>
                         <input type="text" name="judges" class="form-control" placeholder="<?= htmlspecialchars(t('classes.form.judges_placeholder'), ENT_QUOTES, 'UTF-8') ?>" value="<?= htmlspecialchars($editClass['judges'] ?? '', ENT_QUOTES, 'UTF-8') ?>">

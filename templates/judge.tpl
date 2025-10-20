@@ -155,57 +155,155 @@ if ($start) {
     ];
     $horseInfoJson = htmlspecialchars(json_encode($horseInfoPayload, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8');
 }
+
+$groupContext = [
+    'label' => null,
+    'start_numbers' => [],
+    'members' => [],
+    'state' => null,
+    'filter_state' => null,
+    'size' => null,
+    'position' => null,
+];
+if (!empty($isGroupClass) && !empty($currentGroup['members'] ?? null)) {
+    $groupContext['label'] = $currentGroup['department'] ?? null;
+    $groupContext['start_numbers'] = $currentGroup['start_numbers'] ?? [];
+    $groupContext['state'] = $currentGroup['state'] ?? null;
+    $groupContext['filter_state'] = $currentGroup['filter_state'] ?? ($groupContext['state'] ?? null);
+    $groupContext['size'] = isset($currentGroup['size']) ? (int) $currentGroup['size'] : count($currentGroup['members']);
+    $groupContext['position'] = isset($currentGroup['position']) ? (int) $currentGroup['position'] : null;
+    foreach ($currentGroup['members'] as $member) {
+        $memberRiderDate = !empty($member['rider_date_of_birth']) ? date('d.m.Y', strtotime($member['rider_date_of_birth'])) : null;
+        $memberRiderCustom = $member['rider_custom_fields'] ?? [];
+        $memberRiderFields = judge_prepare_entity_fields(array_merge([
+            ['label' => t('entity_info.labels.name'), 'value' => $member['rider'] ?? null],
+            ['label' => t('entity_info.labels.club'), 'value' => $member['rider_club_name'] ?? null],
+            ['label' => t('entity_info.labels.email'), 'value' => $member['rider_email'] ?? null],
+            ['label' => t('entity_info.labels.phone'), 'value' => $member['rider_phone'] ?? null],
+            ['label' => t('entity_info.labels.date_of_birth'), 'value' => $memberRiderDate],
+            ['label' => t('entity_info.labels.nationality'), 'value' => $member['rider_nationality'] ?? null],
+        ], $memberRiderCustom));
+        $memberRiderInfo = [
+            'title' => t('entity_info.title.rider', ['name' => $member['rider'] ?? '']),
+            'fields' => $memberRiderFields,
+            'emptyMessage' => t('entity_info.empty'),
+        ];
+        $memberRiderInfoJson = htmlspecialchars(json_encode($memberRiderInfo, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8');
+
+        $memberDocumentsOk = $member['horse_documents_ok'] ?? null;
+        $memberDocumentsValue = $memberDocumentsOk === null ? null : ($memberDocumentsOk ? t('common.labels.yes') : t('common.labels.no'));
+        $memberHorseCustom = $member['horse_custom_fields'] ?? [];
+        $memberHorseFields = judge_prepare_entity_fields(array_merge([
+            ['label' => t('entity_info.labels.name'), 'value' => $member['horse'] ?? null],
+            ['label' => t('entity_info.labels.owner'), 'value' => $member['horse_owner_name'] ?? null],
+            ['label' => t('entity_info.labels.life_number'), 'value' => $member['horse_life_number'] ?? null],
+            ['label' => t('entity_info.labels.microchip'), 'value' => $member['horse_microchip'] ?? null],
+            ['label' => t('entity_info.labels.sex'), 'value' => $member['horse_sex'] ? t('horses.sex.' . $member['horse_sex']) : null],
+            ['label' => t('entity_info.labels.birth_year'), 'value' => $member['horse_birth_year'] ? (string) $member['horse_birth_year'] : null],
+            ['label' => t('entity_info.labels.documents'), 'value' => $memberDocumentsValue],
+            ['label' => t('entity_info.labels.notes'), 'value' => $member['horse_notes'] ?? null, 'multiline' => true],
+        ], $memberHorseCustom));
+        $memberHorseInfo = [
+            'title' => t('entity_info.title.horse', ['name' => $member['horse'] ?? '']),
+            'fields' => $memberHorseFields,
+            'emptyMessage' => t('entity_info.empty'),
+        ];
+        $memberHorseInfoJson = htmlspecialchars(json_encode($memberHorseInfo, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8');
+
+        $groupContext['members'][] = [
+            'id' => (int) ($member['id'] ?? 0),
+            'rider' => $member['rider'] ?? '',
+            'horse' => $member['horse'] ?? '',
+            'rider_info' => $memberRiderInfoJson,
+            'horse_info' => $memberHorseInfoJson,
+            'start_number_display' => $member['start_number_display'] ?? null,
+            'state' => $member['state'] ?? 'scheduled',
+            'position' => isset($member['position']) ? (int) $member['position'] : null,
+        ];
+    }
+}
 ?>
 <div class="alert alert-info d-flex justify-content-between align-items-center">
     <div>
         <strong><?= htmlspecialchars($selectedClass['label'] ?? t('judge.banner.class_fallback'), ENT_QUOTES, 'UTF-8') ?></strong>
-        <?php if (!empty($start['start_number_display'])): ?>
-            <span class="badge bg-primary text-light ms-2"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $start['start_number_display']]), ENT_QUOTES, 'UTF-8') ?></span>
-        <?php endif; ?>
-        <?php if ($start): ?>
+        <?php if (!empty($isGroupClass) && !empty($groupContext['members'])): ?>
+            <?php foreach ($groupContext['start_numbers'] as $number): ?>
+                <span class="badge bg-primary text-light ms-2"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $number]), ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endforeach; ?>
+            <?php $groupLabel = $groupContext['label'] ?? null; ?>
             <span class="mx-2">·</span>
             <span class="d-inline-flex align-items-center gap-2">
-                <span><?= htmlspecialchars($start['rider'] ?? t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?></span>
-                <?php if ($riderInfoJson): ?>
-                    <button type="button"
-                            class="entity-info-trigger"
-                            data-entity-info="<?= $riderInfoJson ?>"
-                            aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
-                        <span aria-hidden="true">&#9432;</span>
-                    </button>
+                <span><?= htmlspecialchars($groupLabel !== null && $groupLabel !== '' ? $groupLabel : t('judge.form.group_fallback'), ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if (!empty($groupContext['size'])): ?>
+                    <span class="badge bg-info-subtle text-info">
+                        <?= htmlspecialchars(t('judge.banner.group_size', ['count' => (int) $groupContext['size']]), ENT_QUOTES, 'UTF-8') ?>
+                    </span>
                 <?php endif; ?>
             </span>
-            <?php if (!empty($start['horse'])): ?>
+            <?php if (!empty($groupContext['state'])): ?>
+                <?php
+                $stateKey = $groupContext['state'];
+                $stateClass = match ($stateKey) {
+                    'completed' => 'bg-success',
+                    'running' => 'bg-primary',
+                    'withdrawn' => 'bg-danger',
+                    'mixed' => 'bg-warning text-dark',
+                    default => 'bg-secondary',
+                };
+                ?>
+                <span class="badge <?= htmlspecialchars($stateClass, ENT_QUOTES, 'UTF-8') ?> ms-2">
+                    <?= htmlspecialchars(t('judge.controls.state.' . $stateKey), ENT_QUOTES, 'UTF-8') ?>
+                </span>
+            <?php endif; ?>
+        <?php else: ?>
+            <?php if (!empty($start['start_number_display'])): ?>
+                <span class="badge bg-primary text-light ms-2"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $start['start_number_display']]), ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+            <?php if ($start): ?>
                 <span class="mx-2">·</span>
                 <span class="d-inline-flex align-items-center gap-2">
-                    <span><?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></span>
-                    <?php if ($horseInfoJson): ?>
+                    <span><?= htmlspecialchars($start['rider'] ?? t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if ($riderInfoJson): ?>
                         <button type="button"
                                 class="entity-info-trigger"
-                                data-entity-info="<?= $horseInfoJson ?>"
-                                aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                                data-entity-info="<?= $riderInfoJson ?>"
+                                aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
                             <span aria-hidden="true">&#9432;</span>
                         </button>
                     <?php endif; ?>
                 </span>
+                <?php if (!empty($start['horse'])): ?>
+                    <span class="mx-2">·</span>
+                    <span class="d-inline-flex align-items-center gap-2">
+                        <span><?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if ($horseInfoJson): ?>
+                            <button type="button"
+                                    class="entity-info-trigger"
+                                    data-entity-info="<?= $horseInfoJson ?>"
+                                    aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">&#9432;</span>
+                            </button>
+                        <?php endif; ?>
+                    </span>
+                <?php endif; ?>
+            <?php else: ?>
+                <span class="mx-2">·</span>
+                <span><?= htmlspecialchars(t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
-        <?php else: ?>
-            <span class="mx-2">·</span>
-            <span><?= htmlspecialchars(t('judge.banner.no_start'), ENT_QUOTES, 'UTF-8') ?></span>
-        <?php endif; ?>
-        <?php if (!empty($start['state'])): ?>
-            <?php
-            $stateKey = $start['state'];
-            $stateClass = match ($stateKey) {
-                'completed' => 'bg-success',
-                'running' => 'bg-primary',
-                'withdrawn' => 'bg-danger',
-                default => 'bg-secondary',
-            };
-            ?>
-            <span class="badge <?= htmlspecialchars($stateClass, ENT_QUOTES, 'UTF-8') ?> ms-2">
-                <?= htmlspecialchars(t('judge.controls.state.' . $stateKey), ENT_QUOTES, 'UTF-8') ?>
-            </span>
+            <?php if (!empty($start['state'])): ?>
+                <?php
+                $stateKey = $start['state'];
+                $stateClass = match ($stateKey) {
+                    'completed' => 'bg-success',
+                    'running' => 'bg-primary',
+                    'withdrawn' => 'bg-danger',
+                    default => 'bg-secondary',
+                };
+                ?>
+                <span class="badge <?= htmlspecialchars($stateClass, ENT_QUOTES, 'UTF-8') ?> ms-2">
+                    <?= htmlspecialchars(t('judge.controls.state.' . $stateKey), ENT_QUOTES, 'UTF-8') ?>
+                </span>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
     <div class="text-muted small">
@@ -246,24 +344,65 @@ if ($start) {
                 </div>
             <?php endif; ?>
             <div class="d-flex flex-wrap gap-2 justify-content-md-end" data-start-buttons>
-                <?php foreach ($starts as $candidate): ?>
-                    <?php
-                    $state = $candidate['state'] ?? 'scheduled';
-                    $stateBadge = match ($state) {
-                        'completed' => 'bg-success',
-                        'running' => 'bg-primary',
-                        'withdrawn' => 'bg-danger',
-                        default => 'bg-secondary text-dark',
-                    };
-                    ?>
-                    <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?> d-flex align-items-center gap-2" data-start-state="<?= htmlspecialchars($state, ENT_QUOTES, 'UTF-8') ?>">
-                        <span><?= htmlspecialchars(t('judge.controls.position', ['position' => (int) $candidate['position']]), ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php if (!empty($candidate['start_number_display'])): ?>
-                            <span class="badge bg-primary text-light"><?= htmlspecialchars($candidate['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                        <span class="badge <?= htmlspecialchars($stateBadge, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('judge.controls.state.' . $state), ENT_QUOTES, 'UTF-8') ?></span>
-                    </a>
-                <?php endforeach; ?>
+                <?php if (!empty($isGroupClass)): ?>
+                    <?php foreach ($starts as $group): ?>
+                        <?php
+                        $primary = $group['primary'] ?? [];
+                        $targetId = isset($primary['id']) ? (int) $primary['id'] : 0;
+                        if ($targetId <= 0) {
+                            continue;
+                        }
+                        $state = $group['state'] ?? 'scheduled';
+                        $filterState = $group['filter_state'] ?? ($state === 'mixed' ? 'scheduled' : $state);
+                        $stateBadge = match ($state) {
+                            'completed' => 'bg-success',
+                            'running' => 'bg-primary',
+                            'withdrawn' => 'bg-danger',
+                            'mixed' => 'bg-warning text-dark',
+                            default => 'bg-secondary text-dark',
+                        };
+                        $isActiveGroup = !empty($currentGroup) && (($currentGroup['key'] ?? null) === ($group['key'] ?? null));
+                        $groupLabel = $group['department'] ?? ($primary['rider'] ?? null);
+                        $size = isset($group['size']) ? (int) $group['size'] : count($group['members'] ?? []);
+                        ?>
+                        <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= $targetId ?>"
+                           class="btn btn-sm <?= $isActiveGroup ? 'btn-accent' : 'btn-outline-secondary' ?> text-start d-flex flex-column gap-1"
+                           data-start-state="<?= htmlspecialchars($filterState, ENT_QUOTES, 'UTF-8') ?>">
+                            <span class="d-flex justify-content-between align-items-center gap-2">
+                                <span><?= htmlspecialchars(t('judge.controls.position', ['position' => (int) ($group['position'] ?? ($primary['position'] ?? 0))]), ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="badge <?= htmlspecialchars($stateBadge, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('judge.controls.state.' . $state), ENT_QUOTES, 'UTF-8') ?></span>
+                            </span>
+                            <span class="d-flex flex-wrap align-items-center gap-2 small">
+                                <span class="fw-semibold"><?= htmlspecialchars($groupLabel !== null && $groupLabel !== '' ? $groupLabel : t('judge.form.group_fallback'), ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php if ($size > 0): ?>
+                                    <span class="badge bg-info-subtle text-info"><?= htmlspecialchars(t('judge.controls.group_size', ['count' => $size]), ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                                <?php foreach ($group['start_numbers'] ?? [] as $number): ?>
+                                    <span class="badge bg-primary text-light"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $number]), ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endforeach; ?>
+                            </span>
+                        </a>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <?php foreach ($starts as $candidate): ?>
+                        <?php
+                        $state = $candidate['state'] ?? 'scheduled';
+                        $stateBadge = match ($state) {
+                            'completed' => 'bg-success',
+                            'running' => 'bg-primary',
+                            'withdrawn' => 'bg-danger',
+                            default => 'bg-secondary text-dark',
+                        };
+                        ?>
+                        <a href="judge.php?class_id=<?= (int) $selectedClass['id'] ?>&start_id=<?= (int) $candidate['id'] ?>" class="btn btn-sm <?= (int) $candidate['id'] === (int) $start['id'] ? 'btn-accent' : 'btn-outline-secondary' ?> d-flex align-items-center gap-2" data-start-state="<?= htmlspecialchars($state, ENT_QUOTES, 'UTF-8') ?>">
+                            <span><?= htmlspecialchars(t('judge.controls.position', ['position' => (int) $candidate['position']]), ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php if (!empty($candidate['start_number_display'])): ?>
+                                <span class="badge bg-primary text-light"><?= htmlspecialchars($candidate['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php endif; ?>
+                            <span class="badge <?= htmlspecialchars($stateBadge, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('judge.controls.state.' . $state), ENT_QUOTES, 'UTF-8') ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -277,33 +416,117 @@ if ($start) {
         <?= csrf_field() ?>
         <input type="hidden" name="class_id" value="<?= (int) $selectedClass['id'] ?>">
         <input type="hidden" name="start_id" value="<?= (int) $start['id'] ?>">
-        <h2 class="h5 mb-2"><?= htmlspecialchars(t('judge.form.heading', ['rider' => $start['rider'], 'horse' => $start['horse']]), ENT_QUOTES, 'UTF-8') ?></h2>
-        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-muted small text-uppercase fw-semibold"><?= htmlspecialchars(t('startlist.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></span>
-                <span class="fw-semibold"><?= htmlspecialchars($start['rider'], ENT_QUOTES, 'UTF-8') ?></span>
-                <?php if ($riderInfoJson): ?>
-                    <button type="button"
-                            class="entity-info-trigger"
-                            data-entity-info="<?= $riderInfoJson ?>"
-                            aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
-                        <span aria-hidden="true">&#9432;</span>
-                    </button>
-                <?php endif; ?>
+        <?php if (!empty($isGroupClass) && !empty($groupContext['members'])): ?>
+            <?php $groupLabel = $groupContext['label'] ?? null; ?>
+            <h2 class="h5 mb-2"><?= htmlspecialchars(t('judge.form.heading_group', ['group' => $groupLabel !== null && $groupLabel !== '' ? $groupLabel : t('judge.form.group_fallback')]), ENT_QUOTES, 'UTF-8') ?></h2>
+            <div class="mb-3">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <?php if (!empty($groupContext['position'])): ?>
+                        <span class="badge bg-secondary text-light"><?= htmlspecialchars(t('judge.controls.position', ['position' => (int) $groupContext['position']]), ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                    <?php foreach ($groupContext['start_numbers'] as $number): ?>
+                        <span class="badge bg-primary text-light"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $number]), ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endforeach; ?>
+                    <?php if (!empty($groupContext['size'])): ?>
+                        <span class="badge bg-info-subtle text-info"><?= htmlspecialchars(t('judge.banner.group_size', ['count' => (int) $groupContext['size']]), ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?= htmlspecialchars(t('startlist.table.columns.position'), ENT_QUOTES, 'UTF-8') ?></th>
+                                <th scope="col"><?= htmlspecialchars(t('startlist.table.columns.start_number'), ENT_QUOTES, 'UTF-8') ?></th>
+                                <th scope="col"><?= htmlspecialchars(t('startlist.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></th>
+                                <th scope="col"><?= htmlspecialchars(t('startlist.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></th>
+                                <th scope="col"><?= htmlspecialchars(t('startlist.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($groupContext['members'] as $member): ?>
+                                <?php
+                                $memberState = $member['state'] ?? 'scheduled';
+                                $memberBadge = match ($memberState) {
+                                    'completed' => 'bg-success',
+                                    'running' => 'bg-primary',
+                                    'withdrawn' => 'bg-danger',
+                                    default => 'bg-secondary',
+                                };
+                                $isCurrentMember = (int) $member['id'] === (int) $start['id'];
+                                ?>
+                                <tr class="<?= $isCurrentMember ? 'table-active' : '' ?>">
+                                    <td><?= htmlspecialchars((string) ($member['position'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td>
+                                        <?php if (!empty($member['start_number_display'])): ?>
+                                            <span class="badge bg-primary text-light"><?= htmlspecialchars($member['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php else: ?>
+                                            <span class="text-muted">–</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="d-inline-flex align-items-center gap-2">
+                                            <span><?= htmlspecialchars($member['rider'], ENT_QUOTES, 'UTF-8') ?></span>
+                                            <?php if (!empty($member['rider_info'])): ?>
+                                                <button type="button"
+                                                        class="entity-info-trigger"
+                                                        data-entity-info="<?= $member['rider_info'] ?>"
+                                                        aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
+                                                    <span aria-hidden="true">&#9432;</span>
+                                                </button>
+                                            <?php endif; ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="d-inline-flex align-items-center gap-2">
+                                            <span><?= htmlspecialchars($member['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                                            <?php if (!empty($member['horse_info'])): ?>
+                                                <button type="button"
+                                                        class="entity-info-trigger"
+                                                        data-entity-info="<?= $member['horse_info'] ?>"
+                                                        aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                                                    <span aria-hidden="true">&#9432;</span>
+                                                </button>
+                                            <?php endif; ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge <?= htmlspecialchars($memberBadge, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(t('judge.controls.state.' . $memberState), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-muted small text-uppercase fw-semibold"><?= htmlspecialchars(t('startlist.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></span>
-                <span class="fw-semibold"><?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></span>
-                <?php if ($horseInfoJson): ?>
-                    <button type="button"
-                            class="entity-info-trigger"
-                            data-entity-info="<?= $horseInfoJson ?>"
-                            aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
-                        <span aria-hidden="true">&#9432;</span>
-                    </button>
-                <?php endif; ?>
+        <?php else: ?>
+            <h2 class="h5 mb-2"><?= htmlspecialchars(t('judge.form.heading', ['rider' => $start['rider'], 'horse' => $start['horse']]), ENT_QUOTES, 'UTF-8') ?></h2>
+            <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small text-uppercase fw-semibold"><?= htmlspecialchars(t('startlist.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="fw-semibold"><?= htmlspecialchars($start['rider'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if ($riderInfoJson): ?>
+                        <button type="button"
+                                class="entity-info-trigger"
+                                data-entity-info="<?= $riderInfoJson ?>"
+                                aria-label="<?= htmlspecialchars(t('entity_info.actions.show_rider'), ENT_QUOTES, 'UTF-8') ?>">
+                            <span aria-hidden="true">&#9432;</span>
+                        </button>
+                    <?php endif; ?>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small text-uppercase fw-semibold"><?= htmlspecialchars(t('startlist.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="fw-semibold"><?= htmlspecialchars($start['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if ($horseInfoJson): ?>
+                        <button type="button"
+                                class="entity-info-trigger"
+                                data-entity-info="<?= $horseInfoJson ?>"
+                                aria-label="<?= htmlspecialchars(t('entity_info.actions.show_horse'), ENT_QUOTES, 'UTF-8') ?>">
+                            <span aria-hidden="true">&#9432;</span>
+                        </button>
+                    <?php endif; ?>
+                </div>
             </div>
-        </div>
+        <?php endif; ?>
         <?php $fields = $rule['input']['fields'] ?? []; ?>
         <?php if ($fields): ?>
             <div class="mb-4">

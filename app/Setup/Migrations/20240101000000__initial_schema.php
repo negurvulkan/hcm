@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS classes (
     max_starters INTEGER,
     judge_assignments TEXT,
     rules_json TEXT,
-    tiebreaker_json TEXT
+    tiebreaker_json TEXT,
+    is_group INTEGER NOT NULL DEFAULT 0
 )
 SQL,
             <<<SQL
