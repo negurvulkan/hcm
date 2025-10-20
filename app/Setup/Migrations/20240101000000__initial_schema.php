@@ -108,8 +108,20 @@ CREATE TABLE IF NOT EXISTS entries (
     horse_id INTEGER NOT NULL,
     status VARCHAR(40) NOT NULL,
     department VARCHAR(120),
+    department_id INTEGER,
     fee_paid_at {$datetime},
     created_at {$datetime} NOT NULL
+)
+SQL,
+            <<<SQL
+CREATE TABLE IF NOT EXISTS class_departments (
+    id {$idPrimary},
+    class_id INTEGER NOT NULL,
+    label VARCHAR(120) NOT NULL,
+    normalized_label VARCHAR(160) NOT NULL,
+    position INTEGER NOT NULL,
+    created_at {$datetime} NOT NULL,
+    updated_at {$datetime} NOT NULL
 )
 SQL,
             <<<SQL
@@ -181,6 +193,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 )
 SQL,
             'CREATE UNIQUE INDEX IF NOT EXISTS party_roles_unique ON party_roles (party_id, role, context)',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_class_departments_unique ON class_departments (class_id, normalized_label)',
+            'CREATE INDEX IF NOT EXISTS idx_class_departments_class ON class_departments (class_id)',
             'CREATE INDEX IF NOT EXISTS parties_type_name_idx ON parties (party_type, sort_name)',
         ];
 

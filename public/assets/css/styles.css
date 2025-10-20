@@ -395,3 +395,27 @@ body {
         color: rgba(230, 232, 240, 0.65);
     }
 }
+
+.startlist-department-list.is-drop-target {
+    outline: 2px dashed var(--bs-primary, #0d6efd);
+    outline-offset: 4px;
+    border-radius: 0.5rem;
+}
+
+.startlist-department-item.is-dragging {
+    opacity: 0.6;
+}
+
+.startlist-department-column[data-draggable-column="true"] {
+    cursor: grab;
+}
+
+.startlist-department-column[data-draggable-column="true"].is-column-dragging {
+    cursor: grabbing;
+    opacity: 0.85;
+}
+
+.startlist-department-column.is-column-drop-target {
+    border-color: var(--bs-primary, #0d6efd);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
+}

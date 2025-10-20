@@ -457,7 +457,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$startlist = db_all('SELECT si.*, e.status, e.department, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, pr.status AS rider_status, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.name AS horse, h.id AS horse_id, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
+$startlist = db_all('SELECT si.*, e.status, COALESCE(cd.label, e.department) AS department, e.department_id, cd.position AS department_position, pr.id AS rider_id, pr.display_name AS rider, pr.email AS rider_email, pr.phone AS rider_phone, pr.date_of_birth AS rider_date_of_birth, pr.nationality AS rider_nationality, pr.status AS rider_status, profile.club_id AS rider_club_id, c.name AS rider_club_name, h.name AS horse, h.id AS horse_id, h.life_number AS horse_life_number, h.microchip AS horse_microchip, h.sex AS horse_sex, h.birth_year AS horse_birth_year, h.documents_ok AS horse_documents_ok, h.notes AS horse_notes, owner.display_name AS horse_owner_name FROM startlist_items si JOIN entries e ON e.id = si.entry_id LEFT JOIN class_departments cd ON cd.id = e.department_id JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id LEFT JOIN clubs c ON c.id = profile.club_id JOIN horses h ON h.id = e.horse_id LEFT JOIN parties owner ON owner.id = h.owner_party_id WHERE si.class_id = :class_id ORDER BY si.position', ['class_id' => $classId]);
 
 $riderIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['rider_id'] ?? 0), $startlist), static fn (int $id): bool => $id > 0));
 $horseIds = array_values(array_filter(array_map(static fn (array $item): int => (int) ($item['horse_id'] ?? 0), $startlist), static fn (int $id): bool => $id > 0));
@@ -503,6 +503,63 @@ if ($isGroupClass) {
     }
 }
 
+$departmentBoard = null;
+if ($isGroupClass) {
+    $classDepartments = db_all('SELECT id, label, position FROM class_departments WHERE class_id = :class_id ORDER BY position', ['class_id' => $classId]);
+    $membersByDepartment = [];
+    $membersByDepartment[0] = [];
+    foreach ($startlist as $item) {
+        $deptId = (int) ($item['department_id'] ?? 0);
+        if ($deptId <= 0) {
+            $membersByDepartment[0][] = $item;
+            continue;
+        }
+        if (!isset($membersByDepartment[$deptId])) {
+            $membersByDepartment[$deptId] = [];
+        }
+        $membersByDepartment[$deptId][] = $item;
+    }
+    $departmentBoard = [
+        'departments' => [],
+        'unassigned' => $membersByDepartment[0] ?? [],
+    ];
+    foreach ($classDepartments as $departmentRow) {
+        $deptId = (int) ($departmentRow['id'] ?? 0);
+        $departmentBoard['departments'][] = [
+            'id' => $deptId,
+            'label' => $departmentRow['label'],
+            'position' => (int) ($departmentRow['position'] ?? 0),
+            'members' => $membersByDepartment[$deptId] ?? [],
+        ];
+    }
+    foreach ($membersByDepartment as $deptId => $members) {
+        if ($deptId === 0) {
+            continue;
+        }
+        $exists = false;
+        foreach ($departmentBoard['departments'] as $departmentEntry) {
+            if ((int) $departmentEntry['id'] === $deptId) {
+                $exists = true;
+                break;
+            }
+        }
+        if (!$exists) {
+            $departmentBoard['departments'][] = [
+                'id' => $deptId,
+                'label' => $members[0]['department'] ?? '',
+                'position' => count($departmentBoard['departments']) + 1,
+                'members' => $members,
+                'missing' => true,
+            ];
+        }
+    }
+}
+
+$extraScripts = ['public/assets/js/entity-info.js'];
+if ($isGroupClass) {
+    $extraScripts[] = 'public/assets/js/startlist-departments.js';
+}
+
 render_page('startlist.tpl', [
     'title' => t('startlist.title'),
     'page' => 'startlist',
@@ -514,5 +571,6 @@ render_page('startlist.tpl', [
     'startNumberRule' => $startNumberRule,
     'hasDepartments' => $hasDepartments,
     'isGroupClass' => $isGroupClass,
-    'extraScripts' => ['public/assets/js/entity-info.js'],
+    'extraScripts' => $extraScripts,
+    'departmentBoard' => $departmentBoard,
 ]);
