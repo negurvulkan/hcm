@@ -5,6 +5,7 @@ use App\Core\SmartyView;
 use App\I18n\LocaleManager;
 use App\I18n\Translator;
 use App\Services\InstanceConfiguration;
+use App\Setup\Updater;
 
 spl_autoload_register(static function (string $class): void {
     if (str_starts_with($class, 'App\\')) {
@@ -45,6 +46,11 @@ $config = require $configFile;
 
 App::set('config', $config);
 App::set('pdo', Database::connect($config['db'] ?? []));
+
+if (App::has('pdo')) {
+    $driver = $config['db']['driver'] ?? 'sqlite';
+    Updater::runOnConnection(App::get('pdo'), $driver);
+}
 $localeManager = new LocaleManager($config['app']['locales'] ?? ['de', 'en'], $config['app']['default_locale'] ?? 'de');
 $currentLocale = $localeManager->detect();
 $translator = new Translator($currentLocale, $config['app']['fallback_locale'] ?? 'de', $config['app']['lang_path'] ?? (__DIR__ . '/../lang'));
