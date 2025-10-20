@@ -3,6 +3,7 @@
 /** @var array $selectedClass */
 /** @var array $startlist */
 /** @var array $conflicts */
+/** @var bool $hasDepartments */
 
 if (!function_exists('startlist_prepare_entity_fields')) {
     function startlist_prepare_entity_fields(array $fields): array
@@ -61,6 +62,9 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                     <th><?= htmlspecialchars(t('startlist.table.columns.start_number'), ENT_QUOTES, 'UTF-8') ?></th>
                     <th><?= htmlspecialchars(t('startlist.table.columns.rider'), ENT_QUOTES, 'UTF-8') ?></th>
                     <th><?= htmlspecialchars(t('startlist.table.columns.horse'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <?php if (!empty($hasDepartments)): ?>
+                        <th><?= htmlspecialchars(t('startlist.table.columns.department'), ENT_QUOTES, 'UTF-8') ?></th>
+                    <?php endif; ?>
                     <th><?= htmlspecialchars(t('startlist.table.columns.planned_start_note'), ENT_QUOTES, 'UTF-8') ?></th>
                     <th><?= htmlspecialchars(t('startlist.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
                     <th><?= htmlspecialchars(t('startlist.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
@@ -136,6 +140,9 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                                 </button>
                             </div>
                         </td>
+                        <?php if (!empty($hasDepartments)): ?>
+                            <td><?= !empty($item['department']) ? '<span class="badge bg-info-subtle text-info">' . htmlspecialchars($item['department'], ENT_QUOTES, 'UTF-8') . '</span>' : '–' ?></td>
+                        <?php endif; ?>
                         <td>
                             <form method="post" class="d-flex flex-column gap-2">
                                 <?= csrf_field() ?>
