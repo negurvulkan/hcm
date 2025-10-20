@@ -181,6 +181,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $horseId = (int) ($_POST['horse_id'] ?? 0);
         $classId = (int) ($_POST['class_id'] ?? 0);
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
+        $departmentRaw = trim((string) ($_POST['department'] ?? ''));
+        if ($departmentRaw !== '') {
+            $departmentNormalized = preg_replace('/\s+/', ' ', $departmentRaw);
+            $department = function_exists('mb_substr') ? mb_substr($departmentNormalized, 0, 120) : substr($departmentNormalized, 0, 120);
+        } else {
+            $department = null;
+        }
 
         if (!$personId || !$horseId || !$classId) {
             flash('error', t('entries.validation.selection_required'));
@@ -205,13 +212,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
                 db_execute(
-                    'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :paid_at, :created)',
+                    'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, department, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :department, :paid_at, :created)',
                     [
                         'event_id' => (int) $class['event_id'],
                         'class_id' => $classId,
                         'party_id' => $personId,
                         'horse_id' => $horseId,
                         'status' => $status,
+                        'department' => $department,
                         'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
                         'created' => (new \DateTimeImmutable())->format('c'),
                     ]
@@ -227,7 +235,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 $rule = getStartNumberRule($context);
                 if (($rule['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
-                    assignStartNumber($context, ['entry_id' => $entryId]);
+                    assignStartNumber($context, [
+                        'entry_id' => $entryId,
+                        'department' => $department,
+                    ]);
                 }
                 flash('success', t('entries.flash.created'));
             }
@@ -243,6 +254,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $horseId = (int) ($_POST['horse_id'] ?? 0);
         $classId = (int) ($_POST['class_id'] ?? 0);
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
+        $departmentRaw = trim((string) ($_POST['department'] ?? ''));
+        if ($departmentRaw !== '') {
+            $departmentNormalized = preg_replace('/\s+/', ' ', $departmentRaw);
+            $department = function_exists('mb_substr') ? mb_substr($departmentNormalized, 0, 120) : substr($departmentNormalized, 0, 120);
+        } else {
+            $department = null;
+        }
 
         if (!$entryId || !$personId || !$horseId || !$classId) {
             flash('error', t('entries.validation.fields_required'));
@@ -268,13 +286,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
                 db_execute(
-                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, party_id = :party_id, horse_id = :horse_id, status = :status, fee_paid_at = :paid_at WHERE id = :id',
+                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, party_id = :party_id, horse_id = :horse_id, status = :status, department = :department, fee_paid_at = :paid_at WHERE id = :id',
                     [
                         'event_id' => $class['event_id'],
                         'class_id' => $classId,
                         'party_id' => $personId,
                         'horse_id' => $horseId,
                         'status' => $status,
+                        'department' => $department,
                         'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
                         'id' => $entryId,
                     ]
@@ -293,7 +312,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 $rule = getStartNumberRule($context);
                 if (($rule['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
-                    assignStartNumber($context, ['entry_id' => $entryId]);
+                    assignStartNumber($context, [
+                        'entry_id' => $entryId,
+                        'department' => $department,
+                    ]);
                 }
                 flash('success', t('entries.flash.updated'));
             }
@@ -467,13 +489,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             db_execute(
-                'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :paid_at, :created)',
+                'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, department, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :department, :paid_at, :created)',
                 [
                     'event_id' => $class['event_id'],
                     'class_id' => $class['id'],
                     'party_id' => $person['id'],
                     'horse_id' => $horse['id'],
                     'status' => $status,
+                    'department' => null,
                     'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
                     'created' => (new \DateTimeImmutable())->format('c'),
                 ]
@@ -492,7 +515,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
             }
             if ($entryId > 0 && ($ruleCache[$cacheKey]['rule']['allocation']['time'] ?? 'on_startlist') === 'on_entry') {
-                assignStartNumber($ruleCache[$cacheKey]['context'], ['entry_id' => $entryId]);
+                assignStartNumber($ruleCache[$cacheKey]['context'], [
+                    'entry_id' => $entryId,
+                    'department' => null,
+                ]);
             }
             $created++;
         }
@@ -504,7 +530,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$entriesSql = 'SELECT e.id, e.status, e.party_id, e.horse_id, e.class_id, e.event_id, pr.display_name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
+$entriesSql = 'SELECT e.id, e.status, e.party_id, e.horse_id, e.class_id, e.event_id, e.department, pr.display_name AS rider, h.name AS horse, c.label AS class_label, e.created_at FROM entries e JOIN parties pr ON pr.id = e.party_id JOIN horses h ON h.id = e.horse_id JOIN classes c ON c.id = e.class_id';
 $entriesOrder = ' ORDER BY e.created_at DESC LIMIT 100';
 if (!$isAdmin) {
     if (!$activeEvent) {

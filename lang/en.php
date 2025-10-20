@@ -359,6 +359,8 @@ return [
             'person' => 'Rider',
             'horse' => 'Horse',
             'class' => 'Class',
+            'department' => 'Squad / section',
+            'department_placeholder' => 'e.g. A1',
             'status' => 'Status',
             'select_placeholder' => 'Select…',
             'filter_placeholder' => 'Type to filter…',
@@ -412,6 +414,7 @@ return [
                 'rider' => 'Rider',
                 'horse' => 'Horse',
                 'class' => 'Class',
+                'department' => 'Squad',
                 'status' => 'Status',
                 'actions' => 'Actions',
             ],
@@ -940,6 +943,7 @@ return [
                 'entity' => [
                     'start' => 'Start',
                     'pair' => 'Rider/horse',
+                    'department' => 'Squad / section',
                 ],
                 'time' => [
                     'on_entry' => 'On entry',
@@ -1247,6 +1251,7 @@ return [
                 'start_number' => 'Start no.',
                 'rider' => 'Rider',
                 'horse' => 'Horse',
+                'department' => 'Squad',
                 'planned_start_note' => 'Planned start & note',
                 'status' => 'Status',
                 'actions' => 'Actions',
