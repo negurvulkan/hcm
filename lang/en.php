@@ -1449,6 +1449,16 @@ return [
             'empty' => 'No results recorded.',
             'rule_hash' => 'Hash: {hash}',
         ],
+        'department' => [
+            'title' => 'Squad ranking',
+            'columns' => [
+                'rank' => 'Rank',
+                'department' => 'Squad',
+                'score' => 'Score',
+                'members' => 'Riders',
+            ],
+            'empty' => 'No squad results available.',
+        ],
         'status' => [
             'draft' => 'draft',
             'submitted' => 'submitted',

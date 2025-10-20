@@ -88,6 +88,15 @@ class RuleManager
                 'show_breakdown' => true,
                 'normalize_to_percent' => false,
             ],
+            'grouping' => [
+                'department' => [
+                    'enabled' => false,
+                    'aggregation' => 'mean',
+                    'rounding' => 2,
+                    'label' => 'Abteilungswertung',
+                    'min_members' => 2,
+                ],
+            ],
         ];
         $merged = self::recursiveMerge($defaults, $rule);
         $merged = self::migrateLegacyLessons($merged);

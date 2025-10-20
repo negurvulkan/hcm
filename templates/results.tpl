@@ -3,6 +3,7 @@
 /** @var array $selectedClass */
 /** @var array $results */
 /** @var array $audits */
+/** @var array $departmentResults */
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0"><?= htmlspecialchars(t('results.title'), ENT_QUOTES, 'UTF-8') ?></h1>
@@ -15,6 +16,52 @@
         <button class="btn btn-outline-secondary" type="submit"><?= htmlspecialchars(t('common.actions.switch'), ENT_QUOTES, 'UTF-8') ?></button>
     </form>
 </div>
+
+<?php if (!empty($departmentResults['enabled'])): ?>
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="h6 mb-3"><?= htmlspecialchars($departmentResults['label'] ?? t('results.department.title'), ENT_QUOTES, 'UTF-8') ?></h2>
+            <?php if (!empty($departmentResults['entries'])): ?>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th><?= htmlspecialchars(t('results.department.columns.rank'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('results.department.columns.department'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('results.department.columns.score'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('results.department.columns.members'), ENT_QUOTES, 'UTF-8') ?></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($departmentResults['entries'] as $entry): ?>
+                            <tr<?= !empty($entry['eliminated']) ? ' class="table-danger"' : '' ?>>
+                                <td><?= (int) $entry['rank'] ?></td>
+                                <td><?= htmlspecialchars($entry['department_label'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars(number_format((float) $entry['score'], (int) ($departmentResults['rounding'] ?? 2)), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td>
+                                    <?php foreach ($entry['members'] as $member): ?>
+                                        <div class="small text-muted">
+                                            <?php if (!empty($member['start_number'])): ?>
+                                                <span class="badge bg-primary text-light me-1"><?= htmlspecialchars($member['start_number'], ENT_QUOTES, 'UTF-8') ?></span>
+                                            <?php endif; ?>
+                                            <?= htmlspecialchars($member['rider'], ENT_QUOTES, 'UTF-8') ?>
+                                            <?php if (!empty($member['horse'])): ?>
+                                                <span class="text-muted">– <?= htmlspecialchars($member['horse'], ENT_QUOTES, 'UTF-8') ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <p class="text-muted mb-0"><?= htmlspecialchars(t('results.department.empty'), ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="card mb-4">
     <div class="card-body">

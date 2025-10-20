@@ -247,3 +247,172 @@ function scoring_recalculate_class(int $classId, array $user = null, string $rea
     }
     return $errors;
 }
+
+function scoring_department_normalize(?string $value): string
+{
+    $trimmed = trim((string) $value);
+    if ($trimmed === '') {
+        return '';
+    }
+    $collapsed = preg_replace('/\s+/', ' ', $trimmed);
+    return function_exists('mb_strtolower') ? mb_strtolower($collapsed, 'UTF-8') : strtolower($collapsed);
+}
+
+function scoring_department_results(array $results, array $rule): array
+{
+    $defaultRounding = (int) ($rule['output']['rounding'] ?? 2);
+    $config = is_array($rule['grouping']['department'] ?? null) ? $rule['grouping']['department'] : null;
+    $enabled = !empty($config['enabled']);
+    $label = (string) ($config['label'] ?? 'Abteilungswertung');
+    if (!$enabled) {
+        return [
+            'enabled' => false,
+            'label' => $label,
+            'entries' => [],
+            'rounding' => $defaultRounding,
+            'aggregation' => strtolower((string) ($config['aggregation'] ?? 'mean')),
+            'min_members' => (int) ($config['min_members'] ?? 2),
+        ];
+    }
+
+    $aggregation = strtolower((string) ($config['aggregation'] ?? 'mean'));
+    $rounding = max(0, (int) ($config['rounding'] ?? $defaultRounding));
+    $order = strtolower((string) ($rule['ranking']['order'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
+    $minMembers = max(1, (int) ($config['min_members'] ?? 1));
+
+    $groups = [];
+    foreach ($results as $row) {
+        $departmentLabel = trim((string) ($row['department'] ?? ''));
+        if ($departmentLabel === '') {
+            continue;
+        }
+        $normalized = scoring_department_normalize($departmentLabel);
+        if ($normalized === '') {
+            continue;
+        }
+        $totalValue = $row['total'] ?? null;
+        if ($totalValue === null || $totalValue === '') {
+            continue;
+        }
+        if (!isset($groups[$normalized])) {
+            $groups[$normalized] = [
+                'label' => $departmentLabel,
+                'members' => [],
+            ];
+        }
+        $groups[$normalized]['members'][] = [
+            'result_id' => (int) ($row['id'] ?? 0),
+            'rank' => isset($row['rank']) ? ((string) $row['rank'] === '' ? null : (int) $row['rank']) : null,
+            'total' => (float) $totalValue,
+            'eliminated' => !empty($row['eliminated']),
+            'rider' => (string) ($row['rider'] ?? ''),
+            'horse' => (string) ($row['horse'] ?? ''),
+            'start_number' => $row['start_number_display'] ?? ($row['start_number_raw'] ?? null),
+        ];
+    }
+
+    $compareScore = static function (float $a, float $b, string $order): int {
+        $epsilon = 0.00001;
+        $diff = $a - $b;
+        if (abs($diff) <= $epsilon) {
+            return 0;
+        }
+        return $order === 'asc' ? ($a <=> $b) : ($b <=> $a);
+    };
+
+    $entries = [];
+    foreach ($groups as $key => $group) {
+        if (count($group['members']) < $minMembers) {
+            continue;
+        }
+        $values = array_map(static fn(array $member): float => $member['total'], $group['members']);
+        if (!$values) {
+            continue;
+        }
+        switch ($aggregation) {
+            case 'sum':
+                $scoreRaw = array_sum($values);
+                break;
+            case 'best':
+                $scoreRaw = $order === 'asc' ? min($values) : max($values);
+                break;
+            case 'median':
+                sort($values);
+                $count = count($values);
+                if ($count % 2 === 1) {
+                    $scoreRaw = $values[(int) floor($count / 2)];
+                } else {
+                    $scoreRaw = ($values[$count / 2 - 1] + $values[$count / 2]) / 2;
+                }
+                break;
+            case 'mean':
+            default:
+                $scoreRaw = array_sum($values) / count($values);
+        }
+        $eliminated = !array_filter($group['members'], static fn(array $member): bool => empty($member['eliminated']));
+        $bestRank = null;
+        foreach ($group['members'] as $member) {
+            if ($member['rank'] === null) {
+                continue;
+            }
+            if ($bestRank === null || $member['rank'] < $bestRank) {
+                $bestRank = $member['rank'];
+            }
+        }
+        $entries[] = [
+            'department_key' => $key,
+            'department_label' => $group['label'],
+            'score_raw' => $scoreRaw,
+            'score' => round($scoreRaw, $rounding),
+            'member_count' => count($group['members']),
+            'members' => $group['members'],
+            'eliminated' => $eliminated,
+            'best_member_rank' => $bestRank,
+        ];
+    }
+
+    usort($entries, static function (array $a, array $b) use ($compareScore, $order): int {
+        $elimA = !empty($a['eliminated']);
+        $elimB = !empty($b['eliminated']);
+        if ($elimA !== $elimB) {
+            return $elimA ? 1 : -1;
+        }
+        $cmpScore = $compareScore($a['score_raw'], $b['score_raw'], $order);
+        if ($cmpScore !== 0) {
+            return $cmpScore;
+        }
+        $rankA = $a['best_member_rank'] ?? PHP_INT_MAX;
+        $rankB = $b['best_member_rank'] ?? PHP_INT_MAX;
+        if ($rankA !== $rankB) {
+            return $rankA <=> $rankB;
+        }
+        return strcmp((string) $a['department_label'], (string) $b['department_label']);
+    });
+
+    $currentRank = 0;
+    $last = null;
+    foreach ($entries as $index => &$entry) {
+        $tie = false;
+        if ($last !== null) {
+            $sameScore = $compareScore($entry['score_raw'], $last['score_raw'], $order) === 0;
+            $sameElim = !empty($entry['eliminated']) === !empty($last['eliminated']);
+            $tie = $sameScore && $sameElim;
+        }
+        if (!$tie) {
+            $currentRank = $index + 1;
+        }
+        $entry['rank'] = $currentRank;
+        $last = $entry;
+    }
+    unset($entry);
+
+    return [
+        'enabled' => true,
+        'label' => $label,
+        'entries' => $entries,
+        'rounding' => $rounding,
+        'aggregation' => $aggregation,
+        'min_members' => $minMembers,
+    ];
+}
+
