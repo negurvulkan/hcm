@@ -99,6 +99,15 @@ class SyncRepository
                 ['column' => 'entry_id', 'table' => 'entries', 'reference' => 'id'],
             ],
         ],
+        'judge_scores' => [
+            'table' => 'judge_scores',
+            'id_column' => 'id',
+            'columns' => ['id', 'startlist_id', 'judge_key', 'judge_user_id', 'judge_name', 'components_json', 'fields_json', 'submitted_at', 'created_at', 'updated_at'],
+            'version_column' => 'updated_at',
+            'dependencies' => [
+                ['column' => 'startlist_id', 'table' => 'startlist_items', 'reference' => 'id'],
+            ],
+        ],
         'schedules' => [
             'table' => 'schedule_shifts',
             'id_column' => 'id',
@@ -162,6 +171,7 @@ class SyncRepository
         'classes',
         'entries',
         'starts',
+        'judge_scores',
         'schedules',
         'results',
         'scores',
