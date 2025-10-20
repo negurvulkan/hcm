@@ -41,6 +41,7 @@ if ($editId) {
         $editClass['tiebreakers_list'] = $editClass['tiebreaker_json'] ? implode(', ', json_decode($editClass['tiebreaker_json'], true, 512, JSON_THROW_ON_ERROR) ?: []) : '';
         $editClass['start_formatted'] = $editClass['start_time'] ? date('Y-m-d\TH:i', strtotime($editClass['start_time'])) : '';
         $editClass['end_formatted'] = $editClass['end_time'] ? date('Y-m-d\TH:i', strtotime($editClass['end_time'])) : '';
+        $editClass['is_group'] = !empty($editClass['is_group']);
         if (!empty($editClass['start_number_rules'])) {
             $editClass['start_number_rules_text'] = $editClass['start_number_rules'];
         }
@@ -263,6 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        $isGroup = isset($_POST['is_group']) && (string) $_POST['is_group'] === '1' ? 1 : 0;
+
         $data = [
             'event_id' => $eventId,
             'label' => $label,
@@ -275,17 +278,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'tiebreaker_json' => $tiebreakers ? json_encode(array_values($tiebreakers), JSON_THROW_ON_ERROR) : null,
             'start_number_rules' => $startNumberRule,
             'scoring_rule_snapshot' => $rulesSnapshotJson,
+            'is_group' => $isGroup,
         ];
 
         if ($action === 'update' && $classId > 0) {
             db_execute(
-                'UPDATE classes SET event_id = :event_id, label = :label, arena = :arena, start_time = :start_time, end_time = :end_time, max_starters = :max_starters, judge_assignments = :judge_assignments, rules_json = :rules_json, tiebreaker_json = :tiebreaker_json, start_number_rules = :start_number_rules, scoring_rule_snapshot = :scoring_rule_snapshot WHERE id = :id',
+                'UPDATE classes SET event_id = :event_id, label = :label, arena = :arena, start_time = :start_time, end_time = :end_time, max_starters = :max_starters, judge_assignments = :judge_assignments, rules_json = :rules_json, tiebreaker_json = :tiebreaker_json, start_number_rules = :start_number_rules, scoring_rule_snapshot = :scoring_rule_snapshot, is_group = :is_group WHERE id = :id',
                 $data + ['id' => $classId]
             );
             flash('success', t('classes.flash.updated'));
         } else {
             db_execute(
-                'INSERT INTO classes (event_id, label, arena, start_time, end_time, max_starters, judge_assignments, rules_json, tiebreaker_json, start_number_rules, scoring_rule_snapshot) VALUES (:event_id, :label, :arena, :start_time, :end_time, :max_starters, :judge_assignments, :rules_json, :tiebreaker_json, :start_number_rules, :scoring_rule_snapshot)',
+                'INSERT INTO classes (event_id, label, arena, start_time, end_time, max_starters, judge_assignments, rules_json, tiebreaker_json, start_number_rules, scoring_rule_snapshot, is_group) VALUES (:event_id, :label, :arena, :start_time, :end_time, :max_starters, :judge_assignments, :rules_json, :tiebreaker_json, :start_number_rules, :scoring_rule_snapshot, :is_group)',
                 $data
             );
             flash('success', t('classes.flash.created'));
@@ -311,6 +315,7 @@ foreach ($classes as &$class) {
     $class['judges'] = $class['judge_assignments'] ? json_decode($class['judge_assignments'], true, 512, JSON_THROW_ON_ERROR) : [];
     $class['rules'] = $class['rules_json'] ? json_decode($class['rules_json'], true, 512, JSON_THROW_ON_ERROR) : [];
     $class['tiebreakers'] = $class['tiebreaker_json'] ? json_decode($class['tiebreaker_json'], true, 512, JSON_THROW_ON_ERROR) : [];
+    $class['is_group'] = !empty($class['is_group']);
 }
 unset($class);
 

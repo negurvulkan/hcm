@@ -3,6 +3,7 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/audit.php';
 require_once __DIR__ . '/app/helpers/scoring.php';
 require_once __DIR__ . '/app/helpers/judge.php';
+require_once __DIR__ . '/app/helpers/startlist.php';
 
 use App\CustomFields\CustomFieldManager;
 use App\CustomFields\CustomFieldRepository;
@@ -56,6 +57,8 @@ if (!$selectedClass || !event_accessible($user, (int) $selectedClass['event_id']
     }
 }
 
+$isGroupClass = !empty($selectedClass['is_group']);
+
 $pdo = app_pdo();
 $customFieldRepository = new CustomFieldRepository($pdo);
 $primaryOrganizationId = instance_primary_organization_id();
@@ -90,6 +93,8 @@ if (!$starts) {
         'result' => null,
         'starts' => [],
         'startStateCounts' => [],
+        'isGroupClass' => $isGroupClass,
+        'currentGroup' => null,
         'extraScripts' => ['public/assets/js/entity-info.js', 'public/assets/js/judge.js'],
     ]);
     exit;
@@ -107,10 +112,29 @@ foreach ($starts as &$candidate) {
 }
 unset($candidate);
 
+$groupedStarts = $isGroupClass ? startlist_group_entries($starts) : null;
+if ($groupedStarts !== null) {
+    foreach ($groupedStarts as &$group) {
+        $stateKey = $group['state'] ?? 'scheduled';
+        $group['filter_state'] = $stateKey === 'mixed' ? 'scheduled' : $stateKey;
+    }
+    unset($group);
+}
+
 $startStateCounts = [];
-foreach ($starts as $candidate) {
-    $stateKey = $candidate['state'] ?? 'scheduled';
-    $startStateCounts[$stateKey] = ($startStateCounts[$stateKey] ?? 0) + 1;
+if ($isGroupClass) {
+    foreach ($groupedStarts ?? [] as $group) {
+        $stateKey = $group['state'] ?? 'scheduled';
+        if ($stateKey === 'mixed') {
+            $stateKey = 'scheduled';
+        }
+        $startStateCounts[$stateKey] = ($startStateCounts[$stateKey] ?? 0) + 1;
+    }
+} else {
+    foreach ($starts as $candidate) {
+        $stateKey = $candidate['state'] ?? 'scheduled';
+        $startStateCounts[$stateKey] = ($startStateCounts[$stateKey] ?? 0) + 1;
+    }
 }
 
 $startId = (int) ($_GET['start_id'] ?? $starts[0]['id']);
@@ -124,6 +148,21 @@ foreach ($starts as $candidate) {
 if (!$start) {
     $start = $starts[0];
     $startId = (int) $start['id'];
+}
+
+$currentGroup = null;
+if ($isGroupClass) {
+    foreach ($groupedStarts ?? [] as $group) {
+        foreach ($group['members'] as $member) {
+            if ((int) ($member['id'] ?? 0) === $startId) {
+                $currentGroup = $group;
+                break 2;
+            }
+        }
+    }
+    if ($currentGroup === null && $groupedStarts) {
+        $currentGroup = $groupedStarts[0];
+    }
 }
 
 $rule = scoring_rule_for_class($selectedClass);
@@ -504,7 +543,7 @@ render_page('judge.tpl', [
     'classes' => $classes,
     'selectedClass' => $selectedClass,
     'start' => $start,
-    'starts' => $starts,
+    'starts' => $isGroupClass ? ($groupedStarts ?? []) : $starts,
     'fieldsInput' => $fieldsInput,
     'judgeComponents' => $judgeComponents,
     'rule' => $rule,
@@ -515,5 +554,7 @@ render_page('judge.tpl', [
     'judgeKey' => $judgeKey,
     'startNumberRule' => $startNumberRule,
     'startStateCounts' => $startStateCounts,
+    'isGroupClass' => $isGroupClass,
+    'currentGroup' => $currentGroup,
     'extraScripts' => ['public/assets/js/entity-info.js', 'public/assets/js/judge.js'],
 ]);
