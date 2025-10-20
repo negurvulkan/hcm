@@ -142,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $ordered = [];
         $singleIndex = 0;
+        $departmentOrderCounters = [];
         foreach ($unitSequence as $unit) {
             if ($unit['type'] === 'department') {
                 $key = $unit['key'];
@@ -161,6 +162,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $incrementCount = 0;
         foreach ($ordered as $position => $entry) {
             $departmentKey = startlist_normalize_department($entry['department'] ?? '');
+            $departmentOrder = null;
+            if ($departmentKey !== '') {
+                if (!isset($departmentOrderCounters[$departmentKey])) {
+                    $departmentOrderCounters[$departmentKey] = 1;
+                } else {
+                    $departmentOrderCounters[$departmentKey]++;
+                }
+                $departmentOrder = $departmentOrderCounters[$departmentKey];
+            }
             if ($position > 0) {
                 $shouldIncrement = true;
                 if ($departmentKey !== '' && $departmentKey === $lastDepartmentKey) {
@@ -175,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             db_execute(
-                'INSERT INTO startlist_items (class_id, entry_id, position, planned_start, state, note, created_at, updated_at) VALUES (:class_id, :entry_id, :position, :planned_start, :state, :note, :created, :updated)',
+                'INSERT INTO startlist_items (class_id, entry_id, position, planned_start, state, note, department_order, created_at, updated_at) VALUES (:class_id, :entry_id, :position, :planned_start, :state, :note, :department_order, :created, :updated)',
                 [
                     'class_id' => $classId,
                     'entry_id' => $entry['id'],
@@ -183,6 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'planned_start' => $current->format('c'),
                     'state' => 'scheduled',
                     'note' => null,
+                    'department_order' => $departmentOrder,
                     'created' => (new \DateTimeImmutable())->format('c'),
                     'updated' => (new \DateTimeImmutable())->format('c'),
                 ]
@@ -519,6 +530,23 @@ if ($isGroupClass) {
         }
         $membersByDepartment[$deptId][] = $item;
     }
+    foreach ($membersByDepartment as &$members) {
+        usort($members, static function (array $left, array $right): int {
+            $leftOrder = $left['department_order'] ?? null;
+            $rightOrder = $right['department_order'] ?? null;
+            if ($leftOrder !== null && $rightOrder !== null && $leftOrder !== $rightOrder) {
+                return $leftOrder <=> $rightOrder;
+            }
+            if ($leftOrder !== null && $rightOrder === null) {
+                return -1;
+            }
+            if ($leftOrder === null && $rightOrder !== null) {
+                return 1;
+            }
+            return ((int) ($left['position'] ?? 0)) <=> ((int) ($right['position'] ?? 0));
+        });
+    }
+    unset($members);
     $departmentBoard = [
         'departments' => [],
         'unassigned' => $membersByDepartment[0] ?? [],
