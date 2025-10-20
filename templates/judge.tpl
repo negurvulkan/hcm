@@ -234,7 +234,11 @@ if (!empty($isGroupClass) && !empty($currentGroup['members'] ?? null)) {
             <span class="mx-2">·</span>
             <span class="d-inline-flex align-items-center gap-2">
                 <span><?= htmlspecialchars($groupLabel !== null && $groupLabel !== '' ? $groupLabel : t('judge.form.group_fallback'), ENT_QUOTES, 'UTF-8') ?></span>
-                <?php if (!empty($groupContext['size'])): ?>
+                <?php if ($groupLabel !== null && $groupLabel !== ''): ?>
+                    <span class="badge bg-info-subtle text-info">
+                        <?= htmlspecialchars($groupLabel, ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                <?php elseif (!empty($groupContext['size'])): ?>
                     <span class="badge bg-info-subtle text-info">
                         <?= htmlspecialchars(t('judge.banner.group_size', ['count' => (int) $groupContext['size']]), ENT_QUOTES, 'UTF-8') ?>
                     </span>
@@ -374,7 +378,9 @@ if (!empty($isGroupClass) && !empty($currentGroup['members'] ?? null)) {
                             </span>
                             <span class="d-flex flex-wrap align-items-center gap-2 small">
                                 <span class="fw-semibold"><?= htmlspecialchars($groupLabel !== null && $groupLabel !== '' ? $groupLabel : t('judge.form.group_fallback'), ENT_QUOTES, 'UTF-8') ?></span>
-                                <?php if ($size > 0): ?>
+                                <?php if ($groupLabel !== null && $groupLabel !== ''): ?>
+                                    <span class="badge bg-info-subtle text-info"><?= htmlspecialchars($groupLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php elseif ($size > 0): ?>
                                     <span class="badge bg-info-subtle text-info"><?= htmlspecialchars(t('judge.controls.group_size', ['count' => $size]), ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
                                 <?php foreach ($group['start_numbers'] ?? [] as $number): ?>
@@ -427,7 +433,9 @@ if (!empty($isGroupClass) && !empty($currentGroup['members'] ?? null)) {
                     <?php foreach ($groupContext['start_numbers'] as $number): ?>
                         <span class="badge bg-primary text-light"><?= htmlspecialchars(t('judge.banner.start_number', ['number' => $number]), ENT_QUOTES, 'UTF-8') ?></span>
                     <?php endforeach; ?>
-                    <?php if (!empty($groupContext['size'])): ?>
+                    <?php if ($groupLabel !== null && $groupLabel !== ''): ?>
+                        <span class="badge bg-info-subtle text-info"><?= htmlspecialchars($groupLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php elseif (!empty($groupContext['size'])): ?>
                         <span class="badge bg-info-subtle text-info"><?= htmlspecialchars(t('judge.banner.group_size', ['count' => (int) $groupContext['size']]), ENT_QUOTES, 'UTF-8') ?></span>
                     <?php endif; ?>
                 </div>
