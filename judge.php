@@ -132,9 +132,13 @@ $scoresPayload = $result && $result['scores_json'] ? json_decode($result['scores
 $existingInput = is_array($scoresPayload['input'] ?? null) ? $scoresPayload['input'] : ['fields' => [], 'judges' => []];
 $existingEvaluation = $scoresPayload['evaluation'] ?? null;
 $fieldsInput = is_array($existingInput['fields'] ?? null) ? $existingInput['fields'] : [];
-$judgeEntries = [];
-foreach ($existingInput['judges'] ?? [] as $entry) {
-    if (is_array($entry) && !empty($entry['id'])) {
+
+$normalizeJudgeEntries = static function (array $judges): array {
+    $entries = [];
+    foreach ($judges as $entry) {
+        if (!is_array($entry) || empty($entry['id'])) {
+            continue;
+        }
         $components = is_array($entry['components'] ?? null) ? $entry['components'] : [];
         if (!empty($entry['lessons']) && is_array($entry['lessons'])) {
             foreach ($entry['lessons'] as $lessonId => $lessonValue) {
@@ -145,8 +149,86 @@ foreach ($existingInput['judges'] ?? [] as $entry) {
         }
         $entry['components'] = $components;
         unset($entry['lessons']);
-        $judgeEntries[$entry['id']] = $entry;
+        $entries[$entry['id']] = $entry;
     }
+    return $entries;
+};
+
+$judgeScoreAuditPayload = static function (?array $row): ?array {
+    if (!$row) {
+        return null;
+    }
+    $components = $row['components'] ?? null;
+    if ($components === null && isset($row['components_json'])) {
+        $decoded = json_decode((string) $row['components_json'], true, 512, JSON_THROW_ON_ERROR);
+        $components = is_array($decoded) ? $decoded : [];
+    }
+    $fields = $row['fields'] ?? null;
+    if ($fields === null && isset($row['fields_json'])) {
+        $decoded = json_decode((string) $row['fields_json'], true, 512, JSON_THROW_ON_ERROR);
+        $fields = is_array($decoded) ? $decoded : [];
+    }
+
+    return [
+        'id' => isset($row['id']) ? (int) $row['id'] : null,
+        'startlist_id' => isset($row['startlist_id']) ? (int) $row['startlist_id'] : null,
+        'judge_key' => $row['judge_key'] ?? null,
+        'judge_user_id' => isset($row['judge_user_id']) ? (int) $row['judge_user_id'] : null,
+        'judge_name' => $row['judge_name'] ?? null,
+        'components' => $components ?? [],
+        'fields' => $fields ?? [],
+        'submitted_at' => $row['submitted_at'] ?? null,
+        'created_at' => $row['created_at'] ?? null,
+        'updated_at' => $row['updated_at'] ?? null,
+    ];
+};
+
+$loadJudgeScores = static function (int $startlistId, string $lockClause = '') use ($normalizeJudgeEntries): array {
+    $query = 'SELECT * FROM judge_scores WHERE startlist_id = :start_id ORDER BY submitted_at ASC, id ASC';
+    if ($lockClause) {
+        $query .= $lockClause;
+    }
+    $rows = db_all($query, ['start_id' => $startlistId]);
+    $entries = [];
+    $rowMap = [];
+    foreach ($rows as $row) {
+        $components = [];
+        if (isset($row['components_json'])) {
+            $decodedComponents = json_decode((string) $row['components_json'], true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($decodedComponents)) {
+                $components = $decodedComponents;
+            }
+        }
+        $fields = [];
+        if (isset($row['fields_json'])) {
+            $decodedFields = json_decode((string) $row['fields_json'], true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($decodedFields)) {
+                $fields = $decodedFields;
+            }
+        }
+
+        $entries[$row['judge_key']] = [
+            'id' => $row['judge_key'],
+            'user' => [
+                'id' => $row['judge_user_id'] ?? null,
+                'name' => $row['judge_name'] ?? null,
+            ],
+            'components' => $components,
+            'fields' => $fields,
+            'submitted_at' => $row['submitted_at'] ?? null,
+        ];
+        $row['components'] = $components;
+        $row['fields'] = $fields;
+        $rowMap[$row['judge_key']] = $row;
+    }
+
+    return ['entries' => $entries, 'rows' => $rowMap];
+};
+
+$loadedScores = $loadJudgeScores($startId);
+$judgeEntries = $loadedScores['entries'];
+if (!$judgeEntries) {
+    $judgeEntries = $normalizeJudgeEntries($existingInput['judges'] ?? []);
 }
 $judgeKey = judge_identifier($user);
 $currentJudgeComponents = $judgeEntries[$judgeKey]['components'] ?? [];
@@ -205,6 +287,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete_result') {
         if ($result) {
+            $judgeRows = db_all('SELECT * FROM judge_scores WHERE startlist_id = :start', ['start' => $startId]);
+            foreach ($judgeRows as $row) {
+                db_execute('DELETE FROM judge_scores WHERE id = :id', ['id' => $row['id']]);
+                audit_log('judge_scores', (int) $row['id'], 'delete', $judgeScoreAuditPayload($row), null);
+            }
             db_execute('DELETE FROM results WHERE id = :id', ['id' => $result['id']]);
             audit_log('results', (int) $result['id'], 'delete', $result, null);
             db_execute('UPDATE startlist_items SET state = :state, updated_at = :updated WHERE id = :id', [
@@ -235,21 +322,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $storedFields = is_array($existingInput['fields'] ?? null) ? $existingInput['fields'] : [];
         $storedJudges = is_array($existingInput['judges'] ?? null) ? $existingInput['judges'] : [];
 
-        $judgeEntries = [];
-        foreach ($storedJudges as $entry) {
-            if (is_array($entry) && !empty($entry['id'])) {
-                $components = is_array($entry['components'] ?? null) ? $entry['components'] : [];
-                if (!empty($entry['lessons']) && is_array($entry['lessons'])) {
-                    foreach ($entry['lessons'] as $lessonId => $lessonValue) {
-                        if (!array_key_exists($lessonId, $components)) {
-                            $components[$lessonId] = $lessonValue;
-                        }
-                    }
-                }
-                $entry['components'] = $components;
-                unset($entry['lessons']);
-                $judgeEntries[$entry['id']] = $entry;
-            }
+        $lockedJudgeScores = $loadJudgeScores($startId, $lockClause);
+        $judgeEntries = $lockedJudgeScores['entries'];
+        $judgeRowMap = $lockedJudgeScores['rows'];
+        if (!$judgeEntries) {
+            $judgeEntries = $normalizeJudgeEntries($storedJudges);
+            $judgeRowMap = [];
         }
 
         $payload = $_POST['score'] ?? [];
@@ -263,11 +341,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($parsedFields as $key => $value) {
             $fieldsData[$key] = $value;
         }
+        $submittedAt = (new \DateTimeImmutable())->format('c');
         $judgeEntries[$judgeKey] = [
             'id' => $judgeKey,
             'user' => ['id' => $user['id'] ?? null, 'name' => $user['name'] ?? null],
             'components' => $parsedComponents,
-            'submitted_at' => (new \DateTimeImmutable())->format('c'),
+            'submitted_at' => $submittedAt,
         ];
         $evaluationInput = [
             'fields' => $fieldsData,
@@ -306,6 +385,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'rank' => null,
             'eliminated' => !empty($totals['eliminated']) ? 1 : 0,
         ];
+
+        $judgeRowBefore = $judgeRowMap[$judgeKey] ?? null;
+        $judgeScorePayload = [
+            'startlist_id' => $startId,
+            'judge_key' => $judgeKey,
+            'judge_user_id' => $user['id'] ?? null,
+            'judge_name' => $user['name'] ?? null,
+            'components' => json_encode($parsedComponents, JSON_THROW_ON_ERROR),
+            'fields' => json_encode($parsedFields, JSON_THROW_ON_ERROR),
+            'submitted' => $submittedAt,
+            'created' => $submittedAt,
+            'updated' => $submittedAt,
+        ];
+
+        if ($judgeRowBefore) {
+            db_execute('UPDATE judge_scores SET judge_user_id = :judge_user_id, judge_name = :judge_name, components_json = :components, fields_json = :fields, submitted_at = :submitted, updated_at = :updated WHERE id = :id', [
+                'judge_user_id' => $judgeScorePayload['judge_user_id'],
+                'judge_name' => $judgeScorePayload['judge_name'],
+                'components' => $judgeScorePayload['components'],
+                'fields' => $judgeScorePayload['fields'],
+                'submitted' => $judgeScorePayload['submitted'],
+                'updated' => $judgeScorePayload['updated'],
+                'id' => $judgeRowBefore['id'],
+            ]);
+            $updatedRow = db_first('SELECT * FROM judge_scores WHERE id = :id', ['id' => $judgeRowBefore['id']]);
+            audit_log('judge_scores', (int) $judgeRowBefore['id'], 'update', $judgeScoreAuditPayload($judgeRowBefore), $judgeScoreAuditPayload($updatedRow));
+        } else {
+            db_execute('INSERT INTO judge_scores (startlist_id, judge_key, judge_user_id, judge_name, components_json, fields_json, submitted_at, created_at, updated_at) VALUES (:startlist_id, :judge_key, :judge_user_id, :judge_name, :components, :fields, :submitted, :created, :updated)', [
+                'startlist_id' => $judgeScorePayload['startlist_id'],
+                'judge_key' => $judgeScorePayload['judge_key'],
+                'judge_user_id' => $judgeScorePayload['judge_user_id'],
+                'judge_name' => $judgeScorePayload['judge_name'],
+                'components' => $judgeScorePayload['components'],
+                'fields' => $judgeScorePayload['fields'],
+                'submitted' => $judgeScorePayload['submitted'],
+                'created' => $judgeScorePayload['created'],
+                'updated' => $judgeScorePayload['updated'],
+            ]);
+            $judgeScoreId = (int) $pdo->lastInsertId();
+            $newRow = db_first('SELECT * FROM judge_scores WHERE id = :id', ['id' => $judgeScoreId]);
+            audit_log('judge_scores', $judgeScoreId, 'create', null, $judgeScoreAuditPayload($newRow));
+        }
 
         if ($freshResult) {
             $before = $freshResult;

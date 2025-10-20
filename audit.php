@@ -79,6 +79,46 @@ if (!function_exists('audit_undo')) {
                     ]
                 );
                 break;
+            case 'judge_scores':
+                $componentsJson = json_encode($before['components'] ?? [], JSON_THROW_ON_ERROR);
+                $fieldsJson = json_encode($before['fields'] ?? [], JSON_THROW_ON_ERROR);
+                $submittedAt = $before['submitted_at'] ?? (new \DateTimeImmutable())->format('c');
+                $createdAt = $before['created_at'] ?? $submittedAt;
+                $updatedAt = $before['updated_at'] ?? $submittedAt;
+                $existing = db_first('SELECT id FROM judge_scores WHERE id = :id', ['id' => $log['entity_id']]);
+                if ($existing) {
+                    db_execute(
+                        'UPDATE judge_scores SET startlist_id = :startlist_id, judge_key = :judge_key, judge_user_id = :judge_user_id, judge_name = :judge_name, components_json = :components, fields_json = :fields, submitted_at = :submitted_at, updated_at = :updated_at WHERE id = :id',
+                        [
+                            'startlist_id' => $before['startlist_id'] ?? null,
+                            'judge_key' => $before['judge_key'] ?? null,
+                            'judge_user_id' => $before['judge_user_id'] ?? null,
+                            'judge_name' => $before['judge_name'] ?? null,
+                            'components' => $componentsJson,
+                            'fields' => $fieldsJson,
+                            'submitted_at' => $submittedAt,
+                            'updated_at' => $updatedAt,
+                            'id' => $log['entity_id'],
+                        ]
+                    );
+                } else {
+                    db_execute(
+                        'INSERT INTO judge_scores (id, startlist_id, judge_key, judge_user_id, judge_name, components_json, fields_json, submitted_at, created_at, updated_at) VALUES (:id, :startlist_id, :judge_key, :judge_user_id, :judge_name, :components, :fields, :submitted_at, :created_at, :updated_at)',
+                        [
+                            'id' => $log['entity_id'],
+                            'startlist_id' => $before['startlist_id'] ?? null,
+                            'judge_key' => $before['judge_key'] ?? null,
+                            'judge_user_id' => $before['judge_user_id'] ?? null,
+                            'judge_name' => $before['judge_name'] ?? null,
+                            'components' => $componentsJson,
+                            'fields' => $fieldsJson,
+                            'submitted_at' => $submittedAt,
+                            'created_at' => $createdAt,
+                            'updated_at' => $updatedAt,
+                        ]
+                    );
+                }
+                break;
             default:
                 return false;
         }
