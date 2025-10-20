@@ -133,6 +133,17 @@ if (!function_exists('startlist_group_entries')) {
         }
         foreach ($groups as &$group) {
             usort($group['members'], static function (array $left, array $right): int {
+                $leftOrder = $left['department_order'] ?? null;
+                $rightOrder = $right['department_order'] ?? null;
+                if ($leftOrder !== null && $rightOrder !== null && $leftOrder !== $rightOrder) {
+                    return $leftOrder <=> $rightOrder;
+                }
+                if ($leftOrder !== null && $rightOrder === null) {
+                    return -1;
+                }
+                if ($leftOrder === null && $rightOrder !== null) {
+                    return 1;
+                }
                 return ((int) ($left['position'] ?? 0)) <=> ((int) ($right['position'] ?? 0));
             });
             $group['primary'] = $group['members'][0] ?? null;

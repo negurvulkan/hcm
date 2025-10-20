@@ -56,6 +56,54 @@ if (!$class || !event_accessible($user, (int) $class['event_id'])) {
 $action = (string) ($input['action'] ?? '');
 $pdo = app_pdo();
 
+$resequenceDepartment = static function (?int $departmentId, array $preferredOrder = []) use ($pdo, $classId): bool {
+    $preferredOrder = array_values(array_filter(array_map(static fn ($id) => (int) $id, $preferredOrder), static fn ($id) => $id > 0));
+    $params = ['class_id' => $classId];
+    $condition = 'COALESCE(e.department_id, 0) = 0';
+    if ($departmentId !== null) {
+        $params['department_id'] = $departmentId;
+        $condition = 'e.department_id = :department_id';
+    }
+    $existing = db_all(
+        'SELECT si.id FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.class_id = :class_id AND ' . $condition . ' ORDER BY COALESCE(si.department_order, si.position, si.id)',
+        $params
+    );
+    if (!$existing) {
+        return $preferredOrder === [];
+    }
+    $existingIds = array_map(static fn (array $row): int => (int) $row['id'], $existing);
+    $finalOrder = [];
+    if ($preferredOrder) {
+        $validPreferred = [];
+        foreach ($preferredOrder as $id) {
+            if (in_array($id, $existingIds, true) && !in_array($id, $validPreferred, true)) {
+                $validPreferred[] = $id;
+            }
+        }
+        if (count($validPreferred) !== count($preferredOrder)) {
+            return false;
+        }
+        $finalOrder = $validPreferred;
+    }
+    foreach ($existingIds as $id) {
+        if (!in_array($id, $finalOrder, true)) {
+            $finalOrder[] = $id;
+        }
+    }
+    if (!$finalOrder) {
+        return true;
+    }
+    $timestamp = (new \DateTimeImmutable())->format('c');
+    foreach ($finalOrder as $index => $id) {
+        db_execute('UPDATE startlist_items SET department_order = :order, updated_at = :updated WHERE id = :id', [
+            'order' => $index + 1,
+            'updated' => $timestamp,
+            'id' => $id,
+        ]);
+    }
+    return true;
+};
+
 switch ($action) {
     case 'create':
         $labelRaw = (string) ($input['label'] ?? '');
@@ -218,6 +266,14 @@ switch ($action) {
         if (!$itemIds) {
             $respond(422, ['success' => false, 'message' => t('startlist.departments.errors.assignment_invalid')]);
         }
+        $orderInput = $input['order'] ?? null;
+        $order = null;
+        if ($orderInput !== null) {
+            if (!is_array($orderInput)) {
+                $respond(422, ['success' => false, 'message' => t('startlist.departments.errors.order_invalid')]);
+            }
+            $order = array_values(array_filter(array_map(static fn ($id) => (int) $id, $orderInput), static fn ($id) => $id > 0));
+        }
         $targetDepartmentId = isset($input['department_id']) ? (int) $input['department_id'] : 0;
         $targetDepartment = null;
         if ($targetDepartmentId > 0) {
@@ -234,6 +290,7 @@ switch ($action) {
         if (!$rows) {
             $respond(404, ['success' => false, 'message' => t('startlist.departments.errors.items_not_found')]);
         }
+        $previousDepartments = [];
         $label = $targetDepartment['label'] ?? null;
         $departmentId = $targetDepartmentId > 0 ? $targetDepartmentId : null;
         foreach ($rows as $row) {
@@ -241,6 +298,8 @@ switch ($action) {
             if ($entryId <= 0) {
                 continue;
             }
+            $prevId = (int) ($row['department_id'] ?? 0);
+            $previousDepartments[$prevId > 0 ? $prevId : 0] = $prevId > 0 ? $prevId : null;
             $before = [
                 'department' => $row['department'] ?? null,
                 'department_id' => $row['department_id'] ?? null,
@@ -255,6 +314,35 @@ switch ($action) {
                 'department_id' => $departmentId,
             ];
             audit_log('entries', $entryId, 'department_update', $before, $after);
+        }
+        $targetOrder = $order ?? [];
+        if (!$resequenceDepartment($departmentId, $targetOrder)) {
+            $respond(422, ['success' => false, 'message' => t('startlist.departments.errors.order_invalid')]);
+        }
+        foreach ($previousDepartments as $prevDepartmentId) {
+            if ($prevDepartmentId === $departmentId) {
+                continue;
+            }
+            $resequenceDepartment($prevDepartmentId, []);
+        }
+        $respond(200, ['success' => true]);
+        break;
+    case 'reorder_members':
+        $orderInput = $input['order'] ?? [];
+        if (!is_array($orderInput)) {
+            $respond(422, ['success' => false, 'message' => t('startlist.departments.errors.order_invalid')]);
+        }
+        $order = array_values(array_filter(array_map(static fn ($id) => (int) $id, $orderInput), static fn ($id) => $id > 0));
+        $departmentIdRaw = isset($input['department_id']) ? (int) $input['department_id'] : 0;
+        $departmentId = $departmentIdRaw > 0 ? $departmentIdRaw : null;
+        if ($departmentId !== null) {
+            $department = db_first('SELECT id, class_id FROM class_departments WHERE id = :id', ['id' => $departmentId]);
+            if (!$department || (int) $department['class_id'] !== $classId) {
+                $respond(404, ['success' => false, 'message' => t('startlist.departments.errors.not_found')]);
+            }
+        }
+        if (!$resequenceDepartment($departmentId, $order)) {
+            $respond(422, ['success' => false, 'message' => t('startlist.departments.errors.order_invalid')]);
         }
         $respond(200, ['success' => true]);
         break;

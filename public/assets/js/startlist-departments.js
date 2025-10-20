@@ -172,6 +172,19 @@
             items.forEach((item) => item.classList.remove('is-dragging'));
         };
 
+        const getDragAfterElement = (container, y) => {
+            const siblings = Array.from(container.querySelectorAll('.startlist-department-item:not(.is-dragging)'));
+            let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+            siblings.forEach((child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    closest = { offset, element: child };
+                }
+            });
+            return closest.element;
+        };
+
         lists.forEach((list) => {
             list.addEventListener('dragover', (event) => {
                 event.preventDefault();
@@ -188,21 +201,43 @@
                     return;
                 }
                 const item = board.querySelector(`.startlist-department-item[data-item-id="${itemId}"]`);
-                if (!item || list.contains(item)) {
+                if (!item) {
                     clearDropIndicators();
                     return;
                 }
                 const sourceList = item.closest('.startlist-department-list');
-                list.appendChild(item);
+                const afterElement = getDragAfterElement(list, event.clientY);
+                if (afterElement) {
+                    list.insertBefore(item, afterElement);
+                } else {
+                    list.appendChild(item);
+                }
                 updateColumnSummary(list.closest('[data-department-id]'));
                 if (sourceList && sourceList !== list) {
                     updateColumnSummary(sourceList.closest('[data-department-id]'));
                 }
-                clearDropIndicators();
                 const targetDepartment = list.getAttribute('data-department-id');
                 const departmentId = targetDepartment !== '' ? parseInt(targetDepartment || '0', 10) : null;
+                const order = Array.from(list.querySelectorAll('.startlist-department-item'))
+                    .map((element) => parseInt(element.getAttribute('data-item-id') || '0', 10))
+                    .filter((idValue) => idValue > 0);
+                clearDropIndicators();
+                const isReassignment = sourceList && sourceList !== list;
                 try {
-                    await postJson({ action: 'assign', department_id: departmentId, item_ids: [parseInt(itemId, 10)] });
+                    if (isReassignment) {
+                        await postJson({
+                            action: 'assign',
+                            department_id: departmentId,
+                            item_ids: [parseInt(itemId, 10)],
+                            order,
+                        });
+                    } else {
+                        await postJson({
+                            action: 'reorder_members',
+                            department_id: departmentId,
+                            order,
+                        });
+                    }
                     window.location.reload();
                 } catch (error) {
                     showError(error);
