@@ -877,6 +877,20 @@ return [
                 'add' => 'Tiebreaker hinzufügen',
                 'empty' => 'Keine Tiebreaker gesetzt.',
             ],
+            'grouping' => [
+                'title' => 'Abteilungswertung',
+                'enabled' => 'Abteilungswertung aktivieren',
+                'label' => 'Anzeigename',
+                'aggregation' => 'Aggregation',
+                'options' => [
+                    'mean' => 'Mittelwert',
+                    'sum' => 'Summe',
+                    'median' => 'Median',
+                    'best' => 'Bester Wert',
+                ],
+                'rounding' => 'Rundung (Nachkommastellen)',
+                'min_members' => 'Mindestanzahl Mitglieder',
+            ],
             'output' => [
                 'title' => 'Ausgabe',
                 'rounding' => 'Rundung (Nachkommastellen)',
