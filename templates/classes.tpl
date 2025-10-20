@@ -229,6 +229,38 @@
                                                 <button class="btn btn-sm btn-outline-primary" type="button" data-action="add-tiebreak"><?= htmlspecialchars(t('scoring_designer.sections.tiebreakers.add'), ENT_QUOTES, 'UTF-8') ?></button>
                                             </div>
                                             <div class="vstack gap-3 mb-4" data-scoring-list="tiebreakers" data-empty-text="<?= htmlspecialchars(t('scoring_designer.sections.tiebreakers.empty'), ENT_QUOTES, 'UTF-8') ?>"></div>
+                                            <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.grouping.title'), ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4 d-flex align-items-center">
+                                                    <div class="form-check mt-3 mt-sm-0">
+                                                        <input class="form-check-input" type="checkbox" value="1" id="class-scoring-department-enabled" data-scoring-path="grouping.department.enabled" data-type="boolean">
+                                                        <label class="form-check-label" for="class-scoring-department-enabled"><?= htmlspecialchars(t('scoring_designer.sections.grouping.enabled'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.grouping.label'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="text" class="form-control form-control-sm" data-scoring-path="grouping.department.label">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.grouping.aggregation'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <select class="form-select form-select-sm" data-scoring-path="grouping.department.aggregation">
+                                                        <option value="mean"><?= htmlspecialchars(t('scoring_designer.sections.grouping.options.mean'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="sum"><?= htmlspecialchars(t('scoring_designer.sections.grouping.options.sum'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="median"><?= htmlspecialchars(t('scoring_designer.sections.grouping.options.median'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                        <option value="best"><?= htmlspecialchars(t('scoring_designer.sections.grouping.options.best'), ENT_QUOTES, 'UTF-8') ?></option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3 mb-4">
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.grouping.rounding'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="grouping.department.rounding" data-type="integer" min="0">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label class="form-label"><?= htmlspecialchars(t('scoring_designer.sections.grouping.min_members'), ENT_QUOTES, 'UTF-8') ?></label>
+                                                    <input type="number" class="form-control form-control-sm" data-scoring-path="grouping.department.min_members" data-type="integer" min="1">
+                                                </div>
+                                            </div>
                                             <h4 class="h6"><?= htmlspecialchars(t('scoring_designer.sections.output.title'), ENT_QUOTES, 'UTF-8') ?></h4>
                                             <div class="row g-3">
                                                 <div class="col-sm-4">

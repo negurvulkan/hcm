@@ -888,6 +888,20 @@ return [
                 'add' => 'Add tiebreaker',
                 'empty' => 'No tiebreakers defined.',
             ],
+            'grouping' => [
+                'title' => 'Department grouping',
+                'enabled' => 'Enable department scores',
+                'label' => 'Display label',
+                'aggregation' => 'Aggregation',
+                'options' => [
+                    'mean' => 'Average',
+                    'sum' => 'Sum',
+                    'median' => 'Median',
+                    'best' => 'Best score',
+                ],
+                'rounding' => 'Rounding (decimals)',
+                'min_members' => 'Minimum members',
+            ],
             'output' => [
                 'title' => 'Output',
                 'rounding' => 'Rounding (decimals)',

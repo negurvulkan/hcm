@@ -264,6 +264,22 @@
             this.state.ranking = {};
         }
         this.state.ranking.tiebreak_chain = toList(this.state.ranking.tiebreak_chain, false);
+        if (!this.state.grouping || typeof this.state.grouping !== 'object') {
+            this.state.grouping = {};
+        }
+        if (!this.state.grouping.department || typeof this.state.grouping.department !== 'object') {
+            if (this.defaults && this.defaults.grouping && this.defaults.grouping.department) {
+                this.state.grouping.department = deepClone(this.defaults.grouping.department);
+            } else {
+                this.state.grouping.department = {
+                    enabled: false,
+                    aggregation: 'mean',
+                    rounding: 2,
+                    label: '',
+                    min_members: 2
+                };
+            }
+        }
 
         this.renderList('fields', this.state.input.fields, this.renderFieldRow.bind(this));
         this.renderList('components', this.state.input.components, this.renderComponentRow.bind(this));
