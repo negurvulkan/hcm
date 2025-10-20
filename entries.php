@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/app/helpers/startlist.php';
 
 use App\CustomFields\CustomFieldManager;
 use App\CustomFields\CustomFieldRepository;
@@ -181,13 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $horseId = (int) ($_POST['horse_id'] ?? 0);
         $classId = (int) ($_POST['class_id'] ?? 0);
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
-        $departmentRaw = trim((string) ($_POST['department'] ?? ''));
-        if ($departmentRaw !== '') {
-            $departmentNormalized = preg_replace('/\s+/', ' ', $departmentRaw);
-            $department = function_exists('mb_substr') ? mb_substr($departmentNormalized, 0, 120) : substr($departmentNormalized, 0, 120);
-        } else {
-            $department = null;
-        }
+        $departmentInput = (string) ($_POST['department'] ?? '');
 
         if (!$personId || !$horseId || !$classId) {
             flash('error', t('entries.validation.selection_required'));
@@ -199,6 +194,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $managerContext = [
                     'tournament_id' => (int) $class['event_id'],
                 ];
+                $department = null;
+                $departmentId = null;
+                if ($departmentInput !== '') {
+                    $departmentRow = startlist_ensure_department($classId, $departmentInput);
+                    if ($departmentRow) {
+                        $departmentId = (int) ($departmentRow['id'] ?? 0) ?: null;
+                        $department = $departmentRow['label'] ?? startlist_sanitize_department_label($departmentInput);
+                    }
+                }
                 if ($primaryOrganizationId !== null) {
                     $managerContext['organization_id'] = $primaryOrganizationId;
                 }
@@ -212,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
                 db_execute(
-                    'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, department, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :department, :paid_at, :created)',
+                    'INSERT INTO entries (event_id, class_id, party_id, horse_id, status, department, department_id, fee_paid_at, created_at) VALUES (:event_id, :class_id, :party_id, :horse_id, :status, :department, :department_id, :paid_at, :created)',
                     [
                         'event_id' => (int) $class['event_id'],
                         'class_id' => $classId,
@@ -220,6 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'horse_id' => $horseId,
                         'status' => $status,
                         'department' => $department,
+                        'department_id' => $departmentId,
                         'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
                         'created' => (new \DateTimeImmutable())->format('c'),
                     ]
@@ -254,13 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $horseId = (int) ($_POST['horse_id'] ?? 0);
         $classId = (int) ($_POST['class_id'] ?? 0);
         $status = in_array($_POST['status'] ?? 'open', ['open', 'paid'], true) ? $_POST['status'] : 'open';
-        $departmentRaw = trim((string) ($_POST['department'] ?? ''));
-        if ($departmentRaw !== '') {
-            $departmentNormalized = preg_replace('/\s+/', ' ', $departmentRaw);
-            $department = function_exists('mb_substr') ? mb_substr($departmentNormalized, 0, 120) : substr($departmentNormalized, 0, 120);
-        } else {
-            $department = null;
-        }
+        $departmentInput = (string) ($_POST['department'] ?? '');
 
         if (!$entryId || !$personId || !$horseId || !$classId) {
             flash('error', t('entries.validation.fields_required'));
@@ -273,6 +272,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $managerContext = [
                     'tournament_id' => (int) $class['event_id'],
                 ];
+                $department = null;
+                $departmentId = null;
+                if ($departmentInput !== '') {
+                    $departmentRow = startlist_ensure_department($classId, $departmentInput);
+                    if ($departmentRow) {
+                        $departmentId = (int) ($departmentRow['id'] ?? 0) ?: null;
+                        $department = $departmentRow['label'] ?? startlist_sanitize_department_label($departmentInput);
+                    }
+                }
                 if ($primaryOrganizationId !== null) {
                     $managerContext['organization_id'] = $primaryOrganizationId;
                 }
@@ -286,7 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
                 db_execute(
-                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, party_id = :party_id, horse_id = :horse_id, status = :status, department = :department, fee_paid_at = :paid_at WHERE id = :id',
+                    'UPDATE entries SET event_id = :event_id, class_id = :class_id, party_id = :party_id, horse_id = :horse_id, status = :status, department = :department, department_id = :department_id, fee_paid_at = :paid_at WHERE id = :id',
                     [
                         'event_id' => $class['event_id'],
                         'class_id' => $classId,
@@ -294,6 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'horse_id' => $horseId,
                         'status' => $status,
                         'department' => $department,
+                        'department_id' => $departmentId,
                         'paid_at' => $status === 'paid' ? (new \DateTimeImmutable())->format('c') : null,
                         'id' => $entryId,
                     ]

@@ -12,6 +12,75 @@ if (!function_exists('startlist_normalize_department')) {
     }
 }
 
+if (!function_exists('startlist_sanitize_department_label')) {
+    function startlist_sanitize_department_label(?string $value): string
+    {
+        $trimmed = trim((string) $value);
+        if ($trimmed === '') {
+            return '';
+        }
+        $collapsed = preg_replace('/\s+/', ' ', $trimmed);
+        if (function_exists('mb_substr')) {
+            return mb_substr($collapsed, 0, 120);
+        }
+        return substr($collapsed, 0, 120);
+    }
+}
+
+if (!function_exists('startlist_ensure_department')) {
+    function startlist_ensure_department(int $classId, string $label, bool $create = true): ?array
+    {
+        if ($classId <= 0) {
+            return null;
+        }
+        $sanitized = startlist_sanitize_department_label($label);
+        if ($sanitized === '') {
+            return null;
+        }
+        $normalized = startlist_normalize_department($sanitized);
+        if ($normalized === '') {
+            return null;
+        }
+        $existing = db_first('SELECT * FROM class_departments WHERE class_id = :class AND normalized_label = :normalized', [
+            'class' => $classId,
+            'normalized' => $normalized,
+        ]);
+        if ($existing) {
+            return $existing;
+        }
+        if (!$create) {
+            return null;
+        }
+        $positionRow = db_first('SELECT MAX(position) AS max_position FROM class_departments WHERE class_id = :class', [
+            'class' => $classId,
+        ]);
+        $position = (int) ($positionRow['max_position'] ?? 0) + 1;
+        $timestamp = (new \DateTimeImmutable())->format('c');
+        db_execute('INSERT INTO class_departments (class_id, label, normalized_label, position, created_at, updated_at) VALUES (:class_id, :label, :normalized, :position, :created, :updated)', [
+            'class_id' => $classId,
+            'label' => $sanitized,
+            'normalized' => $normalized,
+            'position' => $position,
+            'created' => $timestamp,
+            'updated' => $timestamp,
+        ]);
+        $id = (int) app_pdo()->lastInsertId();
+        $row = db_first('SELECT * FROM class_departments WHERE id = :id', ['id' => $id]);
+        if ($row) {
+            return $row;
+        }
+        return [
+            'id' => $id,
+            'class_id' => $classId,
+            'label' => $sanitized,
+            'normalized_label' => $normalized,
+            'position' => $position,
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ];
+    }
+}
+
 if (!function_exists('startlist_group_entries')) {
     /**
      * @param array<int, array<string, mixed>> $items
@@ -36,6 +105,8 @@ if (!function_exists('startlist_group_entries')) {
                     'note' => null,
                     'planned_start' => null,
                     'has_locked_start_number' => false,
+                    'department_id' => null,
+                    'department_position' => null,
                 ];
             }
             $groups[$key]['members'][] = $item;
@@ -43,6 +114,12 @@ if (!function_exists('startlist_group_entries')) {
             $groups[$key]['states'][$state] = true;
             if (!empty($item['start_number_display'])) {
                 $groups[$key]['start_numbers'][(string) $item['start_number_display']] = true;
+            }
+            if ($groups[$key]['department_id'] === null && isset($item['department_id']) && (int) $item['department_id'] > 0) {
+                $groups[$key]['department_id'] = (int) $item['department_id'];
+            }
+            if ($groups[$key]['department_position'] === null && isset($item['department_position']) && $item['department_position'] !== null) {
+                $groups[$key]['department_position'] = (int) $item['department_position'];
             }
             if ($groups[$key]['note'] === null && isset($item['note']) && $item['note'] !== null && $item['note'] !== '') {
                 $groups[$key]['note'] = (string) $item['note'];
@@ -79,6 +156,11 @@ if (!function_exists('startlist_group_entries')) {
         }
         unset($group);
         usort($groups, static function (array $left, array $right): int {
+            $leftDept = $left['department_position'] ?? null;
+            $rightDept = $right['department_position'] ?? null;
+            if ($leftDept !== null && $rightDept !== null && $leftDept !== $rightDept) {
+                return $leftDept <=> $rightDept;
+            }
             return ($left['position'] ?? 0) <=> ($right['position'] ?? 0);
         });
         return array_values($groups);

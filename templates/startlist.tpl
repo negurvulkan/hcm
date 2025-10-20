@@ -3,6 +3,7 @@
 /** @var array $selectedClass */
 /** @var array $startlist */
 /** @var array $conflicts */
+/** @var array|null $departmentBoard */
 /** @var bool $hasDepartments */
 
 if (!function_exists('startlist_prepare_entity_fields')) {
@@ -49,6 +50,106 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                 ]), ENT_QUOTES, 'UTF-8') ?></li>
             <?php endforeach; ?>
         </ul>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($isGroupClass) && is_array($departmentBoard)): ?>
+    <?php
+    $boardDepartments = $departmentBoard['departments'] ?? [];
+    $boardUnassigned = $departmentBoard['unassigned'] ?? [];
+    $selectedClassId = (int) ($selectedClass['id'] ?? 0);
+    ?>
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h6 mb-0"><?= htmlspecialchars(t('startlist.departments.heading'), ENT_QUOTES, 'UTF-8') ?></h2>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="create-department"><?= htmlspecialchars(t('startlist.departments.create'), ENT_QUOTES, 'UTF-8') ?></button>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-3 startlist-department-board"
+                 data-department-board
+                 data-update-url="startlist_departments.php"
+                 data-class-id="<?= $selectedClassId ?>"
+                 data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>"
+                 data-prompt-create="<?= htmlspecialchars(t('startlist.departments.prompt_create'), ENT_QUOTES, 'UTF-8') ?>"
+                 data-prompt-rename="<?= htmlspecialchars(t('startlist.departments.prompt_rename'), ENT_QUOTES, 'UTF-8') ?>"
+                 data-confirm-delete="<?= htmlspecialchars(t('startlist.departments.confirm_delete'), ENT_QUOTES, 'UTF-8') ?>"
+                 data-error-generic="<?= htmlspecialchars(t('startlist.departments.error_generic'), ENT_QUOTES, 'UTF-8') ?>"
+                 data-unassigned-label="<?= htmlspecialchars(t('startlist.departments.unassigned'), ENT_QUOTES, 'UTF-8') ?>"
+                 data-empty-label="<?= htmlspecialchars(t('startlist.departments.empty'), ENT_QUOTES, 'UTF-8') ?>">
+                <div class="startlist-department-column border rounded p-3 flex-grow-1" data-department-id="">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-semibold"><?= htmlspecialchars(t('startlist.departments.unassigned'), ENT_QUOTES, 'UTF-8') ?></span>
+                        <span class="badge bg-secondary"><?= count($boardUnassigned) ?></span>
+                    </div>
+                    <p class="text-muted small startlist-department-empty" <?= count($boardUnassigned) === 0 ? '' : 'hidden' ?>><?= htmlspecialchars(t('startlist.departments.empty'), ENT_QUOTES, 'UTF-8') ?></p>
+                    <ul class="list-unstyled startlist-department-list" data-department-id="">
+                        <?php foreach ($boardUnassigned as $member): ?>
+                            <?php
+                            $memberId = (int) ($member['id'] ?? 0);
+                            $memberStart = $member['start_number_display'] ?? null;
+                            $memberRider = $member['rider'] ?? '';
+                            $memberHorse = $member['horse'] ?? '';
+                            ?>
+                            <li class="startlist-department-item border rounded p-2 mb-2" data-item-id="<?= $memberId ?>" draggable="true">
+                                <div class="d-flex align-items-center gap-2">
+                                    <?php if (!empty($memberStart)): ?>
+                                        <span class="badge bg-primary text-light"><?= htmlspecialchars($memberStart, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php endif; ?>
+                                    <span class="fw-semibold"><?= htmlspecialchars($memberRider, ENT_QUOTES, 'UTF-8') ?></span>
+                                </div>
+                                <?php if ($memberHorse !== ''): ?>
+                                    <div class="text-muted small"><?= htmlspecialchars($memberHorse, ENT_QUOTES, 'UTF-8') ?></div>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <?php foreach ($boardDepartments as $boardDepartment): ?>
+                    <?php
+                    $deptMembers = $boardDepartment['members'] ?? [];
+                    $deptId = (int) ($boardDepartment['id'] ?? 0);
+                    $deptLabel = $boardDepartment['label'] ?? '';
+                    $deptMissing = !empty($boardDepartment['missing']);
+                    ?>
+                    <div class="startlist-department-column border rounded p-3 flex-grow-1" data-department-id="<?= $deptId ?>" data-draggable-column="true" title="<?= htmlspecialchars(t('startlist.departments.reorder_hint'), ENT_QUOTES, 'UTF-8') ?>">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-semibold" data-department-title><?= htmlspecialchars($deptLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php if ($deptMissing): ?>
+                                    <span class="badge bg-warning text-dark"><?= htmlspecialchars(t('startlist.departments.missing'), ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" data-action="rename-department" data-department-id="<?= $deptId ?>"><?= htmlspecialchars(t('startlist.departments.rename'), ENT_QUOTES, 'UTF-8') ?></button>
+                                <button type="button" class="btn btn-outline-danger" data-action="delete-department" data-department-id="<?= $deptId ?>"><?= htmlspecialchars(t('startlist.departments.delete'), ENT_QUOTES, 'UTF-8') ?></button>
+                            </div>
+                        </div>
+                        <p class="text-muted small startlist-department-empty" <?= count($deptMembers) === 0 ? '' : 'hidden' ?>><?= htmlspecialchars(t('startlist.departments.empty'), ENT_QUOTES, 'UTF-8') ?></p>
+                        <ul class="list-unstyled startlist-department-list" data-department-id="<?= $deptId ?>">
+                            <?php foreach ($deptMembers as $member): ?>
+                                <?php
+                                $memberId = (int) ($member['id'] ?? 0);
+                                $memberStart = $member['start_number_display'] ?? null;
+                                $memberRider = $member['rider'] ?? '';
+                                $memberHorse = $member['horse'] ?? '';
+                                ?>
+                                <li class="startlist-department-item border rounded p-2 mb-2" data-item-id="<?= $memberId ?>" draggable="true">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <?php if (!empty($memberStart)): ?>
+                                            <span class="badge bg-primary text-light"><?= htmlspecialchars($memberStart, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php endif; ?>
+                                        <span class="fw-semibold"><?= htmlspecialchars($memberRider, ENT_QUOTES, 'UTF-8') ?></span>
+                                    </div>
+                                    <?php if ($memberHorse !== ''): ?>
+                                        <div class="text-muted small"><?= htmlspecialchars($memberHorse, ENT_QUOTES, 'UTF-8') ?></div>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </div>
 <?php endif; ?>
 
