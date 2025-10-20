@@ -256,7 +256,7 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                                             <li class="mb-2">
                                                 <div class="d-flex flex-wrap align-items-center gap-2">
                                                     <?php if (!empty($member['start_number_display'])): ?>
-                                                        <span class="badge bg-primary text-light"><?= htmlspecialchars($member['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                                                        <span class="badge bg-primary text-light" data-start-number-edit data-item-id="<?= (int) ($member['id'] ?? 0) ?>" data-start-number="<?= htmlspecialchars($member['start_number_display'], ENT_QUOTES, 'UTF-8') ?>" data-start-number-raw="<?= htmlspecialchars((string) ($member['start_number_raw'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" role="button" tabindex="0" title="<?= htmlspecialchars(t('startlist.actions.edit_number'), ENT_QUOTES, 'UTF-8') ?>" aria-label="<?= htmlspecialchars(t('startlist.actions.edit_number'), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($member['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                                                     <?php endif; ?>
                                                     <span><?= htmlspecialchars($member['rider'], ENT_QUOTES, 'UTF-8') ?></span>
                                                     <button type="button"
@@ -414,7 +414,7 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                             </td>
                             <td>
                                 <?php if (!empty($item['start_number_display'])): ?>
-                                    <span class="badge bg-primary text-light"><?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <span class="badge bg-primary text-light" data-start-number-edit data-item-id="<?= (int) ($item['id'] ?? 0) ?>" data-start-number="<?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?>" data-start-number-raw="<?= htmlspecialchars((string) ($item['start_number_raw'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" role="button" tabindex="0" title="<?= htmlspecialchars(t('startlist.actions.edit_number'), ENT_QUOTES, 'UTF-8') ?>" aria-label="<?= htmlspecialchars(t('startlist.actions.edit_number'), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php else: ?>
                                     <span class="text-muted"><?= htmlspecialchars(t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
@@ -507,6 +507,34 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                     </tbody>
                 </table>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="start-number-edit-modal" tabindex="-1" aria-labelledby="start-number-edit-modal-title" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="start-number-edit-modal-title"><?= htmlspecialchars(t('startlist.modal.number_edit_title'), ENT_QUOTES, 'UTF-8') ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= htmlspecialchars(t('common.actions.cancel'), ENT_QUOTES, 'UTF-8') ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="update_number">
+                    <input type="hidden" name="item_id" value="">
+                    <div class="mb-3">
+                        <label class="form-label" for="start-number-edit-input"><?= htmlspecialchars(t('startlist.modal.number_label'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="number" class="form-control" id="start-number-edit-input" name="start_number_raw" min="1" required>
+                        <div class="form-text"><?= htmlspecialchars(t('startlist.modal.number_hint'), ENT_QUOTES, 'UTF-8') ?></div>
+                    </div>
+                    <p class="text-muted mb-0"><span class="fw-semibold"><?= htmlspecialchars(t('startlist.modal.current_label'), ENT_QUOTES, 'UTF-8') ?></span> <span data-current-number>–</span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= htmlspecialchars(t('common.actions.cancel'), ENT_QUOTES, 'UTF-8') ?></button>
+                    <button type="submit" class="btn btn-primary"><?= htmlspecialchars(t('startlist.modal.submit'), ENT_QUOTES, 'UTF-8') ?></button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

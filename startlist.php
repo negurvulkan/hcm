@@ -86,6 +86,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $action = $_POST['action'] ?? '';
 
+    if ($action === 'update_number') {
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $rawInput = trim((string) ($_POST['start_number_raw'] ?? ''));
+
+        if ($itemId <= 0) {
+            flash('error', t('startlist.validation.item_not_found'));
+            header('Location: startlist.php?class_id=' . $classId);
+            exit;
+        }
+
+        $item = db_first('SELECT si.*, e.department FROM startlist_items si JOIN entries e ON e.id = si.entry_id WHERE si.id = :id AND si.class_id = :class_id', [
+            'id' => $itemId,
+            'class_id' => $classId,
+        ]);
+
+        if (!$item) {
+            flash('error', t('startlist.validation.item_not_found'));
+            header('Location: startlist.php?class_id=' . $classId);
+            exit;
+        }
+
+        if (!empty($item['start_number_locked_at'])) {
+            flash('error', t('startlist.flash.number_locked'));
+            header('Location: startlist.php?class_id=' . $classId);
+            exit;
+        }
+
+        if ($rawInput === '') {
+            flash('error', t('startlist.validation.start_number_required'));
+            header('Location: startlist.php?class_id=' . $classId);
+            exit;
+        }
+
+        if (!preg_match('/^\d+$/', $rawInput)) {
+            flash('error', t('startlist.validation.start_number_invalid'));
+            header('Location: startlist.php?class_id=' . $classId);
+            exit;
+        }
+
+        $rawNumber = (int) $rawInput;
+        if ($rawNumber <= 0) {
+            flash('error', t('startlist.validation.start_number_invalid'));
+            header('Location: startlist.php?class_id=' . $classId);
+            exit;
+        }
+
+        try {
+            overrideStartNumber($startNumberContext, [
+                'entry_id' => (int) $item['entry_id'],
+                'startlist_id' => (int) $item['id'],
+                'department' => $item['department'] ?? null,
+                'assignment_id' => (int) ($item['start_number_assignment_id'] ?? 0),
+            ], $rawNumber);
+            flash('success', t('startlist.flash.number_updated'));
+        } catch (\RuntimeException $exception) {
+            $message = $exception->getMessage();
+            flash('error', $message !== '' ? $message : t('startlist.flash.number_failed'));
+        }
+
+        header('Location: startlist.php?class_id=' . $classId);
+        exit;
+    }
+
     if ($action === 'generate') {
         $entries = db_all('SELECT e.id, e.department, pr.display_name AS rider, h.name AS horse, profile.club_id FROM entries e JOIN parties pr ON pr.id = e.party_id LEFT JOIN person_profiles profile ON profile.party_id = pr.id JOIN horses h ON h.id = e.horse_id WHERE e.class_id = :class_id AND e.status IN ("open", "paid")', ['class_id' => $classId]);
         if (!$entries) {
@@ -586,6 +649,7 @@ if ($isGroupClass) {
 $extraScripts = [
     'public/assets/js/entity-info.js',
     'public/assets/js/startlist-reorder.js',
+    'public/assets/js/startlist-numbers.js',
 ];
 if ($isGroupClass) {
     $extraScripts[] = 'public/assets/js/startlist-departments.js';

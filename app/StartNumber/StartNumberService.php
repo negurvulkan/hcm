@@ -116,6 +116,120 @@ class StartNumberService
         return $assignment;
     }
 
+    public function override(array $context, array $subject, int $startNumberRaw, ?string $displayOverride = null): array
+    {
+        $context = $this->enrichContext($context);
+        $rule = $this->getRule($context);
+        $subjectInfo = $this->normalizeSubject($subject, $context, $rule);
+
+        if ($startNumberRaw <= 0) {
+            throw new RuntimeException('Startnummer ungültig.');
+        }
+
+        $assignmentId = (int) ($subject['assignment_id'] ?? 0);
+        if ($assignmentId <= 0 && !empty($subjectInfo['startlist_id'])) {
+            $row = \db_first('SELECT start_number_assignment_id FROM startlist_items WHERE id = :id', [
+                'id' => (int) $subjectInfo['startlist_id'],
+            ]);
+            if (!empty($row['start_number_assignment_id'])) {
+                $assignmentId = (int) $row['start_number_assignment_id'];
+            }
+        }
+        if ($assignmentId <= 0 && !empty($subjectInfo['entry_id'])) {
+            $row = \db_first('SELECT start_number_assignment_id FROM entries WHERE id = :id', [
+                'id' => (int) $subjectInfo['entry_id'],
+            ]);
+            if (!empty($row['start_number_assignment_id'])) {
+                $assignmentId = (int) $row['start_number_assignment_id'];
+            }
+        }
+
+        $assignment = $assignmentId > 0 ? $this->resolveAssignment($assignmentId) : null;
+        if ($assignment && !empty($assignment['locked_at'])) {
+            throw new RuntimeException('Startnummer ist gesperrt.');
+        }
+
+        $check = $this->checkConstraints(['start_number_raw' => $startNumberRaw], $rule, $context);
+        if ($check !== []) {
+            throw new RuntimeException(implode(' ', $check));
+        }
+
+        $eventId = (int) ($context['event']['id'] ?? 0);
+        if ($eventId <= 0) {
+            throw new RuntimeException('Event-Kontext fehlt.');
+        }
+
+        $duplicateParams = ['event' => $eventId, 'raw' => $startNumberRaw];
+        $duplicateSql = 'SELECT id FROM start_number_assignments WHERE event_id = :event AND status = "active" AND start_number_raw = :raw';
+        if ($assignment) {
+            $duplicateSql .= ' AND id != :id';
+            $duplicateParams['id'] = (int) $assignment['id'];
+        }
+        $duplicate = \db_first($duplicateSql, $duplicateParams);
+        if ($duplicate) {
+            throw new RuntimeException('Startnummer bereits vergeben.');
+        }
+
+        $display = $displayOverride ?? $this->formatNumberRaw($startNumberRaw, $rule);
+        $snapshot = json_encode($rule, JSON_THROW_ON_ERROR);
+
+        if ($assignment) {
+            $before = $assignment;
+            \db_execute('UPDATE start_number_assignments SET start_number_raw = :raw, start_number_display = :display, rule_snapshot = :snapshot, allocation_time = :allocation_time WHERE id = :id', [
+                'raw' => $startNumberRaw,
+                'display' => $display,
+                'snapshot' => $snapshot,
+                'allocation_time' => 'manual_override',
+                'id' => (int) $assignment['id'],
+            ]);
+            $assignment = $this->resolveAssignment((int) $assignment['id']);
+            if (!$assignment) {
+                throw new RuntimeException('Startnummer konnte nicht aktualisiert werden.');
+            }
+            $this->bindAssignment($assignment, $subjectInfo, $context, $rule);
+            $this->propagateAssignment($assignment);
+            \audit_log('start_numbers', (int) $assignment['id'], 'manual_override', $before, $assignment);
+            return $assignment;
+        }
+
+        $scopeKey = $this->buildScopeKey($rule, $context, $subjectInfo);
+        $now = (new DateTimeImmutable())->format('c');
+        \db_execute(
+            'INSERT INTO start_number_assignments (event_id, class_id, arena, day, scope_key, rule_scope, rule_snapshot, allocation_entity, allocation_time, subject_type, subject_key, subject_payload, rider_id, horse_id, club_id, start_number_raw, start_number_display, status, created_by, created_at)'
+            . ' VALUES (:event_id, :class_id, :arena, :day, :scope_key, :rule_scope, :rule_snapshot, :allocation_entity, :allocation_time, :subject_type, :subject_key, :subject_payload, :rider_id, :horse_id, :club_id, :raw, :display, :status, :created_by, :created_at)'
+        , [
+            'event_id' => $eventId,
+            'class_id' => $context['class']['id'] ?? null,
+            'arena' => $context['arena'] ?? null,
+            'day' => $context['day'] ?? null,
+            'scope_key' => $scopeKey,
+            'rule_scope' => $rule['scope'],
+            'rule_snapshot' => $snapshot,
+            'allocation_entity' => $rule['allocation']['entity'],
+            'allocation_time' => 'manual_override',
+            'subject_type' => $subjectInfo['type'],
+            'subject_key' => $subjectInfo['subject_key'],
+            'subject_payload' => json_encode($subjectInfo, JSON_THROW_ON_ERROR),
+            'rider_id' => $subjectInfo['rider_id'] ?? null,
+            'horse_id' => $subjectInfo['horse_id'] ?? null,
+            'club_id' => $subjectInfo['club_id'] ?? null,
+            'raw' => $startNumberRaw,
+            'display' => $display,
+            'status' => 'active',
+            'created_by' => $context['actor'] ?? ($context['user']['name'] ?? null),
+            'created_at' => $now,
+        ]);
+        $assignmentId = (int) app_pdo()->lastInsertId();
+        $assignment = $this->resolveAssignment($assignmentId);
+        if (!$assignment) {
+            throw new RuntimeException('Startnummer konnte nicht gesetzt werden.');
+        }
+        $this->bindAssignment($assignment, $subjectInfo, $context, $rule);
+        $this->propagateAssignment($assignment);
+        \audit_log('start_numbers', $assignmentId, 'manual_assign', null, $assignment);
+        return $assignment;
+    }
+
     public function release(array|int $startNumber, string $reason): void
     {
         $entryId = null;
@@ -330,6 +444,24 @@ class StartNumberService
                 'id' => (int) $subjectInfo['startlist_id'],
             ]);
         }
+    }
+
+    private function propagateAssignment(array $assignment): void
+    {
+        \db_execute('UPDATE entries SET start_number_raw = :raw, start_number_display = :display, start_number_rule_snapshot = :snapshot, start_number_allocation_entity = :entity WHERE start_number_assignment_id = :id', [
+            'raw' => (int) $assignment['start_number_raw'],
+            'display' => $assignment['start_number_display'],
+            'snapshot' => $assignment['rule_snapshot'],
+            'entity' => $assignment['allocation_entity'],
+            'id' => (int) $assignment['id'],
+        ]);
+        \db_execute('UPDATE startlist_items SET start_number_raw = :raw, start_number_display = :display, start_number_rule_snapshot = :snapshot, start_number_allocation_entity = :entity WHERE start_number_assignment_id = :id', [
+            'raw' => (int) $assignment['start_number_raw'],
+            'display' => $assignment['start_number_display'],
+            'snapshot' => $assignment['rule_snapshot'],
+            'entity' => $assignment['allocation_entity'],
+            'id' => (int) $assignment['id'],
+        ]);
     }
 
     private function unbindAssignment(int $assignmentId, ?int $entryId = null, ?int $startlistId = null): void

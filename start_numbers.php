@@ -34,6 +34,11 @@ function resolveNumberBinding(string $printed): ?array
     return StartNumberService::instance()->resolveBinding($printed);
 }
 
+function overrideStartNumber(array $context, array $subject, int $startNumberRaw, ?string $displayOverride = null): array
+{
+    return StartNumberService::instance()->override($context, $subject, $startNumberRaw, $displayOverride);
+}
+
 function lockStartNumber(array|int $startNumber, string $trigger): void
 {
     StartNumberService::instance()->lock($startNumber, $trigger);

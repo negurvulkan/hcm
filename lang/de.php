@@ -1228,6 +1228,9 @@ return [
         'validation' => [
             'forbidden_event' => 'Keine Berechtigung für dieses Turnier.',
             'csrf_invalid' => 'CSRF ungültig.',
+            'item_not_found' => 'Start nicht gefunden.',
+            'start_number_required' => 'Startnummer erforderlich.',
+            'start_number_invalid' => 'Startnummer ungültig.',
         ],
         'flash' => [
             'no_entries' => 'Keine Nennungen vorhanden.',
@@ -1238,12 +1241,15 @@ return [
             'number_locked' => 'Startnummer ist gesperrt.',
             'number_reassigned' => 'Startnummer neu vergeben.',
             'number_gate' => 'Startnummer wird am Gate vergeben.',
+            'number_updated' => 'Startnummer aktualisiert.',
+            'number_failed' => 'Startnummer konnte nicht geändert werden.',
         ],
         'actions' => [
             'generate' => 'Startliste generieren',
             'withdraw' => 'Abmelden',
             'reactivate' => 'Reaktivieren',
             'reassign_number' => 'Neu zuweisen',
+            'edit_number' => 'Startnummer bearbeiten',
         ],
         'conflicts' => [
             'title' => 'Hinweis',
@@ -1307,6 +1313,13 @@ return [
         ],
         'confirm' => [
             'delete' => 'Start endgültig entfernen?',
+        ],
+        'modal' => [
+            'number_edit_title' => 'Startnummer bearbeiten',
+            'number_label' => 'Neue Startnummer',
+            'number_hint' => 'Nur ganze Zahlen, Formatierung erfolgt automatisch.',
+            'current_label' => 'Aktuell:',
+            'submit' => 'Speichern',
         ],
     ],
     'display' => [
