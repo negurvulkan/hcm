@@ -757,7 +757,7 @@ class SignageRepository
             $where = ' AND e.event_id = :event_id';
         }
 
-        $current = \db_first('SELECT si.position, si.start_number_display, p.display_name AS rider, h.name AS horse, c.label AS class_label
+        $current = $this->dbFirst('SELECT si.position, si.start_number_display, p.display_name AS rider, h.name AS horse, c.label AS class_label
             FROM startlist_items si
             JOIN entries e ON e.id = si.entry_id
             JOIN parties p ON p.id = e.party_id
@@ -766,7 +766,7 @@ class SignageRepository
             WHERE si.state = "running"' . $where . '
             ORDER BY si.updated_at DESC LIMIT 1', $params);
 
-        $next = \db_all('SELECT si.position, si.start_number_display, p.display_name AS rider, h.name AS horse
+        $next = $this->dbAll('SELECT si.position, si.start_number_display, p.display_name AS rider, h.name AS horse
             FROM startlist_items si
             JOIN entries e ON e.id = si.entry_id
             JOIN parties p ON p.id = e.party_id
@@ -774,7 +774,7 @@ class SignageRepository
             WHERE si.state = "scheduled"' . $where . '
             ORDER BY si.planned_start ASC, si.position ASC LIMIT 5', $params);
 
-        $top = \db_all('SELECT r.total, p.display_name AS rider, h.name AS horse
+        $top = $this->dbAll('SELECT r.total, p.display_name AS rider, h.name AS horse
             FROM results r
             JOIN startlist_items si ON si.id = r.startlist_id
             JOIN entries e ON e.id = si.entry_id
@@ -805,7 +805,7 @@ class SignageRepository
             $where = ' AND c.event_id = :event_id';
         }
 
-        $upcoming = \db_all('SELECT c.label, c.arena, c.start_time, c.end_time
+        $upcoming = $this->dbAll('SELECT c.label, c.arena, c.start_time, c.end_time
             FROM classes c
             WHERE c.start_time IS NOT NULL' . $where . '
             ORDER BY c.start_time ASC LIMIT 8', $params);
@@ -817,7 +817,7 @@ class SignageRepository
 
     private function fetchSponsorMessages(): array
     {
-        $latest = \db_first('SELECT payload FROM notifications WHERE type = "sponsor" ORDER BY id DESC LIMIT 1');
+        $latest = $this->dbFirst('SELECT payload FROM notifications WHERE type = "sponsor" ORDER BY id DESC LIMIT 1');
         if (!$latest) {
             return [
                 'messages' => [\t('display.defaults.sponsor')],
@@ -839,6 +839,40 @@ class SignageRepository
         }
 
         return ['messages' => $messages];
+    }
+
+    private function dbFirst(string $sql, array $params = []): ?array
+    {
+        if (function_exists('db_first')) {
+            return \db_first($sql, $params);
+        }
+
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return $row ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function dbAll(string $sql, array $params = []): array
+    {
+        if (function_exists('db_all')) {
+            return \db_all($sql, $params);
+        }
+
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $rows ?: [];
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     private function storeRevision(int $layoutId, int $version, int $userId, array $data, ?string $comment = null): void
