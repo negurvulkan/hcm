@@ -11,6 +11,7 @@ Ein webbasierter Werkzeugkasten für Reitturnier-Organisator:innen. Die Anwendun
 - **Helferkoordination:** Rollen-/Stationsplanung, Konfliktprüfung, QR-Check-in und Übernahmeanfragen.
 - **Druck & Export:** PDF-Strecken via Dompdf, CSV-/JSON-Exporte für Starter, Ergebnisse und Nennungen.
 - **Benachrichtigungen:** Polling-basierte Broadcasts für Zeitplanänderungen, Starterwechsel und Ergebnisfreigaben.
+- **Gruppen & Abteilungen:** Prüfungen lassen sich in Gruppen/Abteilungen strukturieren, inklusive eigener Startlisten, Gruppenauswertung und kombinierter Druck-/Exportoptionen.
 
 ## Tech-Stack
 - PHP 8.2 mit eigener Lightweight-Schicht für Authentifizierung, RBAC und Auditierung
@@ -54,6 +55,7 @@ Ein webbasierter Werkzeugkasten für Reitturnier-Organisator:innen. Die Anwendun
   - `php tests/i18n_test.php`
   - `php tests/start_number_engine_test.php`
   - `php tests/scoring_engine_test.php`
+- **Abteilungs-Workflows:** Für Gruppen-/Abteilungsprüfungen stehen Hilfsskripte unter `startlist_departments.php` und `start_numbers.php` zur Verfügung.
 - **Seed-Daten:** Für dedizierte Szenarien stehen optionale Seeds unter `sync/seeds/` bereit.
 
 ## Contribution Guide
