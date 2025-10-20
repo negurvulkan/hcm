@@ -311,6 +311,39 @@ if (!function_exists('db_execute')) {
     }
 }
 
+if (!function_exists('db_has_column')) {
+    function db_has_column(string $table, string $column): bool
+    {
+        $pdo = app_pdo();
+        $driver = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'mysql') {
+            $stmt = $pdo->prepare('SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column LIMIT 1');
+            $stmt->execute([
+                'table' => $table,
+                'column' => $column,
+            ]);
+
+            return (bool) $stmt->fetchColumn();
+        }
+
+        $tableName = str_replace("'", "''", $table);
+        $stmt = $pdo->query("PRAGMA table_info('{$tableName}')");
+        if (!$stmt) {
+            return false;
+        }
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $info) {
+            $name = (string) ($info['name'] ?? '');
+            if (strcasecmp($name, $column) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
     $action = $_GET['action'] ?? 'login';
 
