@@ -583,7 +583,10 @@ if ($isGroupClass) {
     }
 }
 
-$extraScripts = ['public/assets/js/entity-info.js'];
+$extraScripts = [
+    'public/assets/js/entity-info.js',
+    'public/assets/js/startlist-reorder.js',
+];
 if ($isGroupClass) {
     $extraScripts[] = 'public/assets/js/startlist-departments.js';
 }

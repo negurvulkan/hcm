@@ -1303,6 +1303,12 @@ return [
                 'items_not_found' => 'Start not found.',
             ],
         ],
+        'reorder' => [
+            'hint' => 'Drag to reorder.',
+            'error_generic' => 'Reordering failed.',
+            'order_invalid' => 'Invalid order.',
+            'forbidden' => 'Access denied.',
+        ],
         'status' => [
             'scheduled' => 'Scheduled',
             'withdrawn' => 'Withdrawn',

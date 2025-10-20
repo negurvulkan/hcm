@@ -1292,6 +1292,12 @@ return [
                 'items_not_found' => 'Start nicht gefunden.',
             ],
         ],
+        'reorder' => [
+            'hint' => 'Zum Sortieren ziehen.',
+            'error_generic' => 'Sortierung fehlgeschlagen.',
+            'order_invalid' => 'Sortierung ungültig.',
+            'forbidden' => 'Keine Berechtigung.',
+        ],
         'status' => [
             'scheduled' => 'Geplant',
             'withdrawn' => 'Abgemeldet',

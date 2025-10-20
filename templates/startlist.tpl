@@ -169,11 +169,18 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                         <th><?= htmlspecialchars(t('startlist.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody
+                        data-startlist-table
+                        data-reorder-url="startlist_reorder.php"
+                        data-class-id="<?= (int) ($selectedClass['id'] ?? 0) ?>"
+                        data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>"
+                        data-error-generic="<?= htmlspecialchars(t('startlist.reorder.error_generic'), ENT_QUOTES, 'UTF-8') ?>">
                     <?php if ($groupedStartlist): ?>
                         <?php foreach ($groupedStartlist as $group): ?>
                             <?php $primary = $group['primary'] ?? []; ?>
                             <?php
+                            $primaryId = (int) ($primary['id'] ?? 0);
+                            $groupKey = $group['department_normalized'] ?? '';
                             $stateKey = $group['state'] ?? 'scheduled';
                             $stateBadge = match ($stateKey) {
                                 'completed' => 'bg-success',
@@ -189,8 +196,13 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                             $toggleLabel = $stateKey === 'withdrawn' ? t('startlist.actions.reactivate') : t('startlist.actions.withdraw');
                             $stateTranslationKey = $stateKey === 'mixed' ? 'mixed' : $stateKey;
                             ?>
-                            <tr class="<?= htmlspecialchars($rowClass, ENT_QUOTES, 'UTF-8') ?>">
-                                <td><?= (int) $group['position'] ?></td>
+                            <tr class="<?= htmlspecialchars($rowClass, ENT_QUOTES, 'UTF-8') ?>"
+                                <?php if ($primaryId > 0): ?>data-startlist-item="<?= $primaryId ?>"<?php endif; ?>
+                                data-startlist-group="<?= htmlspecialchars($groupKey, ENT_QUOTES, 'UTF-8') ?>">
+                                <td class="align-middle">
+                                    <span class="startlist-drag-handle me-2 text-muted" data-drag-handle title="<?= htmlspecialchars(t('startlist.reorder.hint'), ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">⋮⋮</span>
+                                    <span data-position-value><?= (int) $group['position'] ?></span>
+                                </td>
                                 <td>
                                     <?php if (!empty($group['start_numbers'])): ?>
                                         <?php foreach ($group['start_numbers'] as $number): ?>
@@ -349,9 +361,15 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                         <th><?= htmlspecialchars(t('startlist.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody
+                        data-startlist-table
+                        data-reorder-url="startlist_reorder.php"
+                        data-class-id="<?= (int) ($selectedClass['id'] ?? 0) ?>"
+                        data-csrf="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>"
+                        data-error-generic="<?= htmlspecialchars(t('startlist.reorder.error_generic'), ENT_QUOTES, 'UTF-8') ?>">
                     <?php foreach ($startlist as $item): ?>
                         <?php
+                        $departmentKey = startlist_normalize_department($item['department'] ?? '');
                         $riderDate = !empty($item['rider_date_of_birth']) ? date('d.m.Y', strtotime($item['rider_date_of_birth'])) : null;
                         $riderCustomFields = $item['rider_custom_fields'] ?? [];
                         $riderFields = startlist_prepare_entity_fields(array_merge([
@@ -385,9 +403,15 @@ if (!function_exists('startlist_prepare_entity_fields')) {
                             'fields' => $horseFields,
                             'emptyMessage' => t('entity_info.empty'),
                         ];
+                        $rowClass = $item['state'] === 'withdrawn' ? 'table-secondary' : '';
                         ?>
-                        <tr class="<?= $item['state'] === 'withdrawn' ? 'table-secondary' : '' ?>">
-                            <td><?= (int) $item['position'] ?></td>
+                        <tr class="<?= htmlspecialchars($rowClass, ENT_QUOTES, 'UTF-8') ?>"
+                            data-startlist-item="<?= (int) $item['id'] ?>"
+                            data-startlist-group="<?= htmlspecialchars($departmentKey, ENT_QUOTES, 'UTF-8') ?>">
+                            <td class="align-middle">
+                                <span class="startlist-drag-handle me-2 text-muted" data-drag-handle title="<?= htmlspecialchars(t('startlist.reorder.hint'), ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">⋮⋮</span>
+                                <span data-position-value><?= (int) $item['position'] ?></span>
+                            </td>
                             <td>
                                 <?php if (!empty($item['start_number_display'])): ?>
                                     <span class="badge bg-primary text-light"><?= htmlspecialchars($item['start_number_display'], ENT_QUOTES, 'UTF-8') ?></span>
