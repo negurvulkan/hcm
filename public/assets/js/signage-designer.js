@@ -427,7 +427,7 @@
                 if (event.target.closest('[data-resize-handle]')) {
                     return;
                 }
-                this.selectElement(element.id);
+                this.selectElement(element.id, { preserveCanvas: true });
                 const rect = node.getBoundingClientRect();
                 const canvasRect = this.dom.canvasInner.getBoundingClientRect();
                 const startX = event.clientX;
@@ -486,7 +486,7 @@
                     return;
                 }
                 event.stopPropagation();
-                this.selectElement(element.id);
+                this.selectElement(element.id, { preserveCanvas: true });
                 const canvasRect = this.dom.canvasInner?.getBoundingClientRect();
                 if (!canvasRect) {
                     return;
@@ -725,12 +725,32 @@
             return element;
         }
 
-        selectElement(elementId) {
+        selectElement(elementId, options = {}) {
             this.selectedElementId = elementId;
-            this.renderCanvas();
+            const preserveCanvas = !!options.preserveCanvas;
+            if (preserveCanvas) {
+                this.updateCanvasSelectionState();
+            } else {
+                this.renderCanvas();
+            }
             this.renderLayers();
             this.renderBindings();
             this.renderStyles();
+        }
+
+        updateCanvasSelectionState() {
+            if (!this.dom.canvasInner) {
+                return;
+            }
+            const nodes = this.dom.canvasInner.querySelectorAll('[data-signage-element]');
+            nodes.forEach((node) => {
+                const elementId = node.getAttribute('data-signage-element');
+                if (String(elementId) === String(this.selectedElementId)) {
+                    node.classList.add('is-active');
+                } else {
+                    node.classList.remove('is-active');
+                }
+            });
         }
 
         addElement(type) {
