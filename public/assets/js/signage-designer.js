@@ -1135,10 +1135,6 @@
                     <div class="flex-grow-1">
                         <button type="button" class="btn btn-link btn-sm p-0" data-layer-action="select" data-element-id="${escapeAttr(element.id)}">${escapeHtml(element.label || element.type || 'Element')}</button>
                         <span class="badge bg-light text-dark ms-2">${escapeHtml(element.type || '')}</span>
-                        <div class="signage-layer-row__meta">
-                            <span>${escapeHtml(metaPosition)}</span>
-                            <span>${escapeHtml(metaSize)}</span>
-                        </div>
                     </div>
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-secondary" type="button" data-layer-action="layer-up" data-element-id="${escapeAttr(element.id)}">▲</button>
