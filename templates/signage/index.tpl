@@ -188,6 +188,9 @@
                                         <div class="text-muted small"><?= htmlspecialchars($display['display_group'] ?? 'default', ENT_QUOTES, 'UTF-8') ?></div>
                                     </div>
                                     <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" data-signage-action="edit-display" data-display-id="<?= (int) $display['id'] ?>" title="<?= htmlspecialchars(t('signage.actions.edit'), ENT_QUOTES, 'UTF-8') ?>">
+                                            <span aria-hidden="true">✏</span>
+                                        </button>
                                         <button class="btn btn-sm btn-outline-secondary" type="button" data-signage-action="assign-layout" data-display-id="<?= (int) $display['id'] ?>"><?= htmlspecialchars(t('signage.displays.assign'), ENT_QUOTES, 'UTF-8') ?></button>
                                         <button class="btn btn-sm btn-outline-danger" type="button" data-signage-action="delete-display" data-display-id="<?= (int) $display['id'] ?>" title="<?= htmlspecialchars(t('signage.actions.delete'), ENT_QUOTES, 'UTF-8') ?>">
                                             <span aria-hidden="true">🗑</span>
