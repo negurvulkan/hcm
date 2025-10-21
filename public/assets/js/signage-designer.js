@@ -258,12 +258,14 @@
             const normalized = filterTerm.trim().toLowerCase();
             const layouts = this.layouts.slice();
             layouts.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+            let matchCount = 0;
 
             layouts.forEach((layout) => {
                 const matches = normalized === '' || (layout.name || '').toLowerCase().includes(normalized);
                 if (!matches) {
                     return;
                 }
+                matchCount += 1;
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'signage-layout-list__item';
@@ -287,6 +289,26 @@
             });
 
             this.dom.layoutList.innerHTML = '';
+            if (matchCount === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'text-center text-muted py-4';
+
+                const message = document.createElement('p');
+                message.className = 'mb-2';
+                const messageKey = normalized === '' ? 'signage.layouts.empty' : 'signage.layouts.no_results';
+                message.textContent = this.translate(messageKey);
+                emptyState.appendChild(message);
+
+                const actionButton = document.createElement('button');
+                actionButton.type = 'button';
+                actionButton.className = 'btn btn-sm btn-primary';
+                actionButton.textContent = this.translate('signage.actions.new_layout');
+                actionButton.addEventListener('click', () => this.promptCreateLayout());
+                emptyState.appendChild(actionButton);
+
+                this.dom.layoutList.appendChild(emptyState);
+                return;
+            }
             this.dom.layoutList.appendChild(fragment);
         }
 
@@ -405,7 +427,7 @@
                 if (event.target.closest('[data-resize-handle]')) {
                     return;
                 }
-                this.selectElement(element.id);
+                this.selectElement(element.id, { preserveCanvas: true });
                 const rect = node.getBoundingClientRect();
                 const canvasRect = this.dom.canvasInner.getBoundingClientRect();
                 const startX = event.clientX;
@@ -464,7 +486,7 @@
                     return;
                 }
                 event.stopPropagation();
-                this.selectElement(element.id);
+                this.selectElement(element.id, { preserveCanvas: true });
                 const canvasRect = this.dom.canvasInner?.getBoundingClientRect();
                 if (!canvasRect) {
                     return;
@@ -703,12 +725,32 @@
             return element;
         }
 
-        selectElement(elementId) {
+        selectElement(elementId, options = {}) {
             this.selectedElementId = elementId;
-            this.renderCanvas();
+            const preserveCanvas = !!options.preserveCanvas;
+            if (preserveCanvas) {
+                this.updateCanvasSelectionState();
+            } else {
+                this.renderCanvas();
+            }
             this.renderLayers();
             this.renderBindings();
             this.renderStyles();
+        }
+
+        updateCanvasSelectionState() {
+            if (!this.dom.canvasInner) {
+                return;
+            }
+            const nodes = this.dom.canvasInner.querySelectorAll('[data-signage-element]');
+            nodes.forEach((node) => {
+                const elementId = node.getAttribute('data-signage-element');
+                if (String(elementId) === String(this.selectedElementId)) {
+                    node.classList.add('is-active');
+                } else {
+                    node.classList.remove('is-active');
+                }
+            });
         }
 
         addElement(type) {
