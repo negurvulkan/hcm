@@ -10,6 +10,7 @@ require __DIR__ . '/../app/Signage/LayoutDefaults.php';
 require __DIR__ . '/../app/Signage/Exceptions/NotFoundException.php';
 require __DIR__ . '/../app/Signage/Exceptions/ValidationException.php';
 require __DIR__ . '/../app/Signage/SignageRepository.php';
+require __DIR__ . '/../app/Sponsors/SponsorRepository.php';
 require __DIR__ . '/../app/Signage/SignageApiHandler.php';
 
 $pdo = new PDO('sqlite::memory:');
@@ -86,6 +87,49 @@ $pdo->exec('CREATE TABLE signage_displays (
     heartbeat_interval INTEGER NOT NULL DEFAULT 60,
     hardware_info TEXT NULL,
     settings_json TEXT NOT NULL DEFAULT "{}",
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)');
+$pdo->exec('CREATE TABLE sponsors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    display_name TEXT NULL,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    contact_person TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    address TEXT NOT NULL,
+    tier TEXT NOT NULL,
+    value NUMERIC NULL,
+    value_type TEXT NOT NULL,
+    contract_start TEXT NULL,
+    contract_end TEXT NULL,
+    invoice_required INTEGER NOT NULL DEFAULT 0,
+    invoice_number TEXT NULL,
+    logo_path TEXT NULL,
+    website TEXT NULL,
+    description_short TEXT NULL,
+    description_long TEXT NULL,
+    priority INTEGER NOT NULL DEFAULT 0,
+    color_primary TEXT NULL,
+    tagline TEXT NULL,
+    show_on_website INTEGER NOT NULL DEFAULT 1,
+    show_on_signage INTEGER NOT NULL DEFAULT 1,
+    show_in_program INTEGER NOT NULL DEFAULT 1,
+    overlay_template TEXT NULL,
+    display_duration INTEGER NULL,
+    display_frequency INTEGER NULL,
+    linked_event_id INTEGER NULL,
+    contract_file TEXT NULL,
+    logo_variants TEXT NOT NULL DEFAULT "[]",
+    media_package TEXT NOT NULL DEFAULT "[]",
+    notes_internal TEXT NULL,
+    documents TEXT NOT NULL DEFAULT "[]",
+    sponsorship_history TEXT NOT NULL DEFAULT "[]",
+    display_stats TEXT NOT NULL DEFAULT "{}",
+    last_contacted TEXT NULL,
+    follow_up_date TEXT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 )');
@@ -177,6 +221,50 @@ function expectException(string $class, callable $callable, ?string $contains = 
 $repository = new SignageRepository($pdo);
 $handler = new SignageApiHandler($repository);
 $context = ['user_id' => 99];
+
+$sponsorRepository = new App\Sponsors\SponsorRepository($pdo);
+$sponsorRepository->createSponsor([
+    'name' => 'Acme Corporation',
+    'display_name' => 'Acme Corporation',
+    'type' => 'company',
+    'status' => 'active',
+    'contact_person' => 'Jane Doe',
+    'email' => 'jane@example.com',
+    'phone' => '+49 123 4567',
+    'address' => 'Main Street 1, 12345 Demo City',
+    'tier' => 'platinum',
+    'value' => '5000',
+    'value_type' => 'cash',
+    'contract_start' => '2024-01-01',
+    'contract_end' => '2024-12-31',
+    'invoice_required' => true,
+    'invoice_number' => 'INV-001',
+    'logo_path' => '/logos/acme.png',
+    'website' => 'https://acme.test',
+    'description_short' => 'Premium partner',
+    'description_long' => 'Acme supports the event with financial backing and banners.',
+    'priority' => 10,
+    'color_primary' => '#224466',
+    'tagline' => 'We power the arena',
+    'show_on_website' => true,
+    'show_on_signage' => true,
+    'show_in_program' => true,
+    'display_duration' => 30,
+    'display_frequency' => 3,
+    'overlay_template' => 'default',
+    'linked_event_id' => null,
+    'contract_file' => '/contracts/acme.pdf',
+    'notes_internal' => 'VIP contact: board level',
+    'logo_variants' => ['light' => '/logos/acme_light.png'],
+    'media_package' => ['banner', 'ticker'],
+    'documents' => ['/docs/acme_brand.pdf'],
+    'sponsorship_history' => [['year' => 2023, 'tier' => 'gold']],
+    'display_stats' => ['impressions' => 0],
+    'last_contacted' => '2024-06-01',
+    'follow_up_date' => '2024-09-01',
+]);
+$tickerMessages = $sponsorRepository->tickerMessages(null);
+assertSame('Platinum · Acme Corporation · We power the arena', $tickerMessages[0] ?? '', 'Sponsor ticker should include tier, name and tagline.');
 
 $layoutResponse = $handler->perform('create_layout', ['name' => 'Main Board'], $context);
 $layout = $layoutResponse['layout'] ?? null;

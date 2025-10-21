@@ -4,10 +4,12 @@ namespace App\Signage;
 
 use App\Core\App;
 use App\Services\InstanceConfiguration;
+use App\Sponsors\SponsorRepository;
 use App\Signage\Exceptions\ValidationException;
 use DateTimeImmutable;
 use PDO;
 use RuntimeException;
+use Throwable;
 
 class SignageRepository
 {
@@ -669,7 +671,7 @@ class SignageRepository
 
         $live = $this->fetchLiveData($eventId);
         $schedule = $this->fetchScheduleData($eventId);
-        $sponsors = $this->fetchSponsorMessages();
+        $sponsors = $this->fetchSponsorMessages($eventId);
         $clock = [
             'time' => (new DateTimeImmutable('now'))->format('H:i'),
             'iso' => (new DateTimeImmutable('now'))->format('c'),
@@ -815,8 +817,37 @@ class SignageRepository
         ];
     }
 
-    private function fetchSponsorMessages(): array
+    private function fetchSponsorMessages(?int $eventId): array
     {
+        try {
+            $repository = new SponsorRepository($this->pdo);
+            $entries = $repository->signageEntries($eventId);
+            if ($entries) {
+                $messages = array_map(static fn (array $entry): string => (string) $entry['ticker_text'], $entries);
+                $items = array_map(static function (array $entry): array {
+                    return [
+                        'id' => (int) $entry['id'],
+                        'name' => $entry['display_name'] !== null && $entry['display_name'] !== '' ? $entry['display_name'] : $entry['name'],
+                        'tier' => $entry['tier'],
+                        'tagline' => $entry['tagline'] ?? null,
+                        'logo' => $entry['logo_path'] ?? null,
+                        'color' => $entry['color_primary'] ?? null,
+                        'priority' => (int) ($entry['priority'] ?? 0),
+                        'duration' => $entry['display_duration'],
+                        'frequency' => $entry['display_frequency'],
+                        'website' => $entry['website'] ?? null,
+                    ];
+                }, $entries);
+
+                return [
+                    'messages' => $messages,
+                    'items' => $items,
+                ];
+            }
+        } catch (Throwable) {
+            // fall back to legacy notifications below
+        }
+
         $latest = $this->dbFirst('SELECT payload FROM notifications WHERE type = "sponsor" ORDER BY id DESC LIMIT 1');
         if (!$latest) {
             return [
