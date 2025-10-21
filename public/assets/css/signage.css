@@ -152,6 +152,7 @@
 }
 
 .signage-layers,
+.signage-content,
 .signage-bindings,
 .signage-styles {
     border: 1px solid var(--bs-border-color);

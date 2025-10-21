@@ -212,6 +212,7 @@
                 guides: document.querySelector('[data-signage-guides]'),
                 timeline: document.querySelector('[data-signage-timeline]'),
                 layers: document.querySelector('[data-signage-layers]'),
+                content: document.querySelector('[data-signage-content]'),
                 bindings: document.querySelector('[data-signage-bindings]'),
                 styles: document.querySelector('[data-signage-styles]'),
                 palette: document.querySelector('[data-signage-palette]'),
@@ -279,6 +280,50 @@
                         this.bumpLayer(elementId, 1);
                     } else if (action === 'layer-down') {
                         this.bumpLayer(elementId, -1);
+                    }
+                });
+            }
+
+            if (this.dom.content) {
+                this.dom.content.addEventListener('input', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement)) {
+                        return;
+                    }
+                    const contentField = target.getAttribute('data-content-field');
+                    if (contentField) {
+                        const value = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+                            ? target.value
+                            : target.textContent || '';
+                        this.updateElementContent(contentField, value, target);
+                    }
+                    const optionField = target.getAttribute('data-option-field');
+                    if (optionField && !(target instanceof HTMLInputElement && target.type === 'checkbox')) {
+                        const value = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+                            ? target.value
+                            : '';
+                        this.updateElementOption(optionField, value, target);
+                    }
+                });
+                this.dom.content.addEventListener('change', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement)) {
+                        return;
+                    }
+                    const optionField = target.getAttribute('data-option-field');
+                    if (optionField) {
+                        if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+                            this.updateElementOption(optionField, target.checked, target);
+                        } else {
+                            const value = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+                                ? target.value
+                                : '';
+                            this.updateElementOption(optionField, value, target);
+                        }
+                    }
+                    const contentField = target.getAttribute('data-content-field');
+                    if (contentField && target instanceof HTMLInputElement && target.type === 'checkbox') {
+                        this.updateElementContent(contentField, target.checked, target);
                     }
                 });
             }
@@ -503,6 +548,7 @@
             this.renderLayers();
             this.renderTimeline();
             this.renderBindings();
+            this.renderContent();
             this.renderStyles();
         }
 
@@ -896,6 +942,121 @@
             `;
         }
 
+        renderContent() {
+            if (!this.dom.content) {
+                return;
+            }
+            const element = this.getSelectedElement();
+            if (!element) {
+                this.dom.content.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.content.empty'))}</p>`;
+                return;
+            }
+            const type = element.type || 'text';
+            const content = element.content || {};
+            const options = element.options || {};
+            let markup = '';
+            if (type === 'text' || type === 'ticker') {
+                const labelKey = type === 'ticker' ? 'signage.content.ticker_value' : 'signage.content.text_value';
+                const rows = type === 'ticker' ? 2 : 3;
+                markup = `
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate(labelKey))}</label>
+                        <textarea class="form-control form-control-sm" rows="${rows}" data-content-field="text">${escapeHtml(content.text || '')}</textarea>
+                    </div>
+                `;
+            } else if (type === 'image') {
+                markup = `
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.image_src'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-content-field="src" placeholder="https://…" value="${escapeAttr(content.src || '')}" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.image_alt'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-content-field="alt" value="${escapeAttr(content.alt || '')}">
+                    </div>
+                    <p class="text-muted small mb-0">${escapeHtml(this.translate('signage.content.image_hint'))}</p>
+                `;
+            } else if (type === 'video') {
+                const provider = String(options.provider || content.provider || '');
+                const autoplay = options.autoplay !== false;
+                const muted = options.muted !== false;
+                const loop = options.loop !== false;
+                const controls = options.controls === true;
+                const baseId = String(element.id || 'element');
+                const poster = options.poster || content.poster || '';
+                const gatewayUrl = options.gatewayUrl || content.gatewayUrl || '';
+                const embedUrl = options.embedUrl || content.embedUrl || '';
+                const allow = options.allow || '';
+                const videoId = options.videoId || '';
+                const providerOptions = [
+                    { value: '', label: this.translate('signage.content.video_provider_auto') },
+                    { value: 'youtube', label: this.translate('signage.content.video_provider_youtube') },
+                    { value: 'vimeo', label: this.translate('signage.content.video_provider_vimeo') },
+                    { value: 'hls', label: this.translate('signage.content.video_provider_hls') },
+                    { value: 'dash', label: this.translate('signage.content.video_provider_dash') },
+                    { value: 'iframe', label: this.translate('signage.content.video_provider_iframe') },
+                    { value: 'embed', label: this.translate('signage.content.video_provider_embed') },
+                ];
+                const providerSelect = providerOptions
+                    .map((option) => {
+                        const selected = String(option.value) === provider ? ' selected' : '';
+                        return `<option value="${escapeAttr(option.value)}"${selected}>${escapeHtml(option.label)}</option>`;
+                    })
+                    .join('');
+                const checkbox = (field, checked, labelKey) => {
+                    const id = `${baseId}-${field}`;
+                    return `
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="${escapeAttr(id)}" data-option-field="${escapeAttr(field)}"${checked ? ' checked' : ''}>
+                            <label class="form-check-label small" for="${escapeAttr(id)}">${escapeHtml(this.translate(labelKey))}</label>
+                        </div>
+                    `;
+                };
+                markup = `
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_source'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-content-field="source" placeholder="https://…" value="${escapeAttr(content.source || '')}" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_provider'))}</label>
+                        <select class="form-select form-select-sm" data-option-field="provider">
+                            ${providerSelect}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_id'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-option-field="videoId" value="${escapeAttr(videoId)}" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_poster'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-option-field="poster" placeholder="https://…" value="${escapeAttr(poster)}" spellcheck="false" autocomplete="off">
+                    </div>
+                    ${checkbox('autoplay', autoplay, 'signage.content.video_autoplay')}
+                    ${checkbox('muted', muted, 'signage.content.video_muted')}
+                    ${checkbox('loop', loop, 'signage.content.video_loop')}
+                    ${checkbox('controls', controls, 'signage.content.video_controls')}
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_gateway'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-option-field="gatewayUrl" placeholder="https://gateway.example/{source}" value="${escapeAttr(gatewayUrl)}" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_embed'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-option-field="embedUrl" placeholder="https://…" value="${escapeAttr(embedUrl)}" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.content.video_allow'))}</label>
+                        <input type="text" class="form-control form-control-sm" data-option-field="allow" placeholder="autoplay; fullscreen" value="${escapeAttr(allow)}" spellcheck="false" autocomplete="off">
+                    </div>
+                    <p class="text-muted small mb-0">${escapeHtml(this.translate('signage.content.video_hint'))}</p>
+                `;
+            }
+            if (!markup) {
+                this.dom.content.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.content.generic_hint'))}</p>`;
+                return;
+            }
+            this.dom.content.innerHTML = markup;
+        }
+
         renderStyles() {
             if (!this.dom.styles) {
                 return;
@@ -1076,6 +1237,7 @@
             }
             this.renderLayers();
             this.renderBindings();
+            this.renderContent();
             this.renderStyles();
         }
 
@@ -1240,6 +1402,73 @@
                         inputNode.value = String(sanitizedValue);
                     }
                 }
+            }
+        }
+
+        updateElementContent(field, value, inputNode = null) {
+            const element = this.getSelectedElement();
+            if (!element) {
+                return;
+            }
+            this.beginMutation();
+            const content = Object.assign({}, element.content || {});
+            let sanitizedValue = value;
+            let shouldUnset = false;
+            if (typeof value === 'boolean' || typeof value === 'number') {
+                sanitizedValue = value;
+            } else if (typeof value === 'string') {
+                const isTextField = field === 'text' || field === 'alt';
+                sanitizedValue = isTextField ? value : value.trim();
+                if (!isTextField && sanitizedValue === '') {
+                    shouldUnset = true;
+                }
+            } else if (value == null) {
+                shouldUnset = true;
+            }
+            if (shouldUnset) {
+                delete content[field];
+            } else if (sanitizedValue !== undefined) {
+                content[field] = sanitizedValue;
+            }
+            element.content = content;
+            this.finalizeMutation();
+            this.renderCanvas();
+            if (inputNode instanceof HTMLInputElement && shouldUnset) {
+                inputNode.value = '';
+            }
+        }
+
+        updateElementOption(field, value, inputNode = null) {
+            const element = this.getSelectedElement();
+            if (!element) {
+                return;
+            }
+            this.beginMutation();
+            const options = Object.assign({}, element.options || {});
+            let sanitizedValue = value;
+            let shouldUnset = false;
+            if (typeof value === 'boolean' || typeof value === 'number') {
+                sanitizedValue = value;
+            } else if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (trimmed === '') {
+                    shouldUnset = true;
+                } else {
+                    sanitizedValue = trimmed;
+                }
+            } else if (value == null) {
+                shouldUnset = true;
+            }
+            if (shouldUnset) {
+                delete options[field];
+            } else if (sanitizedValue !== undefined) {
+                options[field] = sanitizedValue;
+            }
+            element.options = options;
+            this.finalizeMutation();
+            this.renderCanvas();
+            if (inputNode instanceof HTMLInputElement && inputNode.type !== 'checkbox' && shouldUnset) {
+                inputNode.value = '';
             }
         }
 
