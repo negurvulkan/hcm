@@ -1398,6 +1398,7 @@ return [
             'scene_duration' => 'Dauer (Sekunden)',
             'edit_title' => 'Szene bearbeiten',
             'new_scene' => 'Neue Szene',
+            'empty' => 'Noch keine Szenen angelegt.',
         ],
         'palette' => [
             'title' => 'Elemente',
@@ -1411,6 +1412,7 @@ return [
             'title' => 'Ebenen',
             'meta_position' => 'Position: {x} × {y}',
             'meta_size' => 'Größe: {width} × {height}',
+            'empty' => 'Noch keine Elemente im Layout.',
         ],
         'content' => [
             'title' => 'Inhalt',

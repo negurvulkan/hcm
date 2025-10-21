@@ -84,24 +84,28 @@
     <div class="col-xl-9">
         <div class="card signage-designer">
             <div class="card-body">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-                    <div>
-                        <h2 class="h5 mb-1" data-signage-active-name><?= htmlspecialchars($layouts[0]['name'] ?? t('signage.designer.empty'), ENT_QUOTES, 'UTF-8') ?></h2>
-                        <div class="text-muted small" data-signage-active-meta><?= htmlspecialchars(t('signage.designer.meta_placeholder'), ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="signage-designer__header">
+                    <div class="signage-designer__title">
+                        <h2 class="h5 mb-0" data-signage-active-name><?= htmlspecialchars($layouts[0]['name'] ?? t('signage.designer.empty'), ENT_QUOTES, 'UTF-8') ?></h2>
+                        <div class="signage-designer__meta">
+                            <span class="signage-designer__meta-pill" data-signage-active-meta><?= htmlspecialchars(t('signage.designer.meta_placeholder'), ENT_QUOTES, 'UTF-8') ?></span>
+                        </div>
                     </div>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-signage-action="duplicate-layout" title="<?= htmlspecialchars(t('signage.actions.duplicate'), ENT_QUOTES, 'UTF-8') ?>">
-                            <span aria-hidden="true">⧉</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-signage-action="preview-layout" title="<?= htmlspecialchars(t('signage.actions.preview'), ENT_QUOTES, 'UTF-8') ?>">
-                            <span aria-hidden="true">👁</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-signage-action="publish-layout" title="<?= htmlspecialchars(t('signage.actions.publish'), ENT_QUOTES, 'UTF-8') ?>">
-                            <span aria-hidden="true">📡</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger" data-signage-action="delete-layout" title="<?= htmlspecialchars(t('signage.actions.delete'), ENT_QUOTES, 'UTF-8') ?>">
-                            <span aria-hidden="true">🗑</span>
-                        </button>
+                    <div class="signage-designer__actions">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary" data-signage-action="duplicate-layout" title="<?= htmlspecialchars(t('signage.actions.duplicate'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">⧉</span>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-signage-action="preview-layout" title="<?= htmlspecialchars(t('signage.actions.preview'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">👁</span>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-signage-action="publish-layout" title="<?= htmlspecialchars(t('signage.actions.publish'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">📡</span>
+                            </button>
+                            <button type="button" class="btn btn-danger" data-signage-action="delete-layout" title="<?= htmlspecialchars(t('signage.actions.delete'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">🗑</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="row g-3">
@@ -148,8 +152,11 @@
                             </div>
                         </div>
                         <div class="signage-designer__timeline mt-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h3 class="h6 mb-0"><?= htmlspecialchars(t('signage.timeline.title'), ENT_QUOTES, 'UTF-8') ?></h3>
+                            <div class="signage-designer__timeline-header">
+                                <h3 class="h6 mb-0">
+                                    <?= htmlspecialchars(t('signage.timeline.title'), ENT_QUOTES, 'UTF-8') ?>
+                                    <span class="signage-designer__counter-badge" data-signage-timeline-count>0</span>
+                                </h3>
                                 <button class="btn btn-sm btn-outline-primary" type="button" data-signage-action="add-scene">
                                     <span class="me-1 fw-semibold">+</span><?= htmlspecialchars(t('signage.timeline.add'), ENT_QUOTES, 'UTF-8') ?>
                                 </button>
@@ -159,21 +166,53 @@
                     </div>
                     <div class="col-lg-4">
                         <div class="signage-designer__sidebar">
-                            <div class="mb-4">
-                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.layers.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                                <div class="signage-layers" data-signage-layers></div>
+                            <div class="signage-designer__sidebar-nav" data-signage-sidebar-tabs>
+                                <button class="signage-designer__sidebar-nav-button active" type="button" data-signage-sidebar-tab="layers" aria-controls="signageSidebarLayers" aria-selected="true">
+                                    <span class="signage-designer__sidebar-nav-label">
+                                        <i class="bi bi-layers"></i>
+                                        <?= htmlspecialchars(t('signage.layers.title'), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                    <span class="signage-designer__sidebar-count" data-signage-sidebar-count="layers">0</span>
+                                </button>
+                                <button class="signage-designer__sidebar-nav-button" type="button" data-signage-sidebar-tab="content" aria-controls="signageSidebarContent" aria-selected="false">
+                                    <span class="signage-designer__sidebar-nav-label">
+                                        <i class="bi bi-card-text"></i>
+                                        <?= htmlspecialchars(t('signage.content.title'), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                    <span class="signage-designer__sidebar-count" data-signage-sidebar-count="content">0</span>
+                                </button>
+                                <button class="signage-designer__sidebar-nav-button" type="button" data-signage-sidebar-tab="bindings" aria-controls="signageSidebarBindings" aria-selected="false">
+                                    <span class="signage-designer__sidebar-nav-label">
+                                        <i class="bi bi-diagram-3"></i>
+                                        <?= htmlspecialchars(t('signage.bindings.title'), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                    <span class="signage-designer__sidebar-count" data-signage-sidebar-count="bindings">0</span>
+                                </button>
+                                <button class="signage-designer__sidebar-nav-button" type="button" data-signage-sidebar-tab="styles" aria-controls="signageSidebarStyles" aria-selected="false">
+                                    <span class="signage-designer__sidebar-nav-label">
+                                        <i class="bi bi-magic"></i>
+                                        <?= htmlspecialchars(t('signage.styles.title'), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                    <span class="signage-designer__sidebar-count" data-signage-sidebar-count="styles">0</span>
+                                </button>
                             </div>
-                            <div class="mb-4">
-                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.content.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                                <div class="signage-content" data-signage-content></div>
-                            </div>
-                            <div class="mb-4">
-                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.bindings.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                                <div class="signage-bindings" data-signage-bindings></div>
-                            </div>
-                            <div>
-                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.styles.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                                <div class="signage-styles" data-signage-styles></div>
+                            <div class="signage-designer__sidebar-panels">
+                                <section class="signage-designer__sidebar-panel is-active" id="signageSidebarLayers" data-signage-sidebar-panel="layers">
+                                    <div class="signage-designer__sidebar-panel-title"><?= htmlspecialchars(t('signage.layers.title'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="signage-layers" data-signage-layers></div>
+                                </section>
+                                <section class="signage-designer__sidebar-panel" id="signageSidebarContent" data-signage-sidebar-panel="content" hidden>
+                                    <div class="signage-designer__sidebar-panel-title"><?= htmlspecialchars(t('signage.content.title'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="signage-content" data-signage-content></div>
+                                </section>
+                                <section class="signage-designer__sidebar-panel" id="signageSidebarBindings" data-signage-sidebar-panel="bindings" hidden>
+                                    <div class="signage-designer__sidebar-panel-title"><?= htmlspecialchars(t('signage.bindings.title'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="signage-bindings" data-signage-bindings></div>
+                                </section>
+                                <section class="signage-designer__sidebar-panel" id="signageSidebarStyles" data-signage-sidebar-panel="styles" hidden>
+                                    <div class="signage-designer__sidebar-panel-title"><?= htmlspecialchars(t('signage.styles.title'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="signage-styles" data-signage-styles></div>
+                                </section>
                             </div>
                         </div>
                     </div>

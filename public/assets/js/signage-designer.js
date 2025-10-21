@@ -224,6 +224,7 @@
                 canvasStage: document.querySelector('[data-signage-canvas-stage]'),
                 guides: document.querySelector('[data-signage-guides]'),
                 timeline: document.querySelector('[data-signage-timeline]'),
+                timelineCount: document.querySelector('[data-signage-timeline-count]'),
                 layers: document.querySelector('[data-signage-layers]'),
                 content: document.querySelector('[data-signage-content]'),
                 bindings: document.querySelector('[data-signage-bindings]'),
@@ -238,9 +239,21 @@
                 modalSave: document.querySelector('[data-signage-modal-save]'),
             };
 
+            this.sidebarTabs = Array.from(document.querySelectorAll('[data-signage-sidebar-tab]'));
+            this.sidebarPanels = Array.from(document.querySelectorAll('[data-signage-sidebar-panel]'));
+            this.sidebarCounts = new Map(
+                Array.from(document.querySelectorAll('[data-signage-sidebar-count]'))
+                    .map((node) => {
+                        const key = node.getAttribute('data-signage-sidebar-count');
+                        return key ? [key, node] : null;
+                    })
+                    .filter(Boolean)
+            );
+
             this.bootstrapModal = this.dom.modal ? new window.bootstrap.Modal(this.dom.modal) : null;
 
             this.bindGlobalActions();
+            this.initSidebarTabs();
             this.renderLayoutList();
             this.renderDisplays();
             this.renderPlaylists();
@@ -439,6 +452,57 @@
             window.addEventListener('resize', () => {
                 this.applyCanvasScale();
             });
+        }
+
+        initSidebarTabs() {
+            if (!this.sidebarTabs || this.sidebarTabs.length === 0 || !this.sidebarPanels || this.sidebarPanels.length === 0) {
+                return;
+            }
+            const activate = (name) => {
+                if (!name) {
+                    return;
+                }
+                this.sidebarTabs.forEach((tab) => {
+                    const tabName = tab.getAttribute('data-signage-sidebar-tab');
+                    const isActive = tabName === name;
+                    tab.classList.toggle('active', isActive);
+                    tab.setAttribute('aria-selected', String(isActive));
+                });
+                this.sidebarPanels.forEach((panel) => {
+                    const panelName = panel.getAttribute('data-signage-sidebar-panel');
+                    const isActive = panelName === name;
+                    panel.classList.toggle('is-active', isActive);
+                    panel.toggleAttribute('hidden', !isActive);
+                });
+            };
+
+            this.sidebarTabs.forEach((tab) => {
+                if (!tab.hasAttribute('type')) {
+                    tab.setAttribute('type', 'button');
+                }
+                tab.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const name = tab.getAttribute('data-signage-sidebar-tab');
+                    activate(name);
+                });
+            });
+
+            const defaultTab = this.sidebarTabs.find((tab) => tab.classList.contains('active'))
+                || this.sidebarTabs[0];
+            if (defaultTab) {
+                activate(defaultTab.getAttribute('data-signage-sidebar-tab'));
+            }
+        }
+
+        updateSidebarCount(name, value) {
+            if (!this.sidebarCounts || !name) {
+                return;
+            }
+            const node = this.sidebarCounts.get(name);
+            if (!node) {
+                return;
+            }
+            node.textContent = String(typeof value === 'number' && Number.isFinite(value) ? value : value || 0);
         }
 
         handleAction(action, button) {
@@ -1048,6 +1112,7 @@
                 ? new Set(activeScene.elementIds.map((id) => String(id)))
                 : null;
             elements.sort((a, b) => (b.layer ?? 0) - (a.layer ?? 0));
+            let visibleCount = 0;
             elements.forEach((element) => {
                 if (restrictToScene && visibleIds && !visibleIds.has(String(element.id))) {
                     return;
@@ -1082,9 +1147,15 @@
                     </div>
                 `;
                 fragment.appendChild(row);
+                visibleCount += 1;
             });
             this.dom.layers.innerHTML = '';
-            this.dom.layers.appendChild(fragment);
+            if (visibleCount === 0) {
+                this.dom.layers.innerHTML = `<p class="text-muted small text-center mb-0 py-2">${escapeHtml(this.translate('signage.layers.empty'))}</p>`;
+            } else {
+                this.dom.layers.appendChild(fragment);
+            }
+            this.updateSidebarCount('layers', visibleCount);
         }
 
         renderBindings() {
@@ -1094,6 +1165,7 @@
             const element = this.getSelectedElement();
             if (!element) {
                 this.dom.bindings.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.bindings.empty'))}</p>`;
+                this.updateSidebarCount('bindings', 0);
                 return;
             }
             const binding = element.binding || {};
@@ -1107,6 +1179,7 @@
                     <input type="text" class="form-control form-control-sm" value="${escapeAttr(binding.fallback || '')}" data-binding-field="fallback">
                 </div>
             `;
+            this.updateSidebarCount('bindings', 1);
         }
 
         renderContent() {
@@ -1116,6 +1189,7 @@
             const element = this.getSelectedElement();
             if (!element) {
                 this.dom.content.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.content.empty'))}</p>`;
+                this.updateSidebarCount('content', 0);
                 return;
             }
             const type = element.type || 'text';
@@ -1222,6 +1296,7 @@
                 return;
             }
             this.dom.content.innerHTML = markup;
+            this.updateSidebarCount('content', 1);
         }
 
         renderStyles() {
@@ -1231,6 +1306,7 @@
             const element = this.getSelectedElement();
             if (!element) {
                 this.dom.styles.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.styles.empty'))}</p>`;
+                this.updateSidebarCount('styles', 0);
                 return;
             }
             const style = element.style || {};
@@ -1244,6 +1320,7 @@
                 const type = element.type || 'text';
                 return section.types.includes(type);
             });
+            let visibleSections = 0;
             const markup = sections
                 .map((section) => {
                     const controls = section.fields
@@ -1253,6 +1330,7 @@
                     if (!controls) {
                         return '';
                     }
+                    visibleSections += 1;
                     return `
                         <div class="mb-3">
                             <div class="fw-semibold text-uppercase small text-muted mb-2">${escapeHtml(this.translate(section.labelKey))}</div>
@@ -1264,6 +1342,7 @@
                 .join('');
             if (!markup) {
                 this.dom.styles.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.styles.generic_hint'))}</p>`;
+                this.updateSidebarCount('styles', 0);
                 return;
             }
             let hint = '';
@@ -1271,6 +1350,7 @@
                 hint = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.styles.generic_hint'))}</p>`;
             }
             this.dom.styles.innerHTML = `${markup}${hint}`;
+            this.updateSidebarCount('styles', visibleSections || 1);
         }
 
         renderStyleControl(fieldKey, element, style) {
@@ -1355,6 +1435,7 @@
             const scenes = Array.isArray(this.activeLayout.timeline) ? this.activeLayout.timeline : [];
             const activeScene = this.getActiveScene();
             const activeId = activeScene ? activeScene.id : this.activeSceneId;
+            let sceneCount = 0;
             scenes.forEach((scene) => {
                 const item = document.createElement('div');
                 item.className = 'signage-timeline__item';
@@ -1371,9 +1452,19 @@
                     </div>
                 `;
                 fragment.appendChild(item);
+                sceneCount += 1;
             });
             this.dom.timeline.innerHTML = '';
-            this.dom.timeline.appendChild(fragment);
+            if (sceneCount === 0) {
+                this.dom.timeline.classList.add('is-empty');
+                this.dom.timeline.innerHTML = `<div class="signage-timeline__empty">${escapeHtml(this.translate('signage.timeline.empty'))}</div>`;
+            } else {
+                this.dom.timeline.classList.remove('is-empty');
+                this.dom.timeline.appendChild(fragment);
+            }
+            if (this.dom.timelineCount) {
+                this.dom.timelineCount.textContent = String(sceneCount);
+            }
         }
 
         getSelectedElement() {

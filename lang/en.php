@@ -1396,6 +1396,7 @@ return [
             'scene_duration' => 'Duration (seconds)',
             'edit_title' => 'Edit scene',
             'new_scene' => 'New scene',
+            'empty' => 'No scenes yet.',
         ],
         'palette' => [
             'title' => 'Elements',
@@ -1409,6 +1410,7 @@ return [
             'title' => 'Layers',
             'meta_position' => 'Position: {x} × {y}',
             'meta_size' => 'Size: {width} × {height}',
+            'empty' => 'No elements in this layout yet.',
         ],
         'content' => [
             'title' => 'Content',
