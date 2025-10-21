@@ -1369,6 +1369,7 @@ return [
             'hint' => 'Craft templates for on-site displays and streams.',
             'search' => 'Search layouts…',
             'empty' => 'No layouts available yet.',
+            'no_results' => 'No layouts match your search.',
             'updated' => 'Last updated: {date}',
             'features' => [
                 'layers' => 'Layer control & transparency',

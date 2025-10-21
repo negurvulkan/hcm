@@ -1371,6 +1371,7 @@ return [
             'hint' => 'Gestalten Sie Vorlagen für Displays und Streams.',
             'search' => 'Layouts durchsuchen …',
             'empty' => 'Noch keine Layouts vorhanden.',
+            'no_results' => 'Keine Layouts entsprechen der Suche.',
             'updated' => 'Zuletzt aktualisiert: {date}',
             'features' => [
                 'layers' => 'Ebenenverwaltung & Transparenz',
