@@ -427,19 +427,27 @@
                 if (event.target.closest('[data-resize-handle]')) {
                     return;
                 }
+                if (!node.isConnected || !this.dom.canvasInner?.isConnected) {
+                    return;
+                }
+                const canvasRect = this.dom.canvasInner?.getBoundingClientRect();
+                if (!canvasRect || !canvasRect.width || !canvasRect.height) {
+                    return;
+                }
                 this.selectElement(element.id, { preserveCanvas: true });
                 const rect = node.getBoundingClientRect();
-                const canvasRect = this.dom.canvasInner.getBoundingClientRect();
+                const canvasWidth = canvasRect.width;
+                const canvasHeight = canvasRect.height;
                 const startX = event.clientX;
                 const startY = event.clientY;
                 const initial = {
-                    x: (rect.left - canvasRect.left) / canvasRect.width,
-                    y: (rect.top - canvasRect.top) / canvasRect.height,
-                    width: rect.width / canvasRect.width,
-                    height: rect.height / canvasRect.height,
+                    x: (rect.left - canvasRect.left) / canvasWidth,
+                    y: (rect.top - canvasRect.top) / canvasHeight,
+                    width: rect.width / canvasWidth,
+                    height: rect.height / canvasHeight,
                 };
-                const pointerId = event.pointerId;
-                if (typeof node.setPointerCapture === 'function') {
+                const pointerId = typeof event.pointerId === 'number' ? event.pointerId : null;
+                if (pointerId !== null && typeof node.setPointerCapture === 'function') {
                     try {
                         node.setPointerCapture(pointerId);
                     } catch (error) {
@@ -448,12 +456,12 @@
                 }
                 this.beginMutation();
                 const handleMove = (moveEvent) => {
-                    if (moveEvent.pointerId !== pointerId) {
+                    if (pointerId !== null && moveEvent.pointerId !== pointerId) {
                         return;
                     }
                     moveEvent.preventDefault();
-                    const dx = (moveEvent.clientX - startX) / canvasRect.width;
-                    const dy = (moveEvent.clientY - startY) / canvasRect.height;
+                    const dx = canvasWidth ? (moveEvent.clientX - startX) / canvasWidth : 0;
+                    const dy = canvasHeight ? (moveEvent.clientY - startY) / canvasHeight : 0;
                     const newX = Math.max(0, Math.min(1 - initial.width, initial.x + dx));
                     const newY = Math.max(0, Math.min(1 - initial.height, initial.y + dy));
                     element.position = Object.assign({}, element.position, {
@@ -466,10 +474,10 @@
                     this.updateGuides(newX, newY);
                 };
                 const handleUp = (upEvent) => {
-                    if (upEvent.pointerId !== pointerId) {
+                    if (pointerId !== null && upEvent.pointerId !== pointerId) {
                         return;
                     }
-                    if (typeof node.releasePointerCapture === 'function') {
+                    if (pointerId !== null && typeof node.releasePointerCapture === 'function') {
                         try {
                             node.releasePointerCapture(pointerId);
                         } catch (error) {
@@ -497,23 +505,28 @@
                 if (event.button !== 0) {
                     return;
                 }
-                event.stopPropagation();
-                this.selectElement(element.id, { preserveCanvas: true });
-                const canvasRect = this.dom.canvasInner?.getBoundingClientRect();
-                if (!canvasRect) {
+                if (!node.isConnected || !this.dom.canvasInner?.isConnected) {
                     return;
                 }
+                const canvasRect = this.dom.canvasInner?.getBoundingClientRect();
+                if (!canvasRect || !canvasRect.width || !canvasRect.height) {
+                    return;
+                }
+                event.stopPropagation();
+                this.selectElement(element.id, { preserveCanvas: true });
                 const rect = node.getBoundingClientRect();
-                const pointerId = event.pointerId;
+                const canvasWidth = canvasRect.width;
+                const canvasHeight = canvasRect.height;
+                const pointerId = typeof event.pointerId === 'number' ? event.pointerId : null;
                 const startX = event.clientX;
                 const startY = event.clientY;
                 const initial = {
-                    x: (rect.left - canvasRect.left) / canvasRect.width,
-                    y: (rect.top - canvasRect.top) / canvasRect.height,
-                    width: rect.width / canvasRect.width,
-                    height: rect.height / canvasRect.height,
+                    x: (rect.left - canvasRect.left) / canvasWidth,
+                    y: (rect.top - canvasRect.top) / canvasHeight,
+                    width: rect.width / canvasWidth,
+                    height: rect.height / canvasHeight,
                 };
-                if (typeof node.setPointerCapture === 'function') {
+                if (pointerId !== null && typeof node.setPointerCapture === 'function') {
                     try {
                         node.setPointerCapture(pointerId);
                     } catch (error) {
@@ -522,12 +535,12 @@
                 }
                 this.beginMutation();
                 const handleMove = (moveEvent) => {
-                    if (moveEvent.pointerId !== pointerId) {
+                    if (pointerId !== null && moveEvent.pointerId !== pointerId) {
                         return;
                     }
                     moveEvent.preventDefault();
-                    const dx = (moveEvent.clientX - startX) / canvasRect.width;
-                    const dy = (moveEvent.clientY - startY) / canvasRect.height;
+                    const dx = canvasWidth ? (moveEvent.clientX - startX) / canvasWidth : 0;
+                    const dy = canvasHeight ? (moveEvent.clientY - startY) / canvasHeight : 0;
                     let newWidth = initial.width + dx;
                     let newHeight = initial.height + dy;
                     newWidth = Math.max(0.05, Math.min(1 - initial.x, newWidth));
@@ -546,10 +559,10 @@
                     this.positionElementNode(node, element);
                 };
                 const handleUp = (upEvent) => {
-                    if (upEvent.pointerId !== pointerId) {
+                    if (pointerId !== null && upEvent.pointerId !== pointerId) {
                         return;
                     }
-                    if (typeof node.releasePointerCapture === 'function') {
+                    if (pointerId !== null && typeof node.releasePointerCapture === 'function') {
                         try {
                             node.releasePointerCapture(pointerId);
                         } catch (error) {
