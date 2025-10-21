@@ -33,6 +33,67 @@
     overflow: hidden;
 }
 
+.signage-designer__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(15, 23, 42, 0.92);
+    color: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(248, 250, 252, 0.12);
+    backdrop-filter: blur(6px);
+}
+
+.signage-designer__toolbar-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+.signage-designer__toolbar-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.signage-designer__toolbar-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(248, 250, 252, 0.35);
+    background: transparent;
+    color: inherit;
+    font-size: 0.875rem;
+    line-height: 1.1;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.signage-designer__toolbar-button:hover,
+.signage-designer__toolbar-button:focus {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    text-decoration: none;
+}
+
+.signage-designer__toolbar-button i {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.signage-designer__toolbar-button span {
+    white-space: nowrap;
+}
+
 .signage-designer__canvas-viewport {
     position: relative;
     border-radius: 0.75rem;
@@ -168,12 +229,6 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-}
-
-.signage-palette {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
 }
 
 .signage-layers,
@@ -338,6 +393,18 @@
 
 .signage-page .badge {
     border-radius: 999px;
+}
+
+@media (max-width: 991.98px) {
+    .signage-designer__toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .signage-designer__toolbar-label {
+        margin-bottom: 0.25rem;
+    }
 }
 
 .signage-designer__guides::before,

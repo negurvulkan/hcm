@@ -107,6 +107,31 @@
                 <div class="row g-3">
                     <div class="col-lg-8">
                         <div class="signage-designer__canvas" data-signage-canvas>
+                            <div class="signage-designer__toolbar">
+                                <span class="signage-designer__toolbar-label"><?= htmlspecialchars(t('signage.palette.title'), ENT_QUOTES, 'UTF-8') ?></span>
+                                <div class="signage-designer__toolbar-buttons" data-signage-palette>
+                                    <button class="signage-designer__toolbar-button" type="button" data-element-type="text">
+                                        <i class="bi bi-type"></i>
+                                        <span><?= htmlspecialchars(t('signage.palette.text'), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </button>
+                                    <button class="signage-designer__toolbar-button" type="button" data-element-type="image">
+                                        <i class="bi bi-image"></i>
+                                        <span><?= htmlspecialchars(t('signage.palette.image'), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </button>
+                                    <button class="signage-designer__toolbar-button" type="button" data-element-type="video">
+                                        <i class="bi bi-camera-video"></i>
+                                        <span><?= htmlspecialchars(t('signage.palette.video'), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </button>
+                                    <button class="signage-designer__toolbar-button" type="button" data-element-type="live">
+                                        <i class="bi bi-broadcast"></i>
+                                        <span><?= htmlspecialchars(t('signage.palette.live'), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </button>
+                                    <button class="signage-designer__toolbar-button" type="button" data-element-type="ticker">
+                                        <i class="bi bi-distribute-horizontal"></i>
+                                        <span><?= htmlspecialchars(t('signage.palette.ticker'), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </button>
+                                </div>
+                            </div>
                             <div class="signage-zoom-controls" data-signage-zoom>
                                 <button class="btn btn-sm btn-outline-light" type="button" data-signage-action="zoom-out" title="<?= htmlspecialchars(t('signage.designer.zoom_out'), ENT_QUOTES, 'UTF-8') ?>" aria-label="<?= htmlspecialchars(t('signage.designer.zoom_out'), ENT_QUOTES, 'UTF-8') ?>">−</button>
                                 <span class="signage-zoom-controls__value" data-signage-zoom-value title="<?= htmlspecialchars(t('signage.designer.zoom_label', ['value' => '100%']), ENT_QUOTES, 'UTF-8') ?>">100%</span>
@@ -135,29 +160,19 @@
                     <div class="col-lg-4">
                         <div class="signage-designer__sidebar">
                             <div class="mb-4">
-                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.palette.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                            <div class="signage-palette" data-signage-palette>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" data-element-type="text"><?= htmlspecialchars(t('signage.palette.text'), ENT_QUOTES, 'UTF-8') ?></button>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" data-element-type="image"><?= htmlspecialchars(t('signage.palette.image'), ENT_QUOTES, 'UTF-8') ?></button>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" data-element-type="video"><?= htmlspecialchars(t('signage.palette.video'), ENT_QUOTES, 'UTF-8') ?></button>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" data-element-type="live"><?= htmlspecialchars(t('signage.palette.live'), ENT_QUOTES, 'UTF-8') ?></button>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" data-element-type="ticker"><?= htmlspecialchars(t('signage.palette.ticker'), ENT_QUOTES, 'UTF-8') ?></button>
+                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.layers.title'), ENT_QUOTES, 'UTF-8') ?></h3>
+                                <div class="signage-layers" data-signage-layers></div>
                             </div>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.layers.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                            <div class="signage-layers" data-signage-layers></div>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.content.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                            <div class="signage-content" data-signage-content></div>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.bindings.title'), ENT_QUOTES, 'UTF-8') ?></h3>
-                            <div class="signage-bindings" data-signage-bindings></div>
-                        </div>
-                        <div>
-                            <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.styles.title'), ENT_QUOTES, 'UTF-8') ?></h3>
+                            <div class="mb-4">
+                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.content.title'), ENT_QUOTES, 'UTF-8') ?></h3>
+                                <div class="signage-content" data-signage-content></div>
+                            </div>
+                            <div class="mb-4">
+                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.bindings.title'), ENT_QUOTES, 'UTF-8') ?></h3>
+                                <div class="signage-bindings" data-signage-bindings></div>
+                            </div>
+                            <div>
+                                <h3 class="h6 text-uppercase text-muted mb-3"><?= htmlspecialchars(t('signage.styles.title'), ENT_QUOTES, 'UTF-8') ?></h3>
                                 <div class="signage-styles" data-signage-styles></div>
                             </div>
                         </div>
