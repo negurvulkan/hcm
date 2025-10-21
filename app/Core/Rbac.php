@@ -28,6 +28,7 @@ class Rbac
         'schedule' => ['admin', 'steward', 'announcer'],
         'display' => ['admin', 'steward', 'announcer', 'participant'],
         'signage' => ['admin', 'office', 'announcer'],
+        'sponsors' => ['admin', 'office', 'announcer'],
         'judge' => ['admin', 'judge', 'steward'],
         'results' => ['admin', 'office', 'steward'],
         'helpers' => ['admin', 'helpers', 'office'],
@@ -65,6 +66,12 @@ class Rbac
             'label_key' => 'nav.clubs',
             'group' => 'management',
             'tooltip_key' => 'nav.tooltips.clubs',
+        ],
+        'sponsors.php' => [
+            'key' => 'sponsors',
+            'label_key' => 'nav.sponsors',
+            'group' => 'management',
+            'tooltip_key' => 'nav.tooltips.sponsors',
         ],
         'events.php' => [
             'key' => 'events',

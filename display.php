@@ -2,6 +2,9 @@
 require __DIR__ . '/app/bootstrap.php';
 require __DIR__ . '/auth.php';
 
+use App\Sponsors\SponsorRepository;
+use Throwable;
+
 $activeEvent = event_active();
 if ($activeEvent) {
     $params = ['event_id' => (int) $activeEvent['id']];
@@ -13,7 +16,34 @@ if ($activeEvent) {
     $next = [];
     $top = [];
 }
-$sponsor = db_first('SELECT payload FROM notifications WHERE type = "sponsor" ORDER BY id DESC LIMIT 1');
+$sponsorMessages = [];
+$sponsorText = t('display.defaults.sponsor');
+try {
+    $sponsorRepository = new SponsorRepository(app_pdo());
+    $eventId = $activeEvent['id'] ?? null;
+    $messages = $sponsorRepository->tickerMessages($eventId ? (int) $eventId : null);
+    if ($messages) {
+        $sponsorMessages = $messages;
+        $sponsorText = $messages[0];
+    }
+} catch (Throwable) {
+    // Fallback handled below
+}
+
+if (!$sponsorMessages) {
+    $legacySponsor = db_first('SELECT payload FROM notifications WHERE type = "sponsor" ORDER BY id DESC LIMIT 1');
+    if ($legacySponsor) {
+        try {
+            $payload = json_decode($legacySponsor['payload'] ?? '{}', true, 512, JSON_THROW_ON_ERROR);
+            $text = isset($payload['text']) && is_string($payload['text']) ? trim($payload['text']) : '';
+            if ($text !== '') {
+                $sponsorText = $text;
+            }
+        } catch (Throwable) {
+            // ignore legacy decode errors
+        }
+    }
+}
 
 $view = app_view();
 echo $view->render('display.tpl', [
@@ -22,5 +52,6 @@ echo $view->render('display.tpl', [
     'current' => $current,
     'next' => $next,
     'top' => $top,
-    'sponsor' => $sponsor ? json_decode($sponsor['payload'], true, 512, JSON_THROW_ON_ERROR)['text'] ?? '' : t('display.defaults.sponsor'),
+    'sponsor' => $sponsorText,
+    'sponsorMessages' => $sponsorMessages,
 ]);

@@ -39,4 +39,8 @@ The player persists the last successful payload per display token in `localStora
 
 Live overlays read from aggregated event data in `SignageRepository::fetchLiveData`. JSON payloads are delivered through the API so displays can react in near real time.
 
-Run `php setup.php` to execute the migration `20241101000000__digital_signage_module.php` before first use.
+## Sponsor Directory
+
+The sponsor module (`sponsors.php`) stores tiers, logos and visibility rules for each partner. `SignageRepository` now reads the ticker from this directory (falling back to legacy notifications when no sponsors are published), ensuring the digital signage loop, public display and print exports share the same curated sponsor information.
+
+Run `php setup.php` to execute the migrations `20241101000000__digital_signage_module.php` and `20241105000000__sponsors_module.php` before first use so that the signage scenes and sponsor directory tables are available.
