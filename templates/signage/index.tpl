@@ -87,9 +87,7 @@
                 <div class="signage-designer__header">
                     <div class="signage-designer__title">
                         <h2 class="h5 mb-0" data-signage-active-name><?= htmlspecialchars($layouts[0]['name'] ?? t('signage.designer.empty'), ENT_QUOTES, 'UTF-8') ?></h2>
-                        <div class="signage-designer__meta">
-                            <span class="signage-designer__meta-pill" data-signage-active-meta><?= htmlspecialchars(t('signage.designer.meta_placeholder'), ENT_QUOTES, 'UTF-8') ?></span>
-                        </div>
+
                     </div>
                     <div class="signage-designer__actions">
                         <div class="btn-group btn-group-sm" role="group">
