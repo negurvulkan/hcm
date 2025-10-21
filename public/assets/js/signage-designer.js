@@ -311,6 +311,10 @@
             if (!this.activeLayout) {
                 return;
             }
+            const activeScene = this.getActiveScene();
+            if (activeScene) {
+                this.activeSceneId = activeScene.id;
+            }
             if (this.dom.activeName) {
                 this.dom.activeName.textContent = this.activeLayout.name || this.translate('signage.designer.empty');
             }
@@ -334,7 +338,15 @@
             }
             this.dom.canvasInner.innerHTML = '';
             const elements = Array.isArray(this.activeLayout.elements) ? this.activeLayout.elements : [];
+            const activeScene = this.getActiveScene();
+            const restrictToScene = !!(activeScene && Array.isArray(activeScene.elementIds));
+            const visibleIds = restrictToScene
+                ? new Set(activeScene.elementIds.map((id) => String(id)))
+                : null;
             elements.forEach((element) => {
+                if (restrictToScene && visibleIds && !visibleIds.has(String(element.id))) {
+                    return;
+                }
                 const node = document.createElement('div');
                 node.dataset.signageElement = element.id;
                 node.tabIndex = 0;
@@ -560,8 +572,16 @@
             }
             const fragment = document.createDocumentFragment();
             const elements = Array.isArray(this.activeLayout.elements) ? this.activeLayout.elements.slice() : [];
+            const activeScene = this.getActiveScene();
+            const restrictToScene = !!(activeScene && Array.isArray(activeScene.elementIds));
+            const visibleIds = restrictToScene
+                ? new Set(activeScene.elementIds.map((id) => String(id)))
+                : null;
             elements.sort((a, b) => (b.layer ?? 0) - (a.layer ?? 0));
             elements.forEach((element) => {
+                if (restrictToScene && visibleIds && !visibleIds.has(String(element.id))) {
+                    return;
+                }
                 const row = document.createElement('div');
                 row.className = 'd-flex align-items-center justify-content-between mb-2 signage-layer-row';
                 row.innerHTML = `
@@ -642,11 +662,13 @@
             }
             const fragment = document.createDocumentFragment();
             const scenes = Array.isArray(this.activeLayout.timeline) ? this.activeLayout.timeline : [];
+            const activeScene = this.getActiveScene();
+            const activeId = activeScene ? activeScene.id : this.activeSceneId;
             scenes.forEach((scene) => {
                 const item = document.createElement('div');
                 item.className = 'signage-timeline__item';
                 item.dataset.sceneId = scene.id;
-                if (scene.id === this.activeSceneId) {
+                if (scene.id === activeId) {
                     item.classList.add('is-active');
                 }
                 item.innerHTML = `
@@ -667,7 +689,18 @@
             if (!this.activeLayout || !this.selectedElementId) {
                 return null;
             }
-            return (this.activeLayout.elements || []).find((element) => element.id === this.selectedElementId) || null;
+            const element = (this.activeLayout.elements || []).find((item) => item.id === this.selectedElementId) || null;
+            if (!element) {
+                return null;
+            }
+            const activeScene = this.getActiveScene();
+            if (activeScene && Array.isArray(activeScene.elementIds) && activeScene.elementIds.length > 0) {
+                const isInScene = activeScene.elementIds.some((id) => String(id) === String(element.id));
+                if (!isInScene) {
+                    return null;
+                }
+            }
+            return element;
         }
 
         selectElement(elementId) {
@@ -688,17 +721,16 @@
             }
             this.beginMutation();
             this.activeLayout.elements.push(element);
-            const scenes = this.activeLayout.timeline || [];
-            if (scenes.length === 0) {
-                this.activeLayout.timeline = [this.createDefaultScene()];
+            const scene = this.getActiveScene(true);
+            if (scene) {
+                if (!Array.isArray(scene.elementIds)) {
+                    scene.elementIds = [];
+                }
+                scene.elementIds.push(element.id);
             }
-            if (!Array.isArray(this.activeLayout.timeline[0].elementIds)) {
-                this.activeLayout.timeline[0].elementIds = [];
-            }
-            this.activeLayout.timeline[0].elementIds.push(element.id);
             this.finalizeMutation();
             this.selectElement(element.id);
-            this.renderActiveLayout();
+            this.renderTimeline();
         }
 
         createElementPayload(type) {
@@ -805,12 +837,16 @@
             this.activeLayout.timeline.push(scene);
             this.finalizeMutation();
             this.activeSceneId = scene.id;
-            this.renderTimeline();
+            this.selectedElementId = null;
+            this.renderActiveLayout();
         }
 
         selectScene(sceneId) {
             this.activeSceneId = sceneId;
-            this.renderTimeline();
+            const scene = this.getActiveScene();
+            this.activeSceneId = scene ? scene.id : null;
+            this.selectedElementId = null;
+            this.renderActiveLayout();
         }
 
         deleteScene(sceneId) {
@@ -822,11 +858,36 @@
             }
             this.beginMutation();
             this.activeLayout.timeline = this.activeLayout.timeline.filter((scene) => scene.id !== sceneId);
-            if (!this.activeLayout.timeline.find((scene) => scene.id === this.activeSceneId)) {
-                this.activeSceneId = this.activeLayout.timeline[0].id;
-            }
             this.finalizeMutation();
-            this.renderTimeline();
+            const scene = this.getActiveScene();
+            this.activeSceneId = scene ? scene.id : null;
+            this.selectedElementId = null;
+            this.renderActiveLayout();
+        }
+
+        getActiveScene(createIfMissing = false) {
+            if (!this.activeLayout) {
+                return null;
+            }
+            let scenes = Array.isArray(this.activeLayout.timeline) ? this.activeLayout.timeline : [];
+            if (scenes.length === 0) {
+                if (!createIfMissing) {
+                    return null;
+                }
+                const defaultScene = this.createDefaultScene();
+                this.activeLayout.timeline = [defaultScene];
+                this.activeSceneId = defaultScene.id;
+                scenes = this.activeLayout.timeline;
+            }
+            let scene = scenes.find((item) => String(item.id) === String(this.activeSceneId));
+            if (!scene) {
+                scene = scenes[0] || null;
+                this.activeSceneId = scene ? scene.id : null;
+            }
+            if (scene && createIfMissing && !Array.isArray(scene.elementIds)) {
+                scene.elementIds = [];
+            }
+            return scene || null;
         }
 
         editScene(sceneId) {
