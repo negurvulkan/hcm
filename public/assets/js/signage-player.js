@@ -34,20 +34,55 @@
     }
 
     function applyElementStyles(node, style) {
-        if (!style || typeof style !== 'object') {
+        if (!node) {
             return;
         }
-        if (style.padding != null) {
+        if (!style || typeof style !== 'object') {
+            node.style.padding = '';
+            node.style.borderRadius = '';
+            node.style.boxShadow = '';
+            node.style.opacity = '';
+            node.style.letterSpacing = '';
+            node.style.lineHeight = '';
+            node.style.textTransform = '';
+            return;
+        }
+        if (style.padding != null && style.padding !== '') {
             node.style.padding = typeof style.padding === 'number' ? `${style.padding}px` : String(style.padding);
+        } else {
+            node.style.padding = '';
         }
-        if (style.borderRadius != null) {
+        if (style.borderRadius != null && style.borderRadius !== '') {
             node.style.borderRadius = typeof style.borderRadius === 'number' ? `${style.borderRadius}px` : String(style.borderRadius);
+        } else {
+            node.style.borderRadius = '';
         }
-        if (style.boxShadow) {
-            node.style.boxShadow = style.boxShadow;
+        node.style.boxShadow = style.boxShadow ? String(style.boxShadow) : '';
+        if (style.opacity != null && style.opacity !== '') {
+            const parsedOpacity = Number(style.opacity);
+            if (Number.isFinite(parsedOpacity)) {
+                const clampedOpacity = Math.max(0, Math.min(1, parsedOpacity));
+                node.style.opacity = String(clampedOpacity);
+            } else {
+                node.style.opacity = String(style.opacity);
+            }
+        } else {
+            node.style.opacity = '';
         }
-        if (style.opacity != null) {
-            node.style.opacity = String(style.opacity);
+        if (style.letterSpacing != null && style.letterSpacing !== '') {
+            node.style.letterSpacing = typeof style.letterSpacing === 'number' ? `${style.letterSpacing}px` : String(style.letterSpacing);
+        } else {
+            node.style.letterSpacing = '';
+        }
+        if (style.lineHeight != null && style.lineHeight !== '') {
+            node.style.lineHeight = typeof style.lineHeight === 'number' ? String(style.lineHeight) : String(style.lineHeight);
+        } else {
+            node.style.lineHeight = '';
+        }
+        if (style.textTransform) {
+            node.style.textTransform = String(style.textTransform);
+        } else {
+            node.style.textTransform = '';
         }
     }
 
@@ -357,21 +392,15 @@
             node.style.width = `${safeWidth * 100}%`;
             node.style.height = `${safeHeight * 100}%`;
             const style = element.style || {};
-            if (style.color) {
-                node.style.color = style.color;
+            node.style.color = style.color || '';
+            node.style.background = style.background || '';
+            if (style.fontSize != null && style.fontSize !== '') {
+                node.style.fontSize = typeof style.fontSize === 'number' ? `${style.fontSize}px` : String(style.fontSize);
+            } else {
+                node.style.fontSize = '';
             }
-            if (style.background) {
-                node.style.background = style.background;
-            }
-            if (style.fontSize) {
-                node.style.fontSize = `${style.fontSize}px`;
-            }
-            if (style.textAlign) {
-                node.style.textAlign = style.textAlign;
-            }
-            if (style.fontWeight) {
-                node.style.fontWeight = style.fontWeight;
-            }
+            node.style.textAlign = style.textAlign || '';
+            node.style.fontWeight = style.fontWeight || '';
             applyElementStyles(node, style);
             const bindingValue = resolvePath(this.state.data, element.binding?.path);
             const fallback = element.binding?.fallback ?? element.content?.text ?? '';
