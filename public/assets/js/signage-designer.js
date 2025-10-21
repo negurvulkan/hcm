@@ -3,6 +3,7 @@
 
     const DEFAULT_CANVAS_WIDTH = 1920;
     const DEFAULT_CANVAS_HEIGHT = 1080;
+    const CANVAS_ASPECT_RATIO = DEFAULT_CANVAS_HEIGHT / DEFAULT_CANVAS_WIDTH;
 
     function deepClone(value) {
         return JSON.parse(JSON.stringify(value));
@@ -179,6 +180,16 @@
         return trimmed;
     }
 
+    function formatPercent(value) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
+            return '0%';
+        }
+        const normalized = Math.max(0, Math.min(2, value));
+        const percent = normalized * 100;
+        const rounded = Math.round(percent * 10) / 10;
+        return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+    }
+
     class SignageApp {
         constructor(root, config) {
             this.root = root;
@@ -209,6 +220,8 @@
                 status: document.querySelector('[data-signage-status]'),
                 canvas: document.querySelector('[data-signage-canvas]'),
                 canvasInner: document.querySelector('[data-signage-canvas-inner]'),
+                canvasViewport: document.querySelector('[data-signage-canvas-viewport]'),
+                canvasStage: document.querySelector('[data-signage-canvas-stage]'),
                 guides: document.querySelector('[data-signage-guides]'),
                 timeline: document.querySelector('[data-signage-timeline]'),
                 layers: document.querySelector('[data-signage-layers]'),
@@ -218,6 +231,7 @@
                 palette: document.querySelector('[data-signage-palette]'),
                 displays: document.querySelector('[data-signage-displays]'),
                 playlists: document.querySelector('[data-signage-playlists]'),
+                zoomValue: document.querySelector('[data-signage-zoom-value]'),
                 modal: document.getElementById('signageModal'),
                 modalTitle: document.querySelector('[data-signage-modal-title]'),
                 modalBody: document.querySelector('[data-signage-modal-body]'),
@@ -231,11 +245,19 @@
             this.renderDisplays();
             this.renderPlaylists();
 
+            this.canvasScale = 1;
+            this.minCanvasScale = 0.5;
+            this.maxCanvasScale = 2;
+            this.baseCanvasWidth = null;
+
             if (this.layouts.length > 0) {
                 this.selectLayout(this.layouts[0].id);
             } else {
                 this.updateStatus('');
             }
+
+            this.applyCanvasScale();
+            this.updateZoomLabel();
         }
 
         bindGlobalActions() {
@@ -386,18 +408,36 @@
             }
 
             document.addEventListener('keydown', (event) => {
-                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+                const ctrlOrMeta = event.ctrlKey || event.metaKey;
+                const key = event.key;
+                if (ctrlOrMeta && key.toLowerCase() === 's') {
                     event.preventDefault();
                     this.saveLayout();
                 }
-                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+                if (ctrlOrMeta && key.toLowerCase() === 'z') {
                     event.preventDefault();
                     this.undo();
                 }
-                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+                if (ctrlOrMeta && key.toLowerCase() === 'y') {
                     event.preventDefault();
                     this.redo();
                 }
+                if (ctrlOrMeta && (key === '+' || key === '=')) {
+                    event.preventDefault();
+                    this.adjustCanvasScale(0.1);
+                }
+                if (ctrlOrMeta && (key === '-' || key === '_')) {
+                    event.preventDefault();
+                    this.adjustCanvasScale(-0.1);
+                }
+                if (ctrlOrMeta && key === '0') {
+                    event.preventDefault();
+                    this.resetCanvasScale();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                this.applyCanvasScale();
             });
         }
 
@@ -450,6 +490,15 @@
                     break;
                 case 'add-scene':
                     this.addScene();
+                    break;
+                case 'zoom-in':
+                    this.adjustCanvasScale(0.1);
+                    break;
+                case 'zoom-out':
+                    this.adjustCanvasScale(-0.1);
+                    break;
+                case 'zoom-fit':
+                    this.resetCanvasScale();
                     break;
                 default:
                     break;
@@ -559,6 +608,8 @@
             this.renderBindings();
             this.renderContent();
             this.renderStyles();
+            this.applyCanvasScale();
+            this.updateZoomLabel();
         }
 
         renderCanvas() {
@@ -589,6 +640,97 @@
                 this.attachElementEvents(node, element);
                 this.dom.canvasInner.appendChild(node);
             });
+        }
+
+        applyCanvasScale() {
+            if (!this.dom.canvasStage || !this.dom.canvasViewport) {
+                return;
+            }
+            const viewport = this.dom.canvasViewport;
+            const previousRect = this.dom.canvasStage.getBoundingClientRect();
+            const previousWidth = previousRect.width || 0;
+            const previousHeight = previousRect.height || 0;
+            const centerX = previousWidth ? (viewport.scrollLeft + (viewport.clientWidth / 2)) / previousWidth : 0.5;
+            const centerY = previousHeight ? (viewport.scrollTop + (viewport.clientHeight / 2)) / previousHeight : 0.5;
+            const viewportRect = viewport.getBoundingClientRect();
+            let baseWidth = viewportRect.width;
+            if (!baseWidth || Number.isNaN(baseWidth)) {
+                baseWidth = this.baseCanvasWidth || 0;
+            }
+            if (!baseWidth || Number.isNaN(baseWidth)) {
+                const canvasRect = this.dom.canvas ? this.dom.canvas.getBoundingClientRect() : null;
+                baseWidth = canvasRect && canvasRect.width ? Math.max(320, canvasRect.width - 32) : DEFAULT_CANVAS_WIDTH / 2;
+            }
+            this.baseCanvasWidth = baseWidth;
+            const scale = typeof this.canvasScale === 'number' && Number.isFinite(this.canvasScale)
+                ? this.canvasScale
+                : 1;
+            const width = baseWidth * scale;
+            const height = width * CANVAS_ASPECT_RATIO;
+            this.dom.canvasStage.style.width = `${width}px`;
+            this.dom.canvasStage.style.height = `${height}px`;
+            if (this.dom.guides) {
+                this.dom.guides.style.width = '100%';
+                this.dom.guides.style.height = '100%';
+            }
+            window.requestAnimationFrame(() => {
+                const stageRect = this.dom.canvasStage.getBoundingClientRect();
+                const nextWidth = stageRect.width || width;
+                const nextHeight = stageRect.height || height;
+                if (nextWidth && Number.isFinite(centerX)) {
+                    const targetLeft = (nextWidth * centerX) - (viewport.clientWidth / 2);
+                    viewport.scrollLeft = Math.max(0, targetLeft);
+                }
+                if (nextHeight && Number.isFinite(centerY)) {
+                    const targetTop = (nextHeight * centerY) - (viewport.clientHeight / 2);
+                    viewport.scrollTop = Math.max(0, targetTop);
+                }
+            });
+        }
+
+        setCanvasScale(scale) {
+            const numeric = typeof scale === 'number' ? scale : toNumber(scale);
+            if (numeric === null || Number.isNaN(numeric)) {
+                return;
+            }
+            const clamped = clampNumber(numeric, this.minCanvasScale, this.maxCanvasScale);
+            if (!Number.isFinite(clamped)) {
+                return;
+            }
+            const normalized = Math.round(clamped * 100) / 100;
+            const finalScale = clampNumber(normalized, this.minCanvasScale, this.maxCanvasScale);
+            this.canvasScale = finalScale;
+            this.applyCanvasScale();
+            this.updateZoomLabel();
+        }
+
+        adjustCanvasScale(step) {
+            const current = typeof this.canvasScale === 'number' && Number.isFinite(this.canvasScale)
+                ? this.canvasScale
+                : 1;
+            this.setCanvasScale(current + step);
+        }
+
+        resetCanvasScale() {
+            this.setCanvasScale(1);
+        }
+
+        updateZoomLabel() {
+            if (!this.dom.zoomValue) {
+                return;
+            }
+            const scale = typeof this.canvasScale === 'number' && Number.isFinite(this.canvasScale)
+                ? this.canvasScale
+                : 1;
+            const percent = Math.round(scale * 1000) / 10;
+            const display = Number.isInteger(percent) ? `${percent}%` : `${percent.toFixed(1)}%`;
+            this.dom.zoomValue.textContent = display;
+            if (typeof this.dom.zoomValue.setAttribute === 'function') {
+                this.dom.zoomValue.setAttribute(
+                    'title',
+                    this.translate('signage.designer.zoom_label', { value: display })
+                );
+            }
         }
 
         positionElementNode(node, element) {
@@ -912,10 +1054,26 @@
                 }
                 const row = document.createElement('div');
                 row.className = 'd-flex align-items-center justify-content-between mb-2 signage-layer-row';
+                if (String(element.id) === String(this.selectedElementId)) {
+                    row.classList.add('is-active');
+                }
+                const position = element.position || {};
+                const metaPosition = this.translate('signage.layers.meta_position', {
+                    x: formatPercent(position.x ?? 0),
+                    y: formatPercent(position.y ?? 0),
+                });
+                const metaSize = this.translate('signage.layers.meta_size', {
+                    width: formatPercent(position.width ?? 0),
+                    height: formatPercent(position.height ?? 0),
+                });
                 row.innerHTML = `
                     <div class="flex-grow-1">
                         <button type="button" class="btn btn-link btn-sm p-0" data-layer-action="select" data-element-id="${escapeAttr(element.id)}">${escapeHtml(element.label || element.type || 'Element')}</button>
                         <span class="badge bg-light text-dark ms-2">${escapeHtml(element.type || '')}</span>
+                        <div class="signage-layer-row__meta">
+                            <span>${escapeHtml(metaPosition)}</span>
+                            <span>${escapeHtml(metaSize)}</span>
+                        </div>
                     </div>
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-secondary" type="button" data-layer-action="layer-up" data-element-id="${escapeAttr(element.id)}">▲</button>

@@ -1384,6 +1384,10 @@ return [
             'meta_placeholder' => 'Version & Stand werden nach Auswahl angezeigt.',
             'meta' => 'Version {version} · Aktualisiert {updated}',
             'select_prompt' => 'Layout wählen oder neues Element hinzufügen, um den Editor zu starten.',
+            'zoom_in' => 'Vergrößern',
+            'zoom_out' => 'Verkleinern',
+            'zoom_fit' => 'Ansicht anpassen',
+            'zoom_label' => 'Zoom: {value}',
         ],
         'timeline' => [
             'title' => 'Timeline & Szenen',
@@ -1405,6 +1409,8 @@ return [
         ],
         'layers' => [
             'title' => 'Ebenen',
+            'meta_position' => 'Position: {x} × {y}',
+            'meta_size' => 'Größe: {width} × {height}',
         ],
         'content' => [
             'title' => 'Inhalt',
