@@ -1514,6 +1514,7 @@ return [
             'assign' => 'Assign layout',
             'assign_title' => 'Assign layout / playlist',
             'create_title' => 'Register display',
+            'edit_title' => 'Edit display',
             'last_seen' => 'Last heartbeat: {time}',
             'never' => 'never',
             'form' => [

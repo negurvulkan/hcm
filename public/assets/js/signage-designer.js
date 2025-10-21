@@ -239,12 +239,18 @@
         }
 
         bindGlobalActions() {
-            const actionButtons = document.querySelectorAll('[data-signage-action]');
-            actionButtons.forEach((button) => {
-                button.addEventListener('click', (event) => {
-                    const action = event.currentTarget.getAttribute('data-signage-action');
-                    this.handleAction(action, event.currentTarget);
-                });
+            document.addEventListener('click', (event) => {
+                const target = event.target instanceof Element
+                    ? event.target.closest('[data-signage-action]')
+                    : null;
+                if (!target) {
+                    return;
+                }
+                const action = target.getAttribute('data-signage-action');
+                if (!action) {
+                    return;
+                }
+                this.handleAction(action, target);
             });
 
             if (this.dom.searchInput) {
@@ -417,6 +423,9 @@
                     break;
                 case 'create-display':
                     this.promptCreateDisplay();
+                    break;
+                case 'edit-display':
+                    this.promptEditDisplay(button?.getAttribute('data-display-id'));
                     break;
                 case 'delete-display':
                     this.confirmDeleteDisplay(button?.getAttribute('data-display-id'));
@@ -1788,6 +1797,89 @@
             });
         }
 
+        promptEditDisplay(displayId) {
+            if (!displayId) {
+                return;
+            }
+            const display = this.displays.find((item) => String(item.id) === String(displayId));
+            if (!display) {
+                return;
+            }
+            const body = document.createElement('div');
+            body.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">${escapeHtml(this.translate('signage.displays.form.name'))}</label>
+                    <input type="text" class="form-control" data-field="name" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${escapeHtml(this.translate('signage.displays.form.group'))}</label>
+                    <input type="text" class="form-control" data-field="display_group">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${escapeHtml(this.translate('signage.displays.form.location'))}</label>
+                    <input type="text" class="form-control" data-field="location">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${escapeHtml(this.translate('signage.displays.form.description'))}</label>
+                    <textarea class="form-control" data-field="description" rows="3"></textarea>
+                </div>
+            `;
+
+            const nameField = body.querySelector('[data-field="name"]');
+            const groupField = body.querySelector('[data-field="display_group"]');
+            const locationField = body.querySelector('[data-field="location"]');
+            const descriptionField = body.querySelector('[data-field="description"]');
+            if (nameField) {
+                nameField.value = display.name || '';
+            }
+            if (groupField) {
+                groupField.value = display.display_group || 'default';
+            }
+            if (locationField) {
+                locationField.value = display.location || '';
+            }
+            if (descriptionField) {
+                descriptionField.value = display.description || '';
+            }
+
+            this.openModal({
+                title: this.translate('signage.displays.edit_title'),
+                body,
+                onSave: () => {
+                    const name = nameField ? nameField.value.trim() : '';
+                    const group = groupField ? groupField.value.trim() : '';
+                    const location = locationField ? locationField.value.trim() : '';
+                    const description = descriptionField ? descriptionField.value.trim() : '';
+                    if (!name) {
+                        if (nameField) {
+                            nameField.classList.add('is-invalid');
+                            nameField.focus();
+                        }
+                        return;
+                    }
+                    this.api('update_display', {
+                        id: Number(displayId),
+                        name,
+                        display_group: group,
+                        location,
+                        description,
+                    }).then((response) => {
+                        if (response?.display) {
+                            const index = this.displays.findIndex((item) => item.id === response.display.id);
+                            if (index !== -1) {
+                                this.displays[index] = response.display;
+                            }
+                            this.renderDisplays();
+                        }
+                        this.closeModal();
+                    }).catch((error) => {
+                        console.error(error);
+                        this.updateStatus(this.translate('signage.status.error'));
+                    });
+                },
+            });
+        }
+
         confirmDeleteDisplay(displayId) {
             if (!displayId) {
                 return;
@@ -1880,6 +1972,7 @@
                                 <div class="text-muted small">${escapeHtml(display.display_group || 'default')}</div>
                             </div>
                             <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-signage-action="edit-display" data-display-id="${escapeAttr(display.id)}">${escapeHtml(this.translate('signage.actions.edit'))}</button>
                                 <button class="btn btn-sm btn-outline-secondary" type="button" data-signage-action="assign-layout" data-display-id="${escapeAttr(display.id)}">${escapeHtml(this.translate('signage.displays.assign'))}</button>
                                 <button class="btn btn-sm btn-outline-danger" type="button" data-signage-action="delete-display" data-display-id="${escapeAttr(display.id)}">🗑</button>
                             </div>

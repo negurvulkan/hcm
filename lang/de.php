@@ -1516,6 +1516,7 @@ return [
             'assign' => 'Layout zuweisen',
             'assign_title' => 'Layout / Playlist zuweisen',
             'create_title' => 'Display registrieren',
+            'edit_title' => 'Display bearbeiten',
             'last_seen' => 'Letzter Kontakt: {time}',
             'never' => 'noch nie',
             'form' => [
