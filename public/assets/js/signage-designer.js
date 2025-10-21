@@ -439,7 +439,13 @@
                     height: rect.height / canvasRect.height,
                 };
                 const pointerId = event.pointerId;
-                node.setPointerCapture(pointerId);
+                if (typeof node.setPointerCapture === 'function') {
+                    try {
+                        node.setPointerCapture(pointerId);
+                    } catch (error) {
+                        console.warn('Failed to capture pointer', error);
+                    }
+                }
                 this.beginMutation();
                 const handleMove = (moveEvent) => {
                     if (moveEvent.pointerId !== pointerId) {
@@ -463,7 +469,13 @@
                     if (upEvent.pointerId !== pointerId) {
                         return;
                     }
-                    node.releasePointerCapture(pointerId);
+                    if (typeof node.releasePointerCapture === 'function') {
+                        try {
+                            node.releasePointerCapture(pointerId);
+                        } catch (error) {
+                            console.warn('Failed to release pointer capture', error);
+                        }
+                    }
                     window.removeEventListener('pointermove', handleMove);
                     window.removeEventListener('pointerup', handleUp);
                     this.updateGuides(null, null);
@@ -501,7 +513,13 @@
                     width: rect.width / canvasRect.width,
                     height: rect.height / canvasRect.height,
                 };
-                node.setPointerCapture(pointerId);
+                if (typeof node.setPointerCapture === 'function') {
+                    try {
+                        node.setPointerCapture(pointerId);
+                    } catch (error) {
+                        console.warn('Failed to capture pointer', error);
+                    }
+                }
                 this.beginMutation();
                 const handleMove = (moveEvent) => {
                     if (moveEvent.pointerId !== pointerId) {
@@ -531,7 +549,13 @@
                     if (upEvent.pointerId !== pointerId) {
                         return;
                     }
-                    node.releasePointerCapture(pointerId);
+                    if (typeof node.releasePointerCapture === 'function') {
+                        try {
+                            node.releasePointerCapture(pointerId);
+                        } catch (error) {
+                            console.warn('Failed to release pointer capture', error);
+                        }
+                    }
                     window.removeEventListener('pointermove', handleMove);
                     window.removeEventListener('pointerup', handleUp);
                     this.finalizeMutation();
