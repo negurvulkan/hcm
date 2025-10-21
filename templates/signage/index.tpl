@@ -254,7 +254,7 @@
     </div>
 </div>
 
-<div id="signage-app" data-signage-config="<?= $configJson ?>" hidden></div>
+<div id="signage-app" data-signage-config="<?= htmlspecialchars($configJson, ENT_QUOTES, 'UTF-8') ?>" hidden></div>
 
 <div class="modal fade" id="signageModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
