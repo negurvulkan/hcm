@@ -27,6 +27,158 @@
         }
     }
 
+    const STYLE_FIELD_CONFIG = {
+        fontSize: {
+            type: 'number',
+            labelKey: 'signage.styles.font_size',
+            attrs: { min: 8, max: 200, step: 1 },
+            getDefault: (element) => (element.type === 'ticker' ? 28 : 32),
+        },
+        color: {
+            type: 'color',
+            labelKey: 'signage.styles.color',
+            default: '#ffffff',
+        },
+        background: {
+            type: 'text',
+            labelKey: 'signage.styles.background',
+            placeholderKey: 'signage.styles.background_placeholder',
+        },
+        textAlign: {
+            type: 'select',
+            labelKey: 'signage.styles.align',
+            options: [
+                { value: 'left', labelKey: 'signage.styles.align_left' },
+                { value: 'center', labelKey: 'signage.styles.align_center' },
+                { value: 'right', labelKey: 'signage.styles.align_right' },
+            ],
+            default: 'left',
+        },
+        fontWeight: {
+            type: 'select',
+            labelKey: 'signage.styles.font_weight',
+            options: [
+                { value: '', labelKey: 'signage.styles.font_weight_default' },
+                { value: '400', labelKey: 'signage.styles.font_weight_regular' },
+                { value: '500', labelKey: 'signage.styles.font_weight_medium' },
+                { value: '600', labelKey: 'signage.styles.font_weight_semibold' },
+                { value: '700', labelKey: 'signage.styles.font_weight_bold' },
+                { value: '800', labelKey: 'signage.styles.font_weight_black' },
+            ],
+            allowEmpty: true,
+        },
+        textTransform: {
+            type: 'select',
+            labelKey: 'signage.styles.transform',
+            options: [
+                { value: '', labelKey: 'signage.styles.transform_default' },
+                { value: 'uppercase', labelKey: 'signage.styles.transform_uppercase' },
+                { value: 'lowercase', labelKey: 'signage.styles.transform_lowercase' },
+                { value: 'capitalize', labelKey: 'signage.styles.transform_capitalize' },
+            ],
+            allowEmpty: true,
+        },
+        lineHeight: {
+            type: 'number',
+            labelKey: 'signage.styles.line_height',
+            attrs: { min: 0.6, max: 4, step: 0.1 },
+        },
+        letterSpacing: {
+            type: 'number',
+            labelKey: 'signage.styles.letter_spacing',
+            attrs: { min: -20, max: 40, step: 0.5 },
+        },
+        padding: {
+            type: 'number',
+            labelKey: 'signage.styles.padding',
+            attrs: { min: 0, max: 200, step: 1 },
+        },
+        borderRadius: {
+            type: 'number',
+            labelKey: 'signage.styles.border_radius',
+            attrs: { min: 0, max: 200, step: 1 },
+        },
+        boxShadow: {
+            type: 'text',
+            labelKey: 'signage.styles.shadow',
+            placeholderKey: 'signage.styles.shadow_placeholder',
+        },
+        opacity: {
+            type: 'number',
+            labelKey: 'signage.styles.opacity',
+            attrs: { min: 0, max: 1, step: 0.05 },
+            default: 1,
+        },
+    };
+
+    const STYLE_SECTIONS = [
+        {
+            key: 'typography',
+            labelKey: 'signage.styles.section_typography',
+            types: ['text', 'ticker', 'live', 'list', 'table'],
+            fields: ['fontSize', 'color', 'fontWeight', 'textAlign', 'textTransform', 'lineHeight', 'letterSpacing'],
+        },
+        {
+            key: 'surface',
+            labelKey: 'signage.styles.section_surface',
+            types: null,
+            fields: ['background', 'padding', 'borderRadius'],
+        },
+        {
+            key: 'effects',
+            labelKey: 'signage.styles.section_effects',
+            types: null,
+            fields: ['boxShadow', 'opacity'],
+        },
+    ];
+
+    function clampNumber(value, min, max) {
+        let next = value;
+        if (typeof min === 'number') {
+            next = Math.max(min, next);
+        }
+        if (typeof max === 'number') {
+            next = Math.min(max, next);
+        }
+        return next;
+    }
+
+    function toNumber(value) {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : null;
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed === '') {
+                return null;
+            }
+            const parsed = Number(trimmed);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+        return null;
+    }
+
+    function formatCssDimension(value, unit = 'px') {
+        if (value === '' || value === null || value === undefined) {
+            return '';
+        }
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? `${value}${unit}` : '';
+        }
+        const trimmed = String(value).trim();
+        if (trimmed === '') {
+            return '';
+        }
+        if (!unit) {
+            return trimmed;
+        }
+        const numeric = Number(trimmed);
+        if (!Number.isNaN(numeric)) {
+            return `${numeric}${unit}`;
+        }
+        return trimmed;
+    }
+
     class SignageApp {
         constructor(root, config) {
             this.root = root;
@@ -159,7 +311,7 @@
                     if (!field) {
                         return;
                     }
-                    this.updateElementStyle(field, target.value);
+                    this.updateElementStyle(field, target.value, target);
                 });
             }
 
@@ -373,6 +525,7 @@
                 node.dataset.signageElement = element.id;
                 node.tabIndex = 0;
                 this.positionElementNode(node, element);
+                this.applyElementPreviewStyles(node, element);
                 node.innerHTML = this.renderElementPreview(element);
                 this.attachResizeHandle(node, element);
                 if (element.id === this.selectedElementId) {
@@ -396,15 +549,76 @@
             element.position = Object.assign({}, element.position, { x, y, width, height });
         }
 
+        getPreviewDefaults(element) {
+            const type = element?.type || 'text';
+            switch (type) {
+                case 'ticker':
+                    return {
+                        fontSize: 28,
+                        color: '#ffffff',
+                        textAlign: 'left',
+                        padding: '0',
+                        background: 'rgba(15, 23, 42, 0.75)',
+                        opacity: 1,
+                    };
+                case 'text':
+                case 'live':
+                case 'list':
+                case 'table':
+                    return {
+                        fontSize: 32,
+                        color: '#ffffff',
+                        textAlign: 'left',
+                        padding: '0.75rem 1rem',
+                        background: 'rgba(15, 23, 42, 0.45)',
+                        opacity: 1,
+                    };
+                default:
+                    return {
+                        fontSize: 28,
+                        color: '#ffffff',
+                        textAlign: 'left',
+                        padding: '0',
+                        background: 'rgba(15, 23, 42, 0.35)',
+                        opacity: 1,
+                    };
+            }
+        }
+
+        applyElementPreviewStyles(node, element) {
+            if (!node) {
+                return;
+            }
+            const style = element.style || {};
+            const defaults = this.getPreviewDefaults(element);
+            const fontSize = style.fontSize != null ? style.fontSize : defaults.fontSize;
+            node.style.fontSize = fontSize != null ? formatCssDimension(fontSize, 'px') : '';
+            node.style.color = style.color || defaults.color || '';
+            node.style.textAlign = style.textAlign || defaults.textAlign || '';
+            node.style.fontWeight = style.fontWeight || '';
+            node.style.textTransform = style.textTransform || '';
+            node.style.lineHeight = style.lineHeight != null ? String(style.lineHeight) : '';
+            const letterSpacing = style.letterSpacing != null ? formatCssDimension(style.letterSpacing, 'px') : '';
+            node.style.letterSpacing = letterSpacing;
+            const paddingValue = style.padding != null ? formatCssDimension(style.padding, 'px') : defaults.padding || '';
+            node.style.padding = paddingValue;
+            const backgroundValue = style.background || defaults.background || '';
+            node.style.background = backgroundValue;
+            node.style.boxShadow = style.boxShadow || '';
+            node.style.borderRadius = style.borderRadius != null ? formatCssDimension(style.borderRadius, 'px') : '';
+            if (style.opacity != null) {
+                const parsed = toNumber(style.opacity);
+                node.style.opacity = parsed !== null ? String(clampNumber(parsed, 0, 1)) : '';
+            } else {
+                node.style.opacity = defaults.opacity != null ? String(defaults.opacity) : '';
+            }
+        }
+
         renderElementPreview(element) {
             const type = element.type || 'text';
-            const style = element.style || {};
             const content = element.content || {};
             if (type === 'text' || type === 'ticker') {
-                const fontSize = style.fontSize ? `${style.fontSize}px` : '28px';
-                const color = style.color || '#ffffff';
-                const align = style.textAlign || 'left';
-                return `<div class="signage-element-preview" style="color:${escapeAttr(color)};font-size:${escapeAttr(fontSize)};text-align:${escapeAttr(align)};padding:0.5rem;">${escapeHtml(content.text || this.translate('signage.preview.sample_text'))}</div>`;
+                return `<div class="signage-element-preview signage-element-preview--text">${escapeHtml(content.text || this.translate('signage.preview.sample_text'))}</div>`;
             }
             if (type === 'image') {
                 const src = content.src || '';
@@ -692,26 +906,116 @@
                 return;
             }
             const style = element.style || {};
-            const commonControls = `
-                <div class="mb-2">
-                    <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.styles.font_size'))}</label>
-                    <input type="number" class="form-control form-control-sm" value="${escapeAttr(style.fontSize || 32)}" data-style-field="fontSize">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.styles.color'))}</label>
-                    <input type="color" class="form-control form-control-color" value="${escapeAttr(style.color || '#ffffff')}" data-style-field="color">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label form-label-sm">${escapeHtml(this.translate('signage.styles.align'))}</label>
-                    <select class="form-select form-select-sm" data-style-field="textAlign">
-                        ${['left', 'center', 'right'].map((value) => `<option value="${value}" ${value === (style.textAlign || 'left') ? 'selected' : ''}>${escapeHtml(this.translate('signage.styles.align_' + value))}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-            if (element.type === 'text' || element.type === 'ticker') {
-                this.dom.styles.innerHTML = commonControls;
-            } else {
-                this.dom.styles.innerHTML = `<p class="text-muted small mb-2">${escapeHtml(this.translate('signage.styles.generic_hint'))}</p>` + commonControls;
+            const sections = STYLE_SECTIONS.filter((section) => {
+                if (!Array.isArray(section.fields) || section.fields.length === 0) {
+                    return false;
+                }
+                if (!section.types) {
+                    return true;
+                }
+                const type = element.type || 'text';
+                return section.types.includes(type);
+            });
+            const markup = sections
+                .map((section) => {
+                    const controls = section.fields
+                        .map((fieldKey) => this.renderStyleControl(fieldKey, element, style))
+                        .filter(Boolean)
+                        .join('');
+                    if (!controls) {
+                        return '';
+                    }
+                    return `
+                        <div class="mb-3">
+                            <div class="fw-semibold text-uppercase small text-muted mb-2">${escapeHtml(this.translate(section.labelKey))}</div>
+                            ${controls}
+                        </div>
+                    `;
+                })
+                .filter(Boolean)
+                .join('');
+            if (!markup) {
+                this.dom.styles.innerHTML = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.styles.generic_hint'))}</p>`;
+                return;
+            }
+            let hint = '';
+            if (!['text', 'ticker'].includes(element.type || '')) {
+                hint = `<p class="text-muted small mb-0">${escapeHtml(this.translate('signage.styles.generic_hint'))}</p>`;
+            }
+            this.dom.styles.innerHTML = `${markup}${hint}`;
+        }
+
+        renderStyleControl(fieldKey, element, style) {
+            const config = STYLE_FIELD_CONFIG[fieldKey];
+            if (!config) {
+                return '';
+            }
+            const label = this.translate(config.labelKey || fieldKey);
+            let value = style[fieldKey];
+            if (value === undefined || value === null || value === '') {
+                if (typeof config.getDefault === 'function') {
+                    value = config.getDefault(element, style);
+                } else if (config.default !== undefined) {
+                    value = config.default;
+                } else {
+                    value = '';
+                }
+            }
+            const attrs = Object.entries(config.attrs || {})
+                .map(([key, attrValue]) => `${key}="${escapeAttr(attrValue)}"`)
+                .join(' ');
+            const attributeString = attrs ? ` ${attrs}` : '';
+            switch (config.type) {
+                case 'number': {
+                    const stringValue = value === '' || value === null || value === undefined ? '' : String(value);
+                    return `
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">${escapeHtml(label)}</label>
+                            <input type="number" class="form-control form-control-sm" value="${escapeAttr(stringValue)}"${attributeString} data-style-field="${escapeAttr(fieldKey)}">
+                        </div>
+                    `;
+                }
+                case 'color': {
+                    const colorValue = typeof value === 'string' && value ? value : (config.default || '#ffffff');
+                    return `
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">${escapeHtml(label)}</label>
+                            <input type="color" class="form-control form-control-color" value="${escapeAttr(colorValue)}" data-style-field="${escapeAttr(fieldKey)}">
+                        </div>
+                    `;
+                }
+                case 'select': {
+                    const selectedValue = value === null || value === undefined ? '' : String(value);
+                    const options = (config.options || [])
+                        .map((option) => {
+                            const optionValue = option && typeof option === 'object' ? option.value : option;
+                            const optionLabelKey = option && typeof option === 'object' && option.labelKey ? option.labelKey : optionValue;
+                            const optionLabel = this.translate(optionLabelKey);
+                            const isSelected = String(optionValue ?? '') === selectedValue ? ' selected' : '';
+                            const safeValue = optionValue === undefined || optionValue === null ? '' : optionValue;
+                            return `<option value="${escapeAttr(safeValue)}"${isSelected}>${escapeHtml(optionLabel)}</option>`;
+                        })
+                        .join('');
+                    return `
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">${escapeHtml(label)}</label>
+                            <select class="form-select form-select-sm" data-style-field="${escapeAttr(fieldKey)}">
+                                ${options}
+                            </select>
+                        </div>
+                    `;
+                }
+                default: {
+                    const stringValue = value === null || value === undefined ? '' : String(value);
+                    const placeholder = config.placeholderKey ? this.translate(config.placeholderKey) : '';
+                    const placeholderAttr = placeholder ? ` placeholder="${escapeAttr(placeholder)}"` : '';
+                    return `
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">${escapeHtml(label)}</label>
+                            <input type="text" class="form-control form-control-sm" value="${escapeAttr(stringValue)}"${placeholderAttr} data-style-field="${escapeAttr(fieldKey)}" spellcheck="false" autocomplete="off">
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -881,17 +1185,62 @@
             this.renderCanvas();
         }
 
-        updateElementStyle(field, value) {
+        updateElementStyle(field, value, inputNode = null) {
             const element = this.getSelectedElement();
             if (!element) {
                 return;
             }
+            const config = STYLE_FIELD_CONFIG[field] || null;
             this.beginMutation();
             const style = Object.assign({}, element.style || {});
-            style[field] = field === 'fontSize' ? Number(value) : value;
+            let sanitizedValue = null;
+            let shouldUnset = false;
+            if (config && config.type === 'number') {
+                const parsed = toNumber(value);
+                if (parsed === null) {
+                    shouldUnset = true;
+                } else {
+                    const min = typeof config.attrs?.min === 'number' ? config.attrs.min : undefined;
+                    const max = typeof config.attrs?.max === 'number' ? config.attrs.max : undefined;
+                    const clamped = clampNumber(parsed, min, max);
+                    sanitizedValue = Number.isFinite(clamped) ? clamped : parsed;
+                }
+            } else if (config && config.type === 'color') {
+                sanitizedValue = typeof value === 'string' && value.trim() !== '' ? value : config.default || '#ffffff';
+            } else if (config && config.type === 'select') {
+                const normalized = typeof value === 'string' ? value : '';
+                if (normalized === '' && config.allowEmpty) {
+                    shouldUnset = true;
+                } else {
+                    sanitizedValue = normalized;
+                }
+            } else {
+                const normalized = typeof value === 'string' ? value.trim() : '';
+                if (normalized === '') {
+                    shouldUnset = true;
+                } else {
+                    sanitizedValue = normalized;
+                }
+            }
+            if (shouldUnset) {
+                delete style[field];
+            } else if (sanitizedValue !== null && sanitizedValue !== undefined) {
+                style[field] = sanitizedValue;
+            }
             element.style = style;
             this.finalizeMutation();
             this.renderCanvas();
+            if (inputNode) {
+                if (shouldUnset) {
+                    inputNode.value = '';
+                } else if (sanitizedValue !== null && sanitizedValue !== undefined) {
+                    if (config && config.type === 'number') {
+                        inputNode.value = String(sanitizedValue);
+                    } else {
+                        inputNode.value = String(sanitizedValue);
+                    }
+                }
+            }
         }
 
         updateElementBinding(field, value) {
