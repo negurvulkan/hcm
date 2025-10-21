@@ -35,6 +35,9 @@ render_page('signage/index.tpl', [
     'displays' => $displays,
     'playlists' => $playlists,
     'designerConfig' => $designerConfig,
-    'extraStyles' => ['public/assets/css/signage.css'],
+    'extraStyles' => [
+        'public/assets/vendor/bootstrap-icons/font/bootstrap-icons.css',
+        'public/assets/css/signage.css',
+    ],
     'extraScripts' => ['public/assets/js/signage-designer.js'],
 ]);
