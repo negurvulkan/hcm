@@ -1,0 +1,275 @@
+:root {
+    --signage-bg: #0f172a;
+    --signage-text: #ffffff;
+    --signage-accent: #2f6bff;
+}
+
+body.signage-player-body {
+    margin: 0;
+    background: var(--signage-bg);
+    color: var(--signage-text);
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+}
+
+.signage-player-root {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: var(--signage-bg);
+    overflow: hidden;
+}
+
+.signage-player-scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+}
+
+.signage-player-scene.is-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.signage-player-element {
+    position: absolute;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    border-radius: 0.5rem;
+    box-sizing: border-box;
+}
+
+.signage-player-element--text {
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.signage-player-element--ticker {
+    padding: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.signage-player-ticker-track {
+    display: inline-flex;
+    gap: 3rem;
+    white-space: nowrap;
+    animation: signage-marquee 20s linear infinite;
+    padding-left: 100%;
+}
+
+.signage-player-element--image img,
+.signage-player-element--video video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.signage-player-element--video iframe,
+.signage-player-video-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
+.signage-player-element--live,
+.signage-player-element--table,
+.signage-player-element--list {
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.signage-player-live {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.signage-player-live__current {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.signage-player-live__label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    opacity: 0.75;
+}
+
+.signage-player-live__rider {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.65rem;
+    font-weight: 600;
+}
+
+.signage-player-live__horse {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+.signage-player-live__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: var(--signage-accent);
+    color: var(--signage-bg);
+}
+
+.signage-player-live__section-title {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    opacity: 0.7;
+}
+
+.signage-player-live__next {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.signage-player-live__next-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.signage-player-live__next-item {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.signage-player-live__leaderboard {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.signage-player-live__leaderboard-body {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.signage-player-live__leaderboard-row {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr 1fr minmax(4rem, auto);
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.signage-player-live__position {
+    font-weight: 600;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+}
+
+.signage-player-live__score {
+    justify-self: end;
+    font-weight: 600;
+}
+
+.signage-player-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.1rem;
+}
+
+.signage-player-table th,
+.signage-player-table td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+}
+
+.signage-player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.signage-player-list__item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.signage-player-list__title {
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.signage-player-list__meta {
+    font-size: 0.9rem;
+    opacity: 0.75;
+}
+
+.signage-player-clock {
+    font-size: 1.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.signage-player-error {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    background: #111827;
+    color: #f8fafc;
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.2rem;
+}
+
+@keyframes signage-marquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+@media (max-width: 768px) {
+    .signage-player-element--text,
+    .signage-player-element--ticker,
+    .signage-player-element--live,
+    .signage-player-element--table,
+    .signage-player-element--list {
+        font-size: 0.9rem;
+    }
+}
