@@ -1382,6 +1382,10 @@ return [
             'meta_placeholder' => 'Version & timestamp appear after selecting a layout.',
             'meta' => 'Version {version} · Updated {updated}',
             'select_prompt' => 'Select a layout or add a new element to start editing.',
+            'zoom_in' => 'Zoom in',
+            'zoom_out' => 'Zoom out',
+            'zoom_fit' => 'Fit to view',
+            'zoom_label' => 'Zoom: {value}',
         ],
         'timeline' => [
             'title' => 'Timeline & scenes',
@@ -1403,6 +1407,8 @@ return [
         ],
         'layers' => [
             'title' => 'Layers',
+            'meta_position' => 'Position: {x} × {y}',
+            'meta_size' => 'Size: {width} × {height}',
         ],
         'content' => [
             'title' => 'Content',

@@ -107,10 +107,20 @@
                 <div class="row g-3">
                     <div class="col-lg-8">
                         <div class="signage-designer__canvas" data-signage-canvas>
-                            <div class="signage-designer__canvas-inner" data-signage-canvas-inner>
-                                <div class="text-muted small text-center" data-signage-placeholder><?= htmlspecialchars(t('signage.designer.select_prompt'), ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="signage-zoom-controls" data-signage-zoom>
+                                <button class="btn btn-sm btn-outline-light" type="button" data-signage-action="zoom-out" title="<?= htmlspecialchars(t('signage.designer.zoom_out'), ENT_QUOTES, 'UTF-8') ?>" aria-label="<?= htmlspecialchars(t('signage.designer.zoom_out'), ENT_QUOTES, 'UTF-8') ?>">−</button>
+                                <span class="signage-zoom-controls__value" data-signage-zoom-value title="<?= htmlspecialchars(t('signage.designer.zoom_label', ['value' => '100%']), ENT_QUOTES, 'UTF-8') ?>">100%</span>
+                                <button class="btn btn-sm btn-outline-light" type="button" data-signage-action="zoom-in" title="<?= htmlspecialchars(t('signage.designer.zoom_in'), ENT_QUOTES, 'UTF-8') ?>" aria-label="<?= htmlspecialchars(t('signage.designer.zoom_in'), ENT_QUOTES, 'UTF-8') ?>">+</button>
+                                <button class="btn btn-sm btn-outline-light" type="button" data-signage-action="zoom-fit" title="<?= htmlspecialchars(t('signage.designer.zoom_fit'), ENT_QUOTES, 'UTF-8') ?>" aria-label="<?= htmlspecialchars(t('signage.designer.zoom_fit'), ENT_QUOTES, 'UTF-8') ?>">⤢</button>
                             </div>
-                            <div class="signage-designer__guides" data-signage-guides></div>
+                            <div class="signage-designer__canvas-viewport" data-signage-canvas-viewport>
+                                <div class="signage-designer__canvas-stage" data-signage-canvas-stage>
+                                    <div class="signage-designer__canvas-inner" data-signage-canvas-inner>
+                                        <div class="text-muted small text-center" data-signage-placeholder><?= htmlspecialchars(t('signage.designer.select_prompt'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    </div>
+                                    <div class="signage-designer__guides" data-signage-guides></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="signage-designer__timeline mt-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
