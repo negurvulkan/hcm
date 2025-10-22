@@ -476,6 +476,7 @@ return [
                     'person' => 'Person',
                     'period' => 'Zeitraum',
                     'status' => 'Status',
+                    'token' => 'Check-in-Token',
                     'actions' => 'Aktionen',
                 ],
                 'edit' => 'Bearbeiten',

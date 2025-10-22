@@ -9,6 +9,19 @@
 /** @var array|null $editRole */
 /** @var array|null $editShift */
 /** @var array $statusOptions */
+/** @var array $statusClasses */
+?>
+<?php
+$roleNames = [];
+foreach ($roles as $role) {
+    $roleNames[(int) $role['id']] = $role['name'];
+}
+$stationNames = [];
+foreach ($stations as $station) {
+    $stationNames[(int) $station['id']] = $station['name'];
+}
+$editRoleLabel = $editShift ? ($roleNames[(int) ($editShift['role_id'] ?? 0)] ?? '') : '';
+$editStationLabel = $editShift ? ($stationNames[(int) ($editShift['station_id'] ?? 0)] ?? '') : '';
 ?>
 <div class="row g-4">
     <div class="col-xxl-3">
@@ -86,22 +99,31 @@
                     <input type="hidden" name="action" value="<?= $editShift ? 'update_shift' : 'create_shift' ?>">
                     <input type="hidden" name="shift_id" value="<?= $editShift ? (int) $editShift['id'] : '' ?>">
                     <div class="col-md-4">
-                        <label class="form-label" for="shift-role"><?= htmlspecialchars(t('helpers.shifts.fields.role'), ENT_QUOTES, 'UTF-8') ?></label>
-                        <select class="form-select" id="shift-role" name="role_id" required>
-                            <option value=""><?= htmlspecialchars(t('helpers.shifts.placeholders.role'), ENT_QUOTES, 'UTF-8') ?></option>
+                        <label class="form-label" for="shift-role-input"><?= htmlspecialchars(t('helpers.shifts.fields.role'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="hidden" name="role_id" id="shift-role-id" value="<?= $editShift ? (int) $editShift['role_id'] : '' ?>">
+                        <input type="text" class="form-control" id="shift-role-input" value="<?= htmlspecialchars($editRoleLabel, ENT_QUOTES, 'UTF-8') ?>" list="shift-role-options" data-autocomplete-target="shift-role-id" placeholder="<?= htmlspecialchars(t('helpers.shifts.placeholders.role'), ENT_QUOTES, 'UTF-8') ?>" autocomplete="off">
+                        <datalist id="shift-role-options">
                             <?php foreach ($roles as $role): ?>
-                                <option value="<?= (int) $role['id'] ?>" <?= $editShift && (int) $editShift['role_id'] === (int) $role['id'] ? 'selected' : '' ?>><?= htmlspecialchars($role['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= htmlspecialchars($role['name'], ENT_QUOTES, 'UTF-8') ?>" data-id="<?= (int) $role['id'] ?>"></option>
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label" for="shift-station"><?= htmlspecialchars(t('helpers.shifts.fields.station'), ENT_QUOTES, 'UTF-8') ?></label>
-                        <select class="form-select" id="shift-station" name="station_id">
-                            <option value=""><?= htmlspecialchars(t('helpers.shifts.placeholders.station'), ENT_QUOTES, 'UTF-8') ?></option>
+                        <label class="form-label" for="shift-station-input"><?= htmlspecialchars(t('helpers.shifts.fields.station'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <input type="hidden" name="station_id" id="shift-station-id" value="<?= $editShift ? (int) ($editShift['station_id'] ?? 0) : '' ?>">
+                        <input type="text" class="form-control" id="shift-station-input" value="<?= htmlspecialchars($editStationLabel, ENT_QUOTES, 'UTF-8') ?>" list="shift-station-options" data-autocomplete-target="shift-station-id" placeholder="<?= htmlspecialchars(t('helpers.shifts.placeholders.station'), ENT_QUOTES, 'UTF-8') ?>" autocomplete="off">
+                        <datalist id="shift-station-options">
                             <?php foreach ($stations as $station): ?>
-                                <option value="<?= (int) $station['id'] ?>" <?= $editShift && (int) ($editShift['station_id'] ?? 0) === (int) $station['id'] ? 'selected' : '' ?>><?= htmlspecialchars($station['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <?php
+                                $stationLabel = (string) ($station['name'] ?? '');
+                                $stationEvent = trim((string) ($station['event_title'] ?? ''));
+                                if ($stationEvent !== '') {
+                                    $stationLabel .= ' · ' . $stationEvent;
+                                }
+                                ?>
+                                <option value="<?= htmlspecialchars($station['name'], ENT_QUOTES, 'UTF-8') ?>" data-id="<?= (int) $station['id'] ?>" label="<?= htmlspecialchars($stationLabel, ENT_QUOTES, 'UTF-8') ?>"></option>
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" for="shift-event"><?= htmlspecialchars(t('helpers.shifts.fields.event'), ENT_QUOTES, 'UTF-8') ?></label>
@@ -206,12 +228,20 @@
                             <th><?= htmlspecialchars(t('helpers.shifts.table.columns.person'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('helpers.shifts.table.columns.period'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('helpers.shifts.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('helpers.shifts.table.columns.token'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th class="text-end"><?= htmlspecialchars(t('helpers.shifts.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                         </tr>
                         </thead>
                         <tbody>
                         <?php foreach ($shifts as $shift): ?>
-                            <?php $status = $shift['status'] ?? 'open'; ?>
+                            <?php
+                            $status = $shift['status'] ?? 'open';
+                            $statusClass = $statusClasses[$status] ?? 'bg-secondary';
+                            $tokenValue = $shift['shift_token'] ?? '';
+                            if ($tokenValue === '' && !empty($shift['station_token'])) {
+                                $tokenValue = $shift['station_token'];
+                            }
+                            ?>
                             <tr>
                                 <td>
                                     <span class="badge rounded-pill" style="background-color: <?= htmlspecialchars($shift['role_color'] ?? '#6c757d', ENT_QUOTES, 'UTF-8') ?>">&nbsp;</span>
@@ -220,7 +250,14 @@
                                 <td><?= htmlspecialchars($shift['station_name'] ?? t('helpers.shifts.placeholders.station'), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($shift['person_name'] ?? t('helpers.shifts.placeholders.person'), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($shift['starts_at'] ? date('Y-m-d H:i', strtotime($shift['starts_at'])) : '–', ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars($shift['ends_at'] ? date('H:i', strtotime($shift['ends_at'])) : '–', ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($statusOptions[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?></span></td>
+                                <td><span class="badge <?= htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusOptions[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?></span></td>
+                                <td>
+                                    <?php if ($tokenValue): ?>
+                                        <code><?= htmlspecialchars($tokenValue, ENT_QUOTES, 'UTF-8') ?></code>
+                                    <?php else: ?>
+                                        <span class="text-muted">&ndash;</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-end">
                                     <div class="btn-group" role="group">
                                         <?php if ($status === 'open'): ?>
@@ -289,7 +326,7 @@
                         <?php endforeach; ?>
                         <?php if (!$shifts): ?>
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4"><?= htmlspecialchars(t('helpers.shifts.table.empty'), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td colspan="7" class="text-center text-muted py-4"><?= htmlspecialchars(t('helpers.shifts.table.empty'), ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         <?php endif; ?>
                         </tbody>

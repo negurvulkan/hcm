@@ -582,6 +582,7 @@ return [
                     'person' => 'Person',
                     'period' => 'Period',
                     'status' => 'Status',
+                    'token' => 'Check-in token',
                     'actions' => 'Actions',
                 ],
                 'edit' => 'Edit',
