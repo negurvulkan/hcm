@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Sync;
 
 use App\Services\InstanceConfiguration;
@@ -754,6 +755,19 @@ class SyncRepository
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(array_values($ids));
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($scope === 'events' && $rows !== []) {
+            require_once __DIR__ . '/../helpers/arenas.php';
+            $eventIds = array_map(static fn ($row) => (int) ($row[$idColumn] ?? 0), $rows);
+            $eventIds = array_values(array_unique(array_filter($eventIds)));
+            $assignments = $eventIds ? arenas_event_assignments($this->pdo, $eventIds) : [];
+            foreach ($rows as &$row) {
+                $eventId = (int) ($row[$idColumn] ?? 0);
+                $labels = array_map(static fn (array $assignment): string => (string) ($assignment['label'] ?? ''), $assignments[$eventId] ?? []);
+                $row['venues'] = $labels !== [] ? json_encode($labels, JSON_UNESCAPED_UNICODE) : null;
+            }
+            unset($row);
+        }
 
         $result = [];
         foreach ($rows as $row) {

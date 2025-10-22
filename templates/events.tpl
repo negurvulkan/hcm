@@ -25,8 +25,24 @@
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
-                        <label class="form-label"><?= htmlspecialchars(t('events.form.venues_label'), ENT_QUOTES, 'UTF-8') ?></label>
-                        <input type="text" name="venues" class="form-control" placeholder="<?= htmlspecialchars(t('events.form.venues_placeholder'), ENT_QUOTES, 'UTF-8') ?>" value="<?= htmlspecialchars(isset($editEvent['venues_list']) ? implode(', ', $editEvent['venues_list']) : '', ENT_QUOTES, 'UTF-8') ?>">
+                        <label class="form-label"><?= htmlspecialchars(t('events.form.arenas_label'), ENT_QUOTES, 'UTF-8') ?></label>
+                        <?php if (!empty($editEvent) && !empty($editEvent['arena_assignments'])): ?>
+                            <ul class="list-unstyled mb-0 small">
+                                <?php foreach ($editEvent['arena_assignments'] as $assignment): ?>
+                                    <li class="mb-2">
+                                        <div class="fw-semibold"><?= htmlspecialchars($assignment['label'], ENT_QUOTES, 'UTF-8') ?></div>
+                                        <?php if (!empty($assignment['summary'])): ?>
+                                            <div class="text-muted"><?= htmlspecialchars($assignment['summary'], ENT_QUOTES, 'UTF-8') ?></div>
+                                        <?php endif; ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else: ?>
+                            <p class="text-muted small mb-1"><?= htmlspecialchars(t('events.form.arenas_empty'), ENT_QUOTES, 'UTF-8') ?></p>
+                        <?php endif; ?>
+                        <p class="form-text mb-0">
+                            <a class="link-secondary" href="arenas.php"><?= htmlspecialchars(t('events.form.arenas_manage_hint'), ENT_QUOTES, 'UTF-8') ?></a>
+                        </p>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="scoring-rule-json"><?= htmlspecialchars(t('events.form.scoring_label'), ENT_QUOTES, 'UTF-8') ?></label>
@@ -466,7 +482,7 @@
                         <tr>
                             <th><?= htmlspecialchars(t('events.table.columns.title'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('events.table.columns.period'), ENT_QUOTES, 'UTF-8') ?></th>
-                            <th><?= htmlspecialchars(t('events.table.columns.venues'), ENT_QUOTES, 'UTF-8') ?></th>
+                            <th><?= htmlspecialchars(t('events.table.columns.arenas'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th><?= htmlspecialchars(t('events.table.columns.status'), ENT_QUOTES, 'UTF-8') ?></th>
                             <th class="text-end"><?= htmlspecialchars(t('events.table.columns.actions'), ENT_QUOTES, 'UTF-8') ?></th>
                         </tr>
@@ -477,9 +493,20 @@
                                 <td><?= htmlspecialchars($event['title'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($event['start_date'] ?? t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars($event['end_date'] ?? t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td>
-                                    <?php foreach ($event['venues_list'] as $venue): ?>
-                                        <span class="badge bg-light text-dark me-1 mb-1"><?= htmlspecialchars($venue, ENT_QUOTES, 'UTF-8') ?></span>
-                                    <?php endforeach; ?>
+                                    <?php if (!empty($event['arena_assignments'])): ?>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <?php foreach ($event['arena_assignments'] as $assignment): ?>
+                                                <li class="mb-1">
+                                                    <div class="fw-semibold"><?= htmlspecialchars($assignment['label'], ENT_QUOTES, 'UTF-8') ?></div>
+                                                    <?php if (!empty($assignment['summary'])): ?>
+                                                        <div class="text-muted"><?= htmlspecialchars($assignment['summary'], ENT_QUOTES, 'UTF-8') ?></div>
+                                                    <?php endif; ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php else: ?>
+                                        <span class="text-muted small"><?= htmlspecialchars(t('events.table.arenas_empty'), ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if ((int) ($event['is_active'] ?? 0) === 1): ?>
