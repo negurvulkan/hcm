@@ -23,6 +23,7 @@ class Rbac
         'clubs' => ['admin', 'office'],
         'events' => ['admin', 'office', 'steward'],
         'classes' => ['admin', 'office', 'steward'],
+        'arenas' => ['admin', 'office', 'steward'],
         'entries' => ['admin', 'office'],
         'startlist' => ['admin', 'office', 'steward', 'announcer'],
         'schedule' => ['admin', 'steward', 'announcer'],
@@ -78,6 +79,13 @@ class Rbac
             'label_key' => 'nav.events',
             'group' => 'management',
             'tooltip_key' => 'nav.tooltips.events',
+            'variant' => 'secondary',
+        ],
+        'arenas.php' => [
+            'key' => 'arenas',
+            'label_key' => 'nav.arenas',
+            'group' => 'management',
+            'tooltip_key' => 'nav.tooltips.arenas',
             'variant' => 'secondary',
         ],
         'classes.php' => [

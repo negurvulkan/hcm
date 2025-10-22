@@ -90,6 +90,187 @@
         return template.content.firstElementChild;
     }
 
+    function ArenaPicker(form, data) {
+        this.form = form;
+        this.data = data && typeof data === 'object' ? data : {};
+        if (!this.data.events) {
+            this.data.events = {};
+        }
+        this.eventSelect = form.querySelector('select[name="event_id"]');
+        this.select = form.querySelector('[data-arena-select]');
+        this.summary = form.querySelector('[data-arena-summary]');
+        this.quickToggle = form.querySelector('[data-arena-quick-toggle]');
+        this.quickForm = form.querySelector('[data-arena-quick-form]');
+        this.quickInputs = this.quickForm ? this.quickForm.querySelectorAll('input, select, textarea') : null;
+        this.emptyText = this.summary ? this.summary.getAttribute('data-empty') || '' : '';
+        this.currentEventId = null;
+    }
+
+    ArenaPicker.prototype.getEventId = function () {
+        if (!this.eventSelect) {
+            return '';
+        }
+        return String(this.eventSelect.value || '');
+    };
+
+    ArenaPicker.prototype.getOptionsForEvent = function (eventId) {
+        var key = String(eventId || '');
+        return (this.data.events && this.data.events[key]) ? this.data.events[key] : [];
+    };
+
+    ArenaPicker.prototype.getSelectedOption = function () {
+        if (!this.select) {
+            return null;
+        }
+        var value = String(this.select.value || '');
+        if (!value) {
+            return null;
+        }
+        var options = this.getOptionsForEvent(this.getEventId());
+        for (var i = 0; i < options.length; i += 1) {
+            if (String(options[i].id) === value) {
+                return options[i];
+            }
+        }
+        return null;
+    };
+
+    ArenaPicker.prototype.resetQuickForm = function () {
+        if (!this.quickInputs) {
+            return;
+        }
+        Array.prototype.forEach.call(this.quickInputs, function (element) {
+            if (element.tagName === 'SELECT') {
+                if (element.name === 'arena_quick_type') {
+                    element.value = 'outdoor';
+                } else if (element.options.length > 0) {
+                    element.selectedIndex = 0;
+                }
+            } else {
+                element.value = '';
+            }
+        });
+    };
+
+    ArenaPicker.prototype.renderOptions = function () {
+        if (!this.select) {
+            return;
+        }
+        var placeholderLabel = '';
+        var existingPlaceholder = this.select.querySelector('option[value=""]');
+        if (existingPlaceholder) {
+            placeholderLabel = existingPlaceholder.textContent;
+        }
+
+        while (this.select.firstChild) {
+            this.select.removeChild(this.select.firstChild);
+        }
+
+        var placeholder = window.document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = placeholderLabel || translate('classes.form.arena_picker.placeholder', null, 'Select arena…');
+        this.select.appendChild(placeholder);
+
+        var selectedValue = this.select.getAttribute('data-selected') || '';
+        var options = this.getOptionsForEvent(this.getEventId());
+        var hasSelection = false;
+
+        for (var i = 0; i < options.length; i += 1) {
+            var option = options[i];
+            var node = window.document.createElement('option');
+            node.value = String(option.id);
+            node.textContent = option.label;
+            if (selectedValue && String(option.id) === String(selectedValue)) {
+                node.selected = true;
+                hasSelection = true;
+            }
+            this.select.appendChild(node);
+        }
+
+        if (!hasSelection) {
+            this.select.value = '';
+        }
+
+        this.select.removeAttribute('data-selected');
+        this.updateSummary();
+    };
+
+    ArenaPicker.prototype.updateSummary = function () {
+        if (!this.summary) {
+            return;
+        }
+        var option = this.getSelectedOption();
+        if (!option) {
+            this.summary.textContent = this.emptyText || '';
+            return;
+        }
+        var lines = [];
+        if (option.summary) {
+            lines.push(option.summary);
+        }
+        if (option.location) {
+            lines.push(translate('classes.form.arena_picker.location_summary', { location: option.location }, 'Location: {location}'));
+        }
+        if (option.remarks) {
+            lines.push(translate('classes.form.arena_picker.remarks_summary', { remarks: option.remarks }, 'Notes: {remarks}'));
+        }
+        this.summary.textContent = lines.length ? lines.join(' · ') : (this.emptyText || '');
+    };
+
+    ArenaPicker.prototype.toggleQuickForm = function () {
+        if (!this.quickForm) {
+            return;
+        }
+        var isHidden = this.quickForm.classList.contains('d-none');
+        if (isHidden) {
+            this.quickForm.classList.remove('d-none');
+            var focusable = this.quickForm.querySelector('input, select, textarea');
+            if (focusable) {
+                focusable.focus();
+            }
+        } else {
+            this.quickForm.classList.add('d-none');
+            this.resetQuickForm();
+        }
+    };
+
+    ArenaPicker.prototype.handleEventChange = function () {
+        var eventId = this.getEventId();
+        this.renderOptions();
+        if (!eventId) {
+            if (this.quickToggle) {
+                this.quickToggle.disabled = true;
+            }
+            if (this.quickForm && !this.quickForm.classList.contains('d-none')) {
+                this.quickForm.classList.add('d-none');
+            }
+            this.resetQuickForm();
+        } else if (this.quickToggle) {
+            this.quickToggle.disabled = false;
+        }
+    };
+
+    ArenaPicker.prototype.init = function () {
+        if (!this.select) {
+            return;
+        }
+
+        this.renderOptions();
+        if (this.eventSelect) {
+            this.currentEventId = this.getEventId();
+            this.eventSelect.addEventListener('change', this.handleEventChange.bind(this));
+        }
+
+        this.select.addEventListener('change', this.updateSummary.bind(this));
+
+        if (this.quickToggle) {
+            this.quickToggle.addEventListener('click', this.toggleQuickForm.bind(this));
+            if (!this.getEventId()) {
+                this.quickToggle.disabled = true;
+            }
+        }
+    };
+
     function RuleEditor(form, presets) {
         this.form = form;
         this.editor = form.querySelector('[data-rule-editor]');
@@ -927,5 +1108,9 @@
         var presets = safeParseJson(form.getAttribute('data-presets'), {});
         var editor = new RuleEditor(form, presets);
         editor.init();
+
+        var arenaData = safeParseJson(form.getAttribute('data-arenas'), { events: {} });
+        var arenaPicker = new ArenaPicker(form, arenaData);
+        arenaPicker.init();
     });
 })(window);

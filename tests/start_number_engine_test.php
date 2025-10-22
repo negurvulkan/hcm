@@ -72,7 +72,7 @@ function expectException(callable $callback, string $contains): void
 }
 
 $pdo->exec('CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, start_number_rules TEXT)');
-$pdo->exec('CREATE TABLE classes (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, label TEXT, arena TEXT, start_time TEXT, division TEXT, tags TEXT, start_number_rules TEXT)');
+$pdo->exec('CREATE TABLE classes (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER, label TEXT, arena TEXT, event_arena_id INTEGER, start_time TEXT, division TEXT, tags TEXT, start_number_rules TEXT)');
 $pdo->exec('CREATE TABLE parties (id INTEGER PRIMARY KEY AUTOINCREMENT, party_type TEXT, display_name TEXT, sort_name TEXT, created_at TEXT, updated_at TEXT)');
 $pdo->exec('CREATE TABLE person_profiles (party_id INTEGER PRIMARY KEY, club_id INTEGER, preferred_locale TEXT, updated_at TEXT)');
 $pdo->exec('CREATE TABLE horses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
