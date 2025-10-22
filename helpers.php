@@ -9,7 +9,12 @@ $user = auth_require('helpers');
 $pdo = app_pdo();
 $partyRepository = new PartyRepository($pdo);
 
-$stations = db_all('SELECT id, name FROM stations ORDER BY name');
+$stations = db_all(
+    'SELECT s.id, s.name, e.title AS event_title '
+    . 'FROM stations s '
+    . 'LEFT JOIN events e ON e.id = s.event_id '
+    . 'ORDER BY s.name'
+);
 $roles = db_all('SELECT * FROM helper_roles ORDER BY active DESC, name ASC');
 $events = db_all('SELECT id, title FROM events ORDER BY start_date DESC, title ASC');
 $persons = $partyRepository->personOptions();
@@ -262,12 +267,20 @@ if ($filters['day'] !== '') {
     $params['day'] = $filters['day'];
 }
 
-$sql = 'SELECT sh.*, hr.name AS role_name, hr.color AS role_color, st.name AS station_name, pr.display_name AS person_name, e.title AS event_title '
-    . 'FROM shifts sh '
+$sql = 'SELECT sh.*, hr.name AS role_name, hr.color AS role_color, st.name AS station_name, pr.display_name AS person_name, e.title AS event_title,'
+    . ' tk.token AS shift_token, tk.expires_at AS shift_token_expires_at,'
+    . ' (
+        SELECT token FROM tokens stt
+        WHERE stt.station_id = sh.station_id AND stt.purpose = \'checkin\'
+        ORDER BY stt.expires_at DESC, stt.id DESC
+        LIMIT 1
+      ) AS station_token'
+    . ' FROM shifts sh '
     . 'LEFT JOIN helper_roles hr ON hr.id = sh.role_id '
     . 'LEFT JOIN stations st ON st.id = sh.station_id '
     . 'LEFT JOIN parties pr ON pr.id = sh.person_id '
-    . 'LEFT JOIN events e ON e.id = sh.event_id';
+    . 'LEFT JOIN events e ON e.id = sh.event_id '
+    . 'LEFT JOIN tokens tk ON tk.id = sh.token_id';
 if ($conditions) {
     $sql .= ' WHERE ' . implode(' AND ', $conditions);
 }
@@ -280,6 +293,12 @@ $statusOptions = [
     'assigned' => t('helpers.statuses.assigned'),
     'active' => t('helpers.statuses.active'),
     'done' => t('helpers.statuses.done'),
+];
+$statusClasses = [
+    'open' => 'bg-secondary',
+    'assigned' => 'bg-info text-dark',
+    'active' => 'bg-success',
+    'done' => 'bg-dark',
 ];
 
 render_page('helpers.tpl', [
@@ -294,4 +313,6 @@ render_page('helpers.tpl', [
     'editRole' => $editRole,
     'editShift' => $editShift,
     'statusOptions' => $statusOptions,
+    'statusClasses' => $statusClasses,
+    'extraScripts' => ['public/assets/js/helpers-autocomplete.js'],
 ]);
