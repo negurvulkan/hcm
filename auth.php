@@ -270,6 +270,7 @@ function csrf_field(): string
 function render_page(string $template, array $data = []): void
 {
     $view = app_view();
+    $view->flushStacks();
     $user = auth_user();
     $menu = $user ? Rbac::menuFor($user['role']) : [];
     $flashes = flash_pull();
@@ -298,6 +299,7 @@ function render_page(string $template, array $data = []): void
         'translations' => $translations,
         'navQuickActions' => $navQuickActions,
     ]));
+    $view->flushStacks();
 }
 
 function render_auth(string $template, array $data = []): void

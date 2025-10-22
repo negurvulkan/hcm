@@ -374,5 +374,6 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
 <?php foreach ($extraScripts as $script): ?>
     <script src="<?= htmlspecialchars($script, ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php endforeach; ?>
+<?= app_view()->stack('scripts') ?>
 </body>
 </html>
