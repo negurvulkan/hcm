@@ -8,7 +8,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <h2 class="h5 mb-3"><?= htmlspecialchars($editClass ? t('classes.form.edit_title') : t('classes.form.create_title'), ENT_QUOTES, 'UTF-8') ?></h2>
-                <form method="post" data-class-form data-presets='<?= json_encode($presets, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>'>
+                <form method="post" data-class-form data-presets='<?= json_encode($presets, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>' data-arenas='<?= htmlspecialchars($arenaPickerDataJson ?? '{}', ENT_QUOTES, 'UTF-8') ?>'>
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="<?= $editClass ? 'update' : 'create' ?>">
                     <input type="hidden" name="class_id" value="<?= $editClass ? (int) $editClass['id'] : '' ?>">
@@ -25,9 +25,64 @@
                         <label class="form-label"><?= htmlspecialchars(t('classes.form.label_label'), ENT_QUOTES, 'UTF-8') ?></label>
                         <input type="text" name="label" class="form-control" value="<?= htmlspecialchars($editClass['label'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
-                    <div class="mb-3">
+                    <?php $selectedEventId = $editClass['event_id'] ?? null; $selectedArenaOptions = $selectedEventId && isset($arenaOptionsByEvent[(string) $selectedEventId]) ? $arenaOptionsByEvent[(string) $selectedEventId] : []; ?>
+                    <div class="mb-3" data-arena-picker>
                         <label class="form-label"><?= htmlspecialchars(t('classes.form.arena_label'), ENT_QUOTES, 'UTF-8') ?></label>
-                        <input type="text" name="arena" class="form-control" value="<?= htmlspecialchars($editClass['arena'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <select name="event_arena_id" class="form-select" data-arena-select data-selected="<?= !empty($editClass['event_arena_id']) ? (int) $editClass['event_arena_id'] : '' ?>">
+                            <option value=""><?= htmlspecialchars(t('classes.form.arena_picker.placeholder'), ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php foreach ($selectedArenaOptions as $option): ?>
+                                <option value="<?= (int) $option['id'] ?>" <?= !empty($editClass['event_arena_id']) && (int) $editClass['event_arena_id'] === (int) $option['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text" data-arena-summary data-empty="<?= htmlspecialchars(t('classes.form.arena_picker.empty'), ENT_QUOTES, 'UTF-8') ?>">
+                            <?php if (!empty($editClass['arena_option']['summary'])): ?>
+                                <?= htmlspecialchars($editClass['arena_option']['summary'], ENT_QUOTES, 'UTF-8') ?>
+                            <?php elseif (!empty($editClass['arena_display'] ?? $editClass['arena'] ?? '')): ?>
+                                <?= htmlspecialchars($editClass['arena_display'] ?? $editClass['arena'], ENT_QUOTES, 'UTF-8') ?>
+                            <?php else: ?>
+                                <?= htmlspecialchars(t('classes.form.arena_picker.empty'), ENT_QUOTES, 'UTF-8') ?>
+                            <?php endif; ?>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary mt-2" type="button" data-arena-quick-toggle><?= htmlspecialchars(t('classes.form.arena_picker.quick_toggle'), ENT_QUOTES, 'UTF-8') ?></button>
+                        <div class="border rounded p-3 mt-2 d-none" data-arena-quick-form>
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1"><?= htmlspecialchars(t('classes.form.arena_picker.quick_name'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <input type="text" name="arena_quick_name" class="form-control" value="">
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label mb-1"><?= htmlspecialchars(t('classes.form.arena_picker.quick_location'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <input type="text" name="arena_quick_location" class="form-control" value="">
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-sm-4">
+                                    <label class="form-label mb-1"><?= htmlspecialchars(t('classes.form.arena_picker.quick_type'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <select class="form-select" name="arena_quick_type">
+                                        <option value="indoor"><?= htmlspecialchars(t('classes.form.arena_picker.types.indoor'), ENT_QUOTES, 'UTF-8') ?></option>
+                                        <option value="outdoor" selected><?= htmlspecialchars(t('classes.form.arena_picker.types.outdoor'), ENT_QUOTES, 'UTF-8') ?></option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label mb-1"><?= htmlspecialchars(t('classes.form.arena_picker.quick_surface'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <input type="text" name="arena_quick_surface" class="form-control" value="">
+                                </div>
+                                <div class="col-sm-2">
+                                    <label class="form-label mb-1"><?= htmlspecialchars(t('classes.form.arena_picker.quick_length'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <input type="number" name="arena_quick_length" class="form-control" min="0" step="1" value="">
+                                </div>
+                                <div class="col-sm-2">
+                                    <label class="form-label mb-1"><?= htmlspecialchars(t('classes.form.arena_picker.quick_width'), ENT_QUOTES, 'UTF-8') ?></label>
+                                    <input type="number" name="arena_quick_width" class="form-control" min="0" step="1" value="">
+                                </div>
+                            </div>
+                            <div class="form-text mt-2"><?= htmlspecialchars(t('classes.form.arena_picker.quick_hint'), ENT_QUOTES, 'UTF-8') ?></div>
+                        </div>
+                        <?php if (!empty($editClass['legacy_arena'])): ?>
+                            <div class="alert alert-warning mt-2 small mb-0"><?= htmlspecialchars(t('classes.form.arena_picker.legacy_notice', ['name' => $editClass['legacy_arena']]), ENT_QUOTES, 'UTF-8') ?></div>
+                        <?php endif; ?>
                     </div>
                     <div class="row g-2">
                         <div class="col">
@@ -592,8 +647,17 @@
                                 <td><?= htmlspecialchars($class['event_title'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($class['label'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td>
-                                    <div><?= htmlspecialchars($class['arena'] ?? t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="text-muted small"><?= htmlspecialchars($class['start_time'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                                    <?php if (!empty($class['arena_display'])): ?>
+                                        <div class="fw-semibold"><?= htmlspecialchars($class['arena_display'], ENT_QUOTES, 'UTF-8') ?></div>
+                                        <?php if (!empty($class['arena_summary'])): ?>
+                                            <div class="text-muted small"><?= htmlspecialchars($class['arena_summary'], ENT_QUOTES, 'UTF-8') ?></div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="text-muted"><?= htmlspecialchars(t('common.labels.none'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($class['schedule_display'])): ?>
+                                        <div class="text-muted small mt-1"><?= htmlspecialchars($class['schedule_display'], ENT_QUOTES, 'UTF-8') ?></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php foreach ($class['judges'] as $judge): ?>
