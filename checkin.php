@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/audit.php';
 
 use App\Core\Csrf;
 use App\Core\RateLimiter;
@@ -59,11 +60,18 @@ if (!isset($_SESSION['station_checkin_nonce'])) {
 }
 
 $nonce = bin2hex(random_bytes(16));
-if ($tokenValue !== '') {
-    $nonce = $_SESSION['station_checkin_nonce'][$tokenValue] ?? $nonce;
-    $_SESSION['station_checkin_nonce'][$tokenValue] = $nonce;
+if ($tokenValue !== '' && $tokenRow) {
+    $stored = $_SESSION['station_checkin_nonce'][$tokenValue] ?? null;
+    $tokenNonce = (string) ($tokenRow['nonce'] ?? '');
+    if (!is_array($stored) || ($stored['token_nonce'] ?? '') !== $tokenNonce) {
+        $stored = [
+            'value' => $nonce,
+            'token_nonce' => $tokenNonce,
+        ];
+        $_SESSION['station_checkin_nonce'][$tokenValue] = $stored;
+    }
+    $nonce = $stored['value'];
 }
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
     if (!Csrf::check($_POST['_token'] ?? null)) {
         flash('error', t('stations.validation.csrf'));
@@ -71,8 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
         exit;
     }
 
+    $nonceData = $_SESSION['station_checkin_nonce'][$tokenValue] ?? null;
     $postedNonce = (string) ($_POST['nonce'] ?? '');
-    if ($postedNonce === '' || $postedNonce !== ($_SESSION['station_checkin_nonce'][$tokenValue] ?? null)) {
+    $tokenNonce = (string) ($tokenRow['nonce'] ?? '');
+    if (!is_array($nonceData) || ($nonceData['token_nonce'] ?? '') !== $tokenNonce || $postedNonce === '' || !hash_equals($nonceData['value'], $postedNonce)) {
         flash('error', t('stations.checkin.nonce_error'));
         header('Location: checkin.php?token=' . rawurlencode($tokenValue));
         exit;
@@ -80,12 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
 
     $limiterKey = 'station-checkin:' . hash('sha256', $tokenValue . '|' . ($_SERVER['REMOTE_ADDR'] ?? 'cli'));
     $limiter = new RateLimiter($limiterKey, 5, 60);
-    if ($limiter->tooManyAttempts()) {
-        flash('error', t('stations.checkin.rate_limited'));
-        header('Location: checkin.php?token=' . rawurlencode($tokenValue));
-        exit;
-    }
-    $limiter->hit();
+    $personLimiter = null;
 
     $action = $_POST['action'] ?? '';
     $shiftId = (int) ($_POST['shift_id'] ?? 0);
@@ -96,6 +101,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
             . 'LEFT JOIN parties pr ON pr.id = sh.person_id WHERE sh.id = :id',
             ['id' => $shiftId]
         );
+    }
+
+    if ($shift) {
+        $personId = (int) ($shift['person_id'] ?? 0);
+        if ($personId > 0) {
+            $personLimiter = new RateLimiter('station-checkin-person:' . $personId, 5, 60);
+        }
+    }
+
+    if ($limiter->tooManyAttempts() || ($personLimiter && $personLimiter->tooManyAttempts())) {
+        flash('error', t('stations.checkin.rate_limited'));
+        header('Location: checkin.php?token=' . rawurlencode($tokenValue));
+        exit;
+    }
+    $limiter->hit();
+    if ($personLimiter) {
+        $personLimiter->hit();
     }
 
     if (!$shift || (int) ($shift['station_id'] ?? 0) !== (int) $station['id']) {
@@ -128,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
                 'created' => $now,
             ]
         );
+        $checkinId = (int) app_pdo()->lastInsertId();
         db_execute(
             'UPDATE shifts SET status = :status, token_id = :token_id, updated_at = :updated WHERE id = :id',
             [
@@ -138,6 +161,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
             ]
         );
         db_execute('UPDATE tokens SET used_at = :used WHERE id = :id', ['used' => $now, 'id' => $tokenRow['id']]);
+        audit_log('checkins', $checkinId, 'create', null, [
+            'id' => $checkinId,
+            'person_id' => $personId,
+            'station_id' => $station['id'],
+            'shift_id' => $shiftId,
+            'type' => 'IN',
+            'ts' => $now,
+            'source' => 'QR',
+            'token_id' => $tokenRow['id'],
+        ]);
+        audit_log('shifts', $shiftId, 'status_change', ['status' => $status], ['status' => 'active']);
         flash('success', t('stations.checkin.flash_in'));
     } elseif ($action === 'out') {
         if ($status !== 'active') {
@@ -159,6 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
                 'created' => $now,
             ]
         );
+        $checkinId = (int) app_pdo()->lastInsertId();
         db_execute(
             'UPDATE shifts SET status = :status, token_id = :token_id, updated_at = :updated WHERE id = :id',
             [
@@ -169,10 +204,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenRow && !$tokenExpired) {
             ]
         );
         db_execute('UPDATE tokens SET used_at = :used WHERE id = :id', ['used' => $now, 'id' => $tokenRow['id']]);
+        audit_log('checkins', $checkinId, 'create', null, [
+            'id' => $checkinId,
+            'person_id' => $personId,
+            'station_id' => $station['id'],
+            'shift_id' => $shiftId,
+            'type' => 'OUT',
+            'ts' => $now,
+            'source' => 'QR',
+            'token_id' => $tokenRow['id'],
+        ]);
+        audit_log('shifts', $shiftId, 'status_change', ['status' => $status], ['status' => 'done']);
         flash('success', t('stations.checkin.flash_out'));
     }
 
-    $_SESSION['station_checkin_nonce'][$tokenValue] = bin2hex(random_bytes(16));
+    $newTokenNonce = bin2hex(random_bytes(16));
+    db_execute('UPDATE tokens SET nonce = :nonce WHERE id = :id', [
+        'nonce' => $newTokenNonce,
+        'id' => $tokenRow['id'],
+    ]);
+    $_SESSION['station_checkin_nonce'][$tokenValue] = [
+        'value' => bin2hex(random_bytes(16)),
+        'token_nonce' => $newTokenNonce,
+    ];
     header('Location: checkin.php?token=' . rawurlencode($tokenValue));
     exit;
 }
