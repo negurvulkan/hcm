@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/audit.php';
 
 use App\Core\Csrf;
 use App\Party\PartyRepository;
@@ -218,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'updated' => $now,
                         'id' => $shiftId,
                     ]);
+                    audit_log('shifts', $shiftId, 'status_change', ['status' => $currentStatus], ['status' => $targetStatus]);
                     flash('success', t('helpers.flash.status_updated'));
                 } else {
                     flash('error', t('helpers.validation.status_transition_invalid'));
