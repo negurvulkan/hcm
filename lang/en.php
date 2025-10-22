@@ -525,7 +525,7 @@ return [
         ],
     ],
     'helpers' => [
-        'title' => 'Helpers',
+        'title' => 'Helper coordination',
         'roles' => [
             'create_title' => 'Create role',
             'edit_title' => 'Edit role',
@@ -612,6 +612,7 @@ return [
             'role_in_use' => 'Role cannot be deleted while shifts reference it.',
             'role_required' => 'Select a role for the shift.',
             'status_transition_invalid' => 'Status change not allowed.',
+            'conflict' => 'Conflict with an existing shift.',
         ],
         'flash' => [
             'role_created' => 'Role created.',
@@ -622,6 +623,7 @@ return [
             'shift_deleted' => 'Shift deleted.',
             'shift_duplicated' => 'Shift duplicated.',
             'status_updated' => 'Shift status updated.',
+            'checked_in' => 'Check-in recorded.',
         ],
     ],
 
@@ -942,50 +944,6 @@ return [
             'mark_open' => 'Mark as open',
             'delete' => 'Delete selected',
             'selection_counter' => 'Selected: {count}',
-        ],
-    ],
-    'helpers' => [
-        'title' => 'Helper coordination',
-        'form' => [
-            'create_title' => 'Create shift',
-            'edit_title' => 'Edit shift',
-            'role' => 'Role',
-            'station' => 'Station',
-            'person' => 'Person',
-            'person_placeholder' => 'Unassigned',
-            'start' => 'Start',
-            'end' => 'End',
-            'submit' => 'Save',
-            'cancel' => 'Cancel',
-        ],
-        'table' => [
-            'title' => 'Shift schedule',
-            'columns' => [
-                'role' => 'Role',
-                'person' => 'Person',
-                'period' => 'Time range',
-                'token' => 'Token',
-                'check_in' => 'Check-in',
-                'actions' => 'Actions',
-            ],
-            'check_in_button' => 'Check in',
-            'edit' => 'Edit',
-            'delete' => 'Delete',
-            'confirm_delete' => 'Delete shift?',
-            'person_open' => 'Unassigned',
-            'time_placeholder' => '–',
-            'none' => 'No shifts yet.',
-        ],
-        'validation' => [
-            'csrf_invalid' => 'Invalid CSRF token.',
-            'role_required' => 'Role is required.',
-            'conflict' => 'Conflict with an existing shift.',
-        ],
-        'flash' => [
-            'created' => 'Shift created.',
-            'updated' => 'Shift updated.',
-            'checked_in' => 'Check-in recorded.',
-            'deleted' => 'Shift deleted.',
         ],
     ],
     'sponsors' => [

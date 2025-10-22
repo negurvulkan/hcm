@@ -419,7 +419,7 @@ return [
         ],
     ],
     'helpers' => [
-        'title' => 'Helfer',
+        'title' => 'Helferkoordination',
         'roles' => [
             'create_title' => 'Rolle anlegen',
             'edit_title' => 'Rolle bearbeiten',
@@ -506,6 +506,7 @@ return [
             'role_in_use' => 'Rolle kann nicht gelöscht werden solange Schichten zugewiesen sind.',
             'role_required' => 'Bitte eine Rolle für die Schicht wählen.',
             'status_transition_invalid' => 'Statuswechsel nicht erlaubt.',
+            'conflict' => 'Konflikt mit bestehender Schicht.',
         ],
         'flash' => [
             'role_created' => 'Rolle angelegt.',
@@ -516,6 +517,7 @@ return [
             'shift_deleted' => 'Schicht gelöscht.',
             'shift_duplicated' => 'Schicht dupliziert.',
             'status_updated' => 'Schichtstatus aktualisiert.',
+            'checked_in' => 'Check-in registriert.',
         ],
     ],
 
@@ -836,50 +838,6 @@ return [
             'mark_open' => 'Auf offen setzen',
             'delete' => 'Auswahl löschen',
             'selection_counter' => 'Ausgewählt: {count}',
-        ],
-    ],
-    'helpers' => [
-        'title' => 'Helferkoordination',
-        'form' => [
-            'create_title' => 'Schicht anlegen',
-            'edit_title' => 'Schicht bearbeiten',
-            'role' => 'Rolle',
-            'station' => 'Station',
-            'person' => 'Person',
-            'person_placeholder' => 'Noch offen',
-            'start' => 'Beginn',
-            'end' => 'Ende',
-            'submit' => 'Speichern',
-            'cancel' => 'Abbrechen',
-        ],
-        'table' => [
-            'title' => 'Schichtplan',
-            'columns' => [
-                'role' => 'Rolle',
-                'person' => 'Person',
-                'period' => 'Zeitraum',
-                'token' => 'Token',
-                'check_in' => 'Check-in',
-                'actions' => 'Aktionen',
-            ],
-            'check_in_button' => 'Check-in',
-            'edit' => 'Bearbeiten',
-            'delete' => 'Löschen',
-            'confirm_delete' => 'Schicht löschen?',
-            'person_open' => 'Offen',
-            'time_placeholder' => '–',
-            'none' => 'Noch keine Schichten.',
-        ],
-        'validation' => [
-            'csrf_invalid' => 'CSRF ungültig.',
-            'role_required' => 'Rolle angeben.',
-            'conflict' => 'Konflikt mit bestehender Schicht.',
-        ],
-        'flash' => [
-            'created' => 'Schicht angelegt.',
-            'updated' => 'Schicht aktualisiert.',
-            'checked_in' => 'Check-in registriert.',
-            'deleted' => 'Schicht gelöscht.',
         ],
     ],
     'sponsors' => [
