@@ -174,7 +174,7 @@
         return String(value);
     }
 
-    function parseClockBase(value) {
+    function parseClockBase(value, timezone) {
         if (!value) {
             return null;
         }
@@ -192,7 +192,7 @@
         }
     }
 
-    function formatClockValue(date, format) {
+    function formatClockValue(date, format, timezone) {
         if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
             return '';
         }
@@ -200,16 +200,22 @@
         const includeSeconds = normalized.includes('ss');
         const includeMinutes = normalized.includes('mm') || normalized.includes('ii') || normalized.includes(':');
         const includeTimezone = normalized.includes('z');
-        const options = { hour: '2-digit' };
+        const hour12 = normalized.includes('hh');
+        const options = { hour: '2-digit', hour12 };
         if (includeMinutes) {
             options.minute = '2-digit';
         }
         if (includeSeconds) {
             options.second = '2-digit';
         }
-        let formatted = date.toLocaleTimeString([], options);
+        if (timezone) {
+            options.timeZone = timezone;
+        }
+        const formatter = new Intl.DateTimeFormat(undefined, options);
+        let formatted = formatter.format(date);
         if (includeTimezone) {
-            formatted = `${formatted} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+            const zone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            formatted = `${formatted} ${zone}`;
         }
         return formatted;
     }
@@ -245,10 +251,19 @@
             this.cacheKey = `signage_player_state_${token}`;
             this.clockTimer = null;
             this.clockNodes = [];
+            this.settings = {};
+            this.offlineOverlay = null;
+            this.offlineMode = 'client';
+            this.timeOverlayEnabled = false;
+            this.isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
 
             if (!this.root) {
                 return;
             }
+
+            this.handleConnectivityChange(this.isOffline === false);
+            window.addEventListener('online', () => this.handleConnectivityChange(true));
+            window.addEventListener('offline', () => this.handleConnectivityChange(false));
 
             this.applyState(state);
             this.startPolling();
@@ -266,6 +281,13 @@
                     // ignore
                 }
             }
+            this.settings = state.settings || {};
+            if (this.root) {
+                const offlineMode = this.settings?.clock?.offline_mode || 'client';
+                this.root.dataset.offlineMode = offlineMode;
+                this.root.dataset.timeOverlay = this.settings?.clock?.time_overlay ? '1' : '0';
+            }
+            this.refreshOfflineOptions();
             this.buildLayoutMap();
             this.renderActiveSequence();
         }
@@ -330,7 +352,8 @@
         }
 
         applyTheme(layout) {
-            const theme = layout.options?.theme || {};
+            const globalTheme = this.settings?.theme || {};
+            const theme = { ...globalTheme, ...(layout.options?.theme || {}) };
             if (theme.background) {
                 document.documentElement.style.setProperty('--signage-bg', theme.background);
             }
@@ -340,6 +363,11 @@
             if (theme.primary) {
                 document.documentElement.style.setProperty('--signage-accent', theme.primary);
             }
+            if (theme.logo) {
+                document.documentElement.style.setProperty('--signage-logo', `url(${theme.logo})`);
+            }
+            const mode = this.settings?.theme?.mode || 'auto';
+            document.documentElement.dataset.themeMode = mode;
         }
 
         renderLayout(layout) {
@@ -667,14 +695,29 @@
                     break;
                 }
                 case 'clock': {
-                    const format = element.binding?.format || 'HH:mm';
+                    const clockSettings = this.settings?.clock || {};
+                    let format = element.binding?.format || clockSettings.pattern || 'HH:mm';
+                    if (!element.binding?.format && clockSettings.show_seconds && !format.toLowerCase().includes('ss')) {
+                        format = `${format}:ss`;
+                    }
                     const baseValue = bindingValue ?? this.state.data?.clock?.iso ?? this.state.data?.clock?.time;
-                    const baseDate = parseClockBase(baseValue) ?? new Date();
+                    let baseDate = parseClockBase(baseValue, this.state.data?.clock?.timezone) ?? new Date();
+                    const syncWithServer = clockSettings.sync_with_server !== false;
+                    if (!syncWithServer) {
+                        baseDate = new Date();
+                    }
                     const clockText = document.createElement('div');
-                    clockText.className = 'signage-player-clock';
-                    clockText.textContent = formatClockValue(baseDate, format) || fallback;
+                    clockText.className = `signage-player-clock${clockSettings.blink_colon ? ' is-blinking' : ''}`;
+                    clockText.textContent = formatClockValue(baseDate, format, clockSettings.timezone || this.state.data?.clock?.timezone) || fallback;
+                    clockText.dataset.format = format;
                     node.appendChild(clockText);
-                    this.clockNodes.push({ node: clockText, base: baseDate, format });
+                    this.clockNodes.push({
+                        node: clockText,
+                        base: baseDate,
+                        format,
+                        sync: syncWithServer,
+                        timezone: clockSettings.timezone || this.state.data?.clock?.timezone,
+                    });
                     break;
                 }
                 default:
@@ -732,36 +775,141 @@
                 this.clockTimer = null;
             }
             if (!Array.isArray(this.clockNodes) || this.clockNodes.length === 0) {
+                this.toggleTimeOverlay();
                 return;
             }
+            if (this.settings?.clock?.live_update === false) {
+                this.toggleTimeOverlay();
+                return;
+            }
+            this.refreshOfflineOptions();
             const references = this.clockNodes
                 .map((entry) => {
                     if (!entry || !entry.node) {
                         return null;
                     }
-                    const base = entry.base instanceof Date ? entry.base : parseClockBase(entry.base);
+                    const base = entry.base instanceof Date ? entry.base : parseClockBase(entry.base, entry.timezone);
                     if (!base) {
                         return null;
                     }
                     return {
                         node: entry.node,
                         format: entry.format,
-                        offset: Date.now() - base.getTime(),
+                        baseTime: base,
+                        offset: entry.sync !== false ? Date.now() - base.getTime() : 0,
+                        sync: entry.sync !== false,
+                        timezone: entry.timezone,
                     };
                 })
                 .filter(Boolean);
             if (references.length === 0) {
+                this.toggleTimeOverlay();
                 return;
             }
+            const overlay = this.toggleTimeOverlay();
+            const overlayFormat = references[0]?.format || this.settings?.clock?.pattern || 'HH:mm';
+            const overlayTimezone = references[0]?.timezone || this.settings?.clock?.timezone;
+            const useClientWhenOffline = (entrySync) => {
+                if (!this.isOffline) {
+                    return entrySync === false;
+                }
+                if (this.offlineMode === 'freeze') {
+                    return entrySync === false;
+                }
+                return true;
+            };
             const update = () => {
                 const now = Date.now();
                 references.forEach((entry) => {
-                    const current = new Date(now - entry.offset);
-                    entry.node.textContent = formatClockValue(current, entry.format);
+                    let current;
+                    const shouldUseClient = useClientWhenOffline(entry.sync);
+                    if (this.isOffline && this.offlineMode === 'freeze' && entry.sync) {
+                        current = new Date(entry.baseTime.getTime());
+                    } else if (entry.sync && !shouldUseClient) {
+                        current = new Date(now - entry.offset);
+                    } else {
+                        current = new Date();
+                    }
+                    entry.node.textContent = formatClockValue(current, entry.format, entry.timezone);
                 });
+                if (overlay) {
+                    if (this.timeOverlayEnabled && this.isOffline) {
+                        overlay.textContent = formatClockValue(new Date(), overlayFormat, overlayTimezone) || '';
+                        overlay.classList.add('is-visible');
+                    } else {
+                        overlay.classList.remove('is-visible');
+                        if (!this.isOffline) {
+                            overlay.textContent = '';
+                        }
+                    }
+                }
             };
             update();
             this.clockTimer = window.setInterval(update, 1000);
+        }
+
+        refreshOfflineOptions() {
+            if (!this.root) {
+                return;
+            }
+            this.offlineMode = this.root.dataset.offlineMode || 'client';
+            this.timeOverlayEnabled = this.root.dataset.timeOverlay === '1';
+            if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+                this.isOffline = navigator.onLine === false;
+            }
+            if (!this.timeOverlayEnabled && this.offlineOverlay) {
+                this.offlineOverlay.classList.remove('is-visible');
+            }
+        }
+
+        handleConnectivityChange(isOnline) {
+            this.isOffline = !isOnline;
+            this.toggleTimeOverlay();
+            if (this.clockNodes.length > 0) {
+                this.startClockTicker();
+            }
+        }
+
+        ensureOfflineOverlay() {
+            if (!this.root) {
+                return null;
+            }
+            if (this.offlineOverlay && this.offlineOverlay.parentNode !== this.root) {
+                this.offlineOverlay.remove();
+                this.offlineOverlay = null;
+            }
+            if (!this.offlineOverlay) {
+                const overlay = document.createElement('div');
+                overlay.className = 'signage-player-offline-overlay';
+                overlay.setAttribute('role', 'status');
+                overlay.setAttribute('aria-live', 'polite');
+                overlay.textContent = '';
+                this.offlineOverlay = overlay;
+            }
+            if (!this.offlineOverlay.parentNode) {
+                this.root.appendChild(this.offlineOverlay);
+            }
+            return this.offlineOverlay;
+        }
+
+        toggleTimeOverlay() {
+            if (!this.timeOverlayEnabled) {
+                if (this.offlineOverlay) {
+                    this.offlineOverlay.classList.remove('is-visible');
+                }
+                return null;
+            }
+            const overlay = this.ensureOfflineOverlay();
+            if (!overlay) {
+                return null;
+            }
+            if (this.isOffline) {
+                overlay.classList.add('is-visible');
+            } else {
+                overlay.classList.remove('is-visible');
+                overlay.textContent = '';
+            }
+            return overlay;
         }
 
         startPolling() {

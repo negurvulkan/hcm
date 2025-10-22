@@ -3,10 +3,13 @@
 namespace App\Signage;
 
 use App\Core\App;
+use App\I18n\Formatter;
 use App\Services\InstanceConfiguration;
+use App\Services\SystemConfiguration;
 use App\Sponsors\SponsorRepository;
 use App\Signage\Exceptions\ValidationException;
 use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -656,6 +659,7 @@ class SignageRepository
         [$activeEvent, $eventId] = $this->resolveEventContext($layout);
 
         $instanceConfig = $this->resolveInstanceConfig();
+        $systemConfig = $this->resolveSystemConfig();
 
         $venues = $this->fetchEventArenas($eventId);
 
@@ -675,9 +679,35 @@ class SignageRepository
         $live = $this->fetchLiveData($eventId);
         $schedule = $this->fetchScheduleData($eventId);
         $sponsors = $this->fetchSponsorMessages($eventId);
+        $now = $systemConfig ? new DateTimeImmutable('now', new DateTimeZone($systemConfig->timezone())) : new DateTimeImmutable('now');
+        if ($systemConfig) {
+            $now = $systemConfig->adjustDateTime($now);
+        }
+
         $clock = [
-            'time' => (new DateTimeImmutable('now'))->format('H:i'),
-            'iso' => (new DateTimeImmutable('now'))->format('c'),
+            'time' => $systemConfig ? Formatter::timePattern($now, $systemConfig->locale(), $systemConfig->displayClockPattern(), $systemConfig->timezone()) : $now->format('H:i'),
+            'iso' => $now->format('c'),
+            'pattern' => $systemConfig ? $systemConfig->displayClockPattern() : SystemConfiguration::TIME_FORMAT_24_HOUR,
+            'timezone' => $systemConfig ? $systemConfig->timezone() : date_default_timezone_get(),
+        ];
+
+        $settings = [
+            'clock' => [
+                'sync_with_server' => $systemConfig ? $systemConfig->syncDisplayWithServer() : true,
+                'live_update' => $systemConfig ? $systemConfig->liveClockEnabled() : true,
+                'show_seconds' => $systemConfig ? $systemConfig->displayShowsSeconds() : false,
+                'blink_colon' => $systemConfig ? $systemConfig->displayBlinksColon() : false,
+                'offline_mode' => $systemConfig ? $systemConfig->displayOfflineMode() : SystemConfiguration::DISPLAY_OFFLINE_CLIENT,
+                'time_overlay' => $systemConfig ? $systemConfig->displayTimeOverlay() : false,
+                'pattern' => $systemConfig ? $systemConfig->displayClockPattern() : SystemConfiguration::TIME_FORMAT_24_HOUR,
+                'timezone' => $systemConfig ? $systemConfig->timezone() : date_default_timezone_get(),
+            ],
+            'theme' => [
+                'mode' => $systemConfig ? $systemConfig->displayMode() : SystemConfiguration::DISPLAY_MODE_AUTO,
+                'primary' => $systemConfig ? $systemConfig->themePrimaryColor() : '#2b72ff',
+                'secondary' => $systemConfig ? $systemConfig->themeSecondaryColor() : '#11131a',
+                'logo' => $systemConfig ? $systemConfig->themeLogoUrl() : '',
+            ],
         ];
 
         return [
@@ -686,6 +716,7 @@ class SignageRepository
             'schedule' => $schedule,
             'sponsors' => $sponsors,
             'clock' => $clock,
+            'settings' => $settings,
         ];
     }
 
@@ -742,6 +773,19 @@ class SignageRepository
 
         $candidate = App::get('instance');
         return $candidate instanceof InstanceConfiguration ? $candidate : null;
+    }
+
+    private function resolveSystemConfig(): ?SystemConfiguration
+    {
+        if (function_exists('system_config')) {
+            $candidate = \system_config();
+            if ($candidate instanceof SystemConfiguration) {
+                return $candidate;
+            }
+        }
+
+        $candidate = App::get('system');
+        return $candidate instanceof SystemConfiguration ? $candidate : null;
     }
 
     private function lookupActiveEvent(): ?array

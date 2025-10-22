@@ -11,6 +11,7 @@ use App\Core\SmartyView;
 use App\I18n\LocaleManager;
 use App\I18n\Translator;
 use App\Services\InstanceConfiguration;
+use App\Services\SystemConfiguration;
 
 if (!class_exists('Csrf', false)) {
     class_alias(Csrf::class, 'Csrf');
@@ -88,15 +89,38 @@ function instance_config(): InstanceConfiguration
     return $instance;
 }
 
+function system_config(): SystemConfiguration
+{
+    $system = App::get('system');
+    if (!$system instanceof SystemConfiguration) {
+        $system = new SystemConfiguration(app_pdo());
+        App::set('system', $system);
+        system_refresh_view();
+    }
+    return $system;
+}
+
 function instance_view_context(): array
 {
     return instance_config()->viewContext();
+}
+
+function system_view_context(): array
+{
+    return system_config()->viewContext();
 }
 
 function instance_refresh_view(): void
 {
     if (App::has('view')) {
         app_view()->share('instance', instance_view_context());
+    }
+}
+
+function system_refresh_view(): void
+{
+    if (App::has('view')) {
+        app_view()->share('system', system_view_context());
     }
 }
 
@@ -250,12 +274,14 @@ function render_page(string $template, array $data = []): void
     $menu = $user ? Rbac::menuFor($user['role']) : [];
     $flashes = flash_pull();
     $instance = instance_view_context();
+    $system = system_view_context();
     $translations = translator()?->all() ?? [];
     $navQuickActions = $user ? \App\Core\Rbac::quickActionsFor($user['role']) : [];
     $content = $view->render($template, array_merge($data, [
         'user' => $user,
         'menu' => $menu,
         'instance' => $instance,
+        'system' => $system,
         'translations' => $translations,
         'navQuickActions' => $navQuickActions,
     ]));
@@ -266,6 +292,7 @@ function render_page(string $template, array $data = []): void
         'content' => $content,
         'flashes' => $flashes,
         'instance' => $instance,
+        'system' => $system,
         'availableLocales' => available_locales(),
         'currentLocale' => current_locale(),
         'translations' => $translations,

@@ -134,6 +134,12 @@ body {
     background: rgba(255, 255, 255, 0.12);
 }
 
+.app-sidebar__brand-logo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
 .app-sidebar__nav {
     display: flex;
     flex-direction: column;

@@ -37,6 +37,7 @@ class Rbac
         'export' => ['admin', 'office'],
         'audit' => ['admin'],
         'instance' => ['admin'],
+        'system' => ['admin'],
         'sync' => ['admin'],
         'custom_fields' => ['admin', 'office'],
     ];
@@ -171,6 +172,13 @@ class Rbac
             'group' => 'configuration',
             'priority' => 20,
             'tooltip_key' => 'nav.tooltips.instance',
+        ],
+        'system.php' => [
+            'key' => 'system',
+            'label_key' => 'nav.system',
+            'group' => 'configuration',
+            'priority' => 10,
+            'tooltip_key' => 'nav.tooltips.system',
         ],
         'sync_admin.php' => [
             'key' => 'sync',

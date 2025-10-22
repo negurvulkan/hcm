@@ -79,6 +79,38 @@ body.signage-player-body {
     display: block;
 }
 
+.signage-player-offline-overlay {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.75);
+    color: var(--signage-text);
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: 0.06em;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.signage-player-offline-overlay::before {
+    content: '\23F0';
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+.signage-player-offline-overlay.is-visible {
+    opacity: 1;
+}
+
 .signage-player-element--live,
 .signage-player-element--table,
 .signage-player-element--list {
@@ -239,6 +271,19 @@ body.signage-player-body {
     font-size: 1.8rem;
     font-weight: 600;
     letter-spacing: 0.04em;
+}
+
+.signage-player-clock.is-blinking {
+    animation: signage-clock-blink 1s steps(2, start) infinite;
+}
+
+@keyframes signage-clock-blink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 99% {
+        opacity: 0.2;
+    }
 }
 
 .signage-player-error {
