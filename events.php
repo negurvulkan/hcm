@@ -2,6 +2,7 @@
 require __DIR__ . '/auth.php';
 require_once __DIR__ . '/app/helpers/start_number_rules.php';
 require_once __DIR__ . '/app/helpers/scoring.php';
+require_once __DIR__ . '/app/helpers/arenas.php';
 
 use App\Scoring\RuleManager;
 
@@ -10,9 +11,6 @@ $isAdmin = auth_is_admin($user);
 
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $editEvent = $editId ? db_first('SELECT * FROM events WHERE id = :id', ['id' => $editId]) : null;
-if ($editEvent && $editEvent['venues']) {
-    $editEvent['venues_list'] = json_decode($editEvent['venues'], true, 512, JSON_THROW_ON_ERROR) ?: [];
-}
 if ($editEvent && !empty($editEvent['start_number_rules'])) {
     $editEvent['start_number_rules_text'] = $editEvent['start_number_rules'];
 }
@@ -62,14 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim((string) ($_POST['title'] ?? ''));
         $startDate = trim((string) ($_POST['start_date'] ?? ''));
         $endDate = trim((string) ($_POST['end_date'] ?? ''));
-        $venuesInput = (string) ($_POST['venues'] ?? '');
         $rulesInput = trim((string) ($_POST['start_number_rules'] ?? ''));
         $editEvent = [
             'id' => $eventId,
             'title' => $title,
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'venues_list' => array_filter(array_map('trim', explode(',', $venuesInput))),
+            'arena_assignments' => [],
             'start_number_rules_text' => $rulesInput,
         ];
         if ($rulesInput === '') {
@@ -134,7 +131,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim((string) ($_POST['title'] ?? ''));
         $start = trim((string) ($_POST['start_date'] ?? ''));
         $end = trim((string) ($_POST['end_date'] ?? ''));
-        $venues = array_filter(array_map('trim', explode(',', (string) ($_POST['venues'] ?? ''))));
         $rulesInput = trim((string) ($_POST['start_number_rules'] ?? ''));
         $rulesEncoded = null;
         $scoringRuleInput = trim((string) ($_POST['scoring_rule_json'] ?? ''));
@@ -165,11 +161,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($title === '') {
             flash('error', t('events.validation.title_required'));
         } else {
+            $existingVenues = null;
+            if ($action === 'update' && $eventId > 0) {
+                $existingRow = db_first('SELECT venues FROM events WHERE id = :id', ['id' => $eventId]);
+                $existingVenues = $existingRow['venues'] ?? null;
+            }
             $payload = [
                 'title' => $title,
                 'start' => $start ?: null,
                 'end' => $end ?: null,
-                'venues' => $venues ? json_encode(array_values($venues), JSON_THROW_ON_ERROR) : null,
+                'venues' => $existingVenues,
                 'rules' => $rulesEncoded,
                 'scoring_rule' => $scoringRuleEncoded,
             ];
@@ -201,10 +202,21 @@ if (!$isAdmin) {
 }
 $eventsQuery .= ' ORDER BY start_date DESC, id DESC';
 $events = db_all($eventsQuery, $params);
+$eventIds = array_filter(array_map(static fn ($row) => (int) ($row['id'] ?? 0), $events));
+if ($editEvent && isset($editEvent['id'])) {
+    $eventIds[] = (int) $editEvent['id'];
+}
+$eventIds = array_values(array_unique(array_filter($eventIds)));
+$eventAssignments = $eventIds ? arenas_event_assignments(app_pdo(), $eventIds) : [];
 foreach ($events as &$event) {
-    $event['venues_list'] = $event['venues'] ? json_decode($event['venues'], true, 512, JSON_THROW_ON_ERROR) : [];
+    $eventId = (int) ($event['id'] ?? 0);
+    $event['arena_assignments'] = $eventAssignments[$eventId] ?? [];
 }
 unset($event);
+if ($editEvent) {
+    $editId = (int) ($editEvent['id'] ?? 0);
+    $editEvent['arena_assignments'] = $eventAssignments[$editId] ?? [];
+}
 
 render_page('events.tpl', [
     'title' => t('events.title'),

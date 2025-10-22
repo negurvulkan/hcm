@@ -657,12 +657,15 @@ class SignageRepository
 
         $instanceConfig = $this->resolveInstanceConfig();
 
+        $venues = $this->fetchEventArenas($eventId);
+
         $eventData = $activeEvent ? [
             'id' => (int) $activeEvent['id'],
             'title' => $activeEvent['title'] ?? '',
             'start_date' => $activeEvent['start_date'] ?? null,
             'end_date' => $activeEvent['end_date'] ?? null,
-            'venues' => $this->decode($activeEvent['venues'] ?? '[]', []),
+            'venues' => array_map(static fn (array $assignment): string => (string) ($assignment['label'] ?? ''), $venues),
+            'arena_assignments' => $venues,
             'branding' => $instanceConfig ? [
                 'logo' => $instanceConfig->get('branding_logo'),
                 'primary_color' => $instanceConfig->get('branding_primary'),
@@ -700,6 +703,32 @@ class SignageRepository
         }
 
         return [$activeEvent, $eventId];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchEventArenas(?int $eventId): array
+    {
+        if (!$eventId) {
+            return [];
+        }
+
+        require_once __DIR__ . '/../helpers/arenas.php';
+
+        $assignments = arenas_event_assignments($this->pdo, [$eventId]);
+        $list = $assignments[$eventId] ?? [];
+
+        return array_map(static function (array $assignment): array {
+            return [
+                'id' => (int) ($assignment['id'] ?? 0),
+                'label' => (string) ($assignment['label'] ?? ''),
+                'summary' => (string) ($assignment['summary'] ?? ''),
+                'badge' => (string) ($assignment['badge'] ?? ''),
+                'location' => $assignment['location'] ?? null,
+                'remarks' => $assignment['remarks'] ?? null,
+            ];
+        }, $list);
     }
 
     private function resolveInstanceConfig(): ?InstanceConfiguration
