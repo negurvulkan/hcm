@@ -7,6 +7,7 @@ class SmartyView
 {
     private string $templatePath;
     private array $shared = [];
+    private array $stacks = [];
 
     public function __construct(string $templatePath)
     {
@@ -30,5 +31,45 @@ class SmartyView
         ob_start();
         include $path;
         return ob_get_clean();
+    }
+
+    public function push(string $stack, callable|string $content): void
+    {
+        $value = $this->evaluateStackContent($content);
+        if (!isset($this->stacks[$stack])) {
+            $this->stacks[$stack] = [];
+        }
+        $this->stacks[$stack][] = $value;
+    }
+
+    public function stack(string $stack, string $glue = "\n"): string
+    {
+        if (!isset($this->stacks[$stack])) {
+            return '';
+        }
+
+        return implode($glue, $this->stacks[$stack]);
+    }
+
+    public function flushStacks(): void
+    {
+        $this->stacks = [];
+    }
+
+    private function evaluateStackContent(callable|string $content): string
+    {
+        if (is_string($content)) {
+            return $content;
+        }
+
+        ob_start();
+        $result = $content();
+        $output = ob_get_clean();
+
+        if ($result !== null) {
+            $output .= (string) $result;
+        }
+
+        return $output;
     }
 }
