@@ -33,6 +33,7 @@ class Rbac
         'judge' => ['admin', 'judge', 'steward'],
         'results' => ['admin', 'office', 'steward'],
         'helpers' => ['admin', 'helpers', 'office'],
+        'stations' => ['admin', 'helpers', 'office'],
         'print' => ['admin', 'office', 'steward'],
         'export' => ['admin', 'office'],
         'audit' => ['admin'],
@@ -151,6 +152,13 @@ class Rbac
             'label_key' => 'nav.helpers',
             'group' => 'operations',
             'tooltip_key' => 'nav.tooltips.helpers',
+        ],
+        'stations.php' => [
+            'key' => 'stations',
+            'label_key' => 'nav.stations',
+            'group' => 'operations',
+            'tooltip_key' => 'nav.tooltips.stations',
+            'variant' => 'secondary',
         ],
         'print.php' => [
             'key' => 'print',
