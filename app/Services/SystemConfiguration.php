@@ -904,6 +904,8 @@ class SystemConfiguration
     {
         $context = $this->viewContext();
 
+        $formatVatRate = static fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2, '.', ''), '0'), '.');
+
         return [
             'time' => array_merge($context['time'], [
                 'timezone' => $this->timezone(),
@@ -912,7 +914,7 @@ class SystemConfiguration
                 'preferred' => $this->locale(),
             ]),
             'currency' => array_merge($context['currency'], [
-                'vat_rates_raw' => implode("\n", array_map(static fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2, '.', ''), '0'), '.'))),
+                'vat_rates_raw' => implode("\n", array_map($formatVatRate, $context['currency']['vat_rates'] ?? [])),
             ]),
             'integration' => array_merge($context['integration'], [
                 'db_password' => $this->settings['db_password'] ?? '',

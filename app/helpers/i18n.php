@@ -2,10 +2,6 @@
 use App\Core\App;
 use App\I18n\Formatter;
 use App\I18n\Translator;
-use DateTimeImmutable;
-use DateTimeInterface;
-use DateTimeZone;
-use Throwable;
 
 if (!function_exists('current_locale')) {
     function current_locale(): string
@@ -44,7 +40,7 @@ if (!function_exists('format_date')) {
         $config = i18n_resolve_system_config();
         if ($config) {
             $date = i18n_normalize_datetime($value, $config->timezone(), $config->timeOffsetMinutes());
-            if ($date instanceof DateTimeImmutable) {
+            if ($date instanceof \DateTimeImmutable) {
                 return Formatter::datePattern($date, $config->locale(), $config->dateIntlPattern(), $config->timezone());
             }
         }
@@ -59,7 +55,7 @@ if (!function_exists('format_time')) {
         $config = i18n_resolve_system_config();
         if ($config) {
             $date = i18n_normalize_datetime($value, $config->timezone(), $config->timeOffsetMinutes());
-            if ($date instanceof DateTimeImmutable) {
+            if ($date instanceof \DateTimeImmutable) {
                 return Formatter::timePattern($date, $config->locale(), $config->timeIntlPattern(), $config->timezone());
             }
         }
@@ -74,7 +70,7 @@ if (!function_exists('format_datetime')) {
         $config = i18n_resolve_system_config();
         if ($config) {
             $date = i18n_normalize_datetime($value, $config->timezone(), $config->timeOffsetMinutes());
-            if ($date instanceof DateTimeImmutable) {
+            if ($date instanceof \DateTimeImmutable) {
                 $datePart = Formatter::datePattern($date, $config->locale(), $config->dateIntlPattern(), $config->timezone());
                 $timePart = Formatter::timePattern($date, $config->locale(), $config->timeIntlPattern(), $config->timezone());
                 $separator = $config->datetimeSeparator();
@@ -129,7 +125,7 @@ if (!function_exists('i18n_resolve_system_config')) {
 
         try {
             $config = system_config();
-        } catch (Throwable) {
+        } catch (\Throwable) {
             return null;
         }
 
@@ -138,21 +134,21 @@ if (!function_exists('i18n_resolve_system_config')) {
 }
 
 if (!function_exists('i18n_normalize_datetime')) {
-    function i18n_normalize_datetime(\DateTimeInterface|string|int|null $value, ?string $timezone, int $offsetMinutes = 0): ?DateTimeImmutable
+    function i18n_normalize_datetime(\DateTimeInterface|string|int|null $value, ?string $timezone, int $offsetMinutes = 0): ?\DateTimeImmutable
     {
         if ($value === null || $value === '') {
             return null;
         }
 
         try {
-            if ($value instanceof DateTimeImmutable) {
+            if ($value instanceof \DateTimeImmutable) {
                 $date = $value;
-            } elseif ($value instanceof DateTimeInterface) {
-                $date = DateTimeImmutable::createFromInterface($value);
+            } elseif ($value instanceof \DateTimeInterface) {
+                $date = \DateTimeImmutable::createFromInterface($value);
             } elseif (is_int($value)) {
-                $date = (new DateTimeImmutable('@' . $value))->setTimezone(new DateTimeZone($timezone ?: date_default_timezone_get()));
+                $date = (new \DateTimeImmutable('@' . $value))->setTimezone(new \DateTimeZone($timezone ?: date_default_timezone_get()));
             } else {
-                $date = new DateTimeImmutable((string) $value, $timezone ? new DateTimeZone($timezone) : null);
+                $date = new \DateTimeImmutable((string) $value, $timezone ? new \DateTimeZone($timezone) : null);
             }
 
             if ($offsetMinutes !== 0) {
@@ -160,7 +156,7 @@ if (!function_exists('i18n_normalize_datetime')) {
             }
 
             return $date;
-        } catch (Throwable) {
+        } catch (\Throwable) {
             return null;
         }
     }
