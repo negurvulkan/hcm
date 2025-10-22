@@ -19,6 +19,13 @@ $localeMenuId = $localeMenuId ?? 'localeMenu';
 $guestLocaleMenuId = $guestLocaleMenuId ?? 'localeMenuGuest';
 $translatorInstance = translator();
 $navQuickActions = $navQuickActions ?? [];
+$systemMeta = $system ?? [];
+$systemTheme = $systemMeta['theme'] ?? [];
+$systemDisplay = $systemMeta['display'] ?? [];
+$themeMode = $systemDisplay['mode'] ?? 'auto';
+$themePrimary = $systemTheme['primary'] ?? '#2b72ff';
+$themeSecondary = $systemTheme['secondary'] ?? '#11131a';
+$themeLogo = $systemTheme['logo'] ?? '';
 $groupedMenu = [];
 foreach ($menu as $path => $item) {
     $group = $item['group'] ?? 'overview';
@@ -61,13 +68,21 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($currentLocale, ENT_QUOTES, 'UTF-8') ?>" data-theme="auto">
+<html lang="<?= htmlspecialchars($currentLocale, ENT_QUOTES, 'UTF-8') ?>" data-theme="<?= htmlspecialchars($themeMode, ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars(t('app.title_suffix', ['name' => $appName ?? 'Turniermanagement V2']), ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="stylesheet" href="public/assets/vendor/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="public/assets/css/styles.css">
+    <style>
+        :root {
+            --accent: <?= htmlspecialchars($themePrimary, ENT_QUOTES, 'UTF-8') ?>;
+        }
+        html[data-theme="dark"] body {
+            background-color: <?= htmlspecialchars($themeSecondary, ENT_QUOTES, 'UTF-8') ?>;
+        }
+    </style>
     <?php foreach ($extraStyles as $href): ?>
         <link rel="stylesheet" href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>">
     <?php endforeach; ?>
@@ -149,7 +164,11 @@ if ($titleKey === null && $pageKey !== '' && $translatorInstance instanceof \App
                 <div class="app-sidebar__inner">
                     <div class="app-sidebar__brand d-none d-md-flex justify-content-center">
                         <a class="app-sidebar__brand-icon" href="dashboard.php" title="<?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?>" data-bs-toggle="tooltip">
-                            <?= htmlspecialchars($getInitial($appName ?? 'TM'), ENT_QUOTES, 'UTF-8') ?>
+                            <?php if ($themeLogo): ?>
+                                <img src="<?= htmlspecialchars($themeLogo, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($appName ?? 'Turniermanagement V2', ENT_QUOTES, 'UTF-8') ?>" class="app-sidebar__brand-logo">
+                            <?php else: ?>
+                                <?= htmlspecialchars($getInitial($appName ?? 'TM'), ENT_QUOTES, 'UTF-8') ?>
+                            <?php endif; ?>
                         </a>
                     </div>
                     <nav class="app-sidebar__nav" aria-label="<?= htmlspecialchars(t('layout.nav.menu_label'), ENT_QUOTES, 'UTF-8') ?>">

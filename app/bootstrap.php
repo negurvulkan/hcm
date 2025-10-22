@@ -5,6 +5,7 @@ use App\Core\SmartyView;
 use App\I18n\LocaleManager;
 use App\I18n\Translator;
 use App\Services\InstanceConfiguration;
+use App\Services\SystemConfiguration;
 use App\Setup\Updater;
 
 spl_autoload_register(static function (string $class): void {
@@ -47,11 +48,31 @@ $config = require $configFile;
 App::set('config', $config);
 App::set('pdo', Database::connect($config['db'] ?? []));
 
+$systemConfig = null;
 if (App::has('pdo')) {
     $driver = $config['db']['driver'] ?? 'sqlite';
     Updater::runOnConnection(App::get('pdo'), $driver);
+    $systemConfig = new SystemConfiguration(App::get('pdo'));
+    App::set('system', $systemConfig);
+    $timezone = $systemConfig->timezone();
+    if ($timezone !== '') {
+        @date_default_timezone_set($timezone);
+    }
 }
-$localeManager = new LocaleManager($config['app']['locales'] ?? ['de', 'en'], $config['app']['default_locale'] ?? 'de');
+
+$supportedLocales = $config['app']['locales'] ?? ['de', 'en'];
+$defaultLocale = $config['app']['default_locale'] ?? 'de';
+if ($systemConfig instanceof SystemConfiguration) {
+    $preferredLocale = strtolower(substr($systemConfig->locale(), 0, 2));
+    if ($preferredLocale !== '' && !in_array($preferredLocale, $supportedLocales, true)) {
+        $supportedLocales[] = $preferredLocale;
+    }
+    if ($preferredLocale !== '') {
+        $defaultLocale = $preferredLocale;
+    }
+}
+
+$localeManager = new LocaleManager($supportedLocales, $defaultLocale, $config['app']['locale_session_key'] ?? '_locale', $config['app']['locale_cookie'] ?? 'app_locale');
 $currentLocale = $localeManager->detect();
 $translator = new Translator($currentLocale, $config['app']['fallback_locale'] ?? 'de', $config['app']['lang_path'] ?? (__DIR__ . '/../lang'));
 App::set('locale_manager', $localeManager);
@@ -62,6 +83,9 @@ $view->share('appName', $config['app']['name'] ?? 'Turniermanagement V2');
 $view->share('currentLocale', $currentLocale);
 $view->share('availableLocales', $localeManager->supported());
 $view->share('translations', $translator->all());
+if ($systemConfig instanceof SystemConfiguration) {
+    $view->share('system', $systemConfig->viewContext());
+}
 if (App::has('pdo')) {
     $instance = new InstanceConfiguration(App::get('pdo'));
     App::set('instance', $instance);
