@@ -44,6 +44,14 @@ $editorConfig = [
         'status' => t('layout_editor.pages.status_template'),
         'cursor' => t('layout_editor.canvas.cursor'),
     ],
+    'messages' => [
+        'previewLoading' => t('layout_editor.properties.placeholder_preview_loading'),
+        'previewError' => t('layout_editor.properties.placeholder_preview_error'),
+        'placeholderHint' => t('layout_editor.properties.placeholder_expression_hint'),
+    ],
+    'api' => [
+        'base' => 'layout_editor_api.php',
+    ],
     'fonts' => $fonts,
 ];
 
