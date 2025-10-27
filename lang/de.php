@@ -165,8 +165,12 @@ return [
         'toolbar' => [
             'modes' => 'Werkzeuge',
             'select' => 'Auswahl',
-            'frame' => 'Rahmen',
+            'elements' => 'Elemente',
             'text' => 'Text',
+            'image' => 'Bild',
+            'shape' => 'Form',
+            'table' => 'Tabelle',
+            'placeholder' => 'Platzhalter',
             'zoom_out' => 'Verkleinern',
             'zoom_in' => 'Vergrößern',
             'zoom_fit' => 'Einpassen',

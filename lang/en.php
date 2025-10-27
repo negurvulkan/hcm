@@ -165,8 +165,12 @@ return [
         'toolbar' => [
             'modes' => 'Tool selection',
             'select' => 'Select',
-            'frame' => 'Frame',
+            'elements' => 'Elements',
             'text' => 'Text',
+            'image' => 'Image',
+            'shape' => 'Shape',
+            'table' => 'Table',
+            'placeholder' => 'Placeholder',
             'zoom_out' => 'Zoom out',
             'zoom_in' => 'Zoom in',
             'zoom_fit' => 'Fit',
