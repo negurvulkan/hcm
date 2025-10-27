@@ -38,6 +38,82 @@
     gap: 0.75rem;
 }
 
+.layout-editor__properties {
+    box-shadow: 0 1.5rem 3rem -1.5rem rgba(15, 23, 42, 0.25);
+}
+
+.layout-editor__properties-empty {
+    padding: 1rem;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.75rem;
+    text-align: center;
+}
+
+.layout-editor__properties-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.layout-editor__properties-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.layout-editor__properties-selected-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.layout-editor__properties-layer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+}
+
+.layout-editor__properties-layer-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.layout-editor__properties-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+}
+
+.layout-editor__properties-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bs-secondary-color, #64748b);
+}
+
+.layout-editor__properties-opacity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.layout-editor__properties-opacity-value {
+    min-width: 3rem;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #64748b);
+}
+
 .layout-editor__page-list {
     list-style: none;
     margin: 0;
@@ -344,6 +420,7 @@
     box-shadow: 0 0.75rem 1.5rem -1rem rgba(15, 23, 42, 0.65);
     pointer-events: auto;
     cursor: move;
+    transform-origin: center;
     transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
@@ -392,6 +469,11 @@
 .layout-editor__element.is-selected {
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.75), 0 1rem 2rem -1.25rem rgba(15, 23, 42, 0.6);
     border-color: rgba(56, 189, 248, 0.9);
+}
+
+.layout-editor__element.is-hidden {
+    border-style: dashed;
+    opacity: 0.35;
 }
 
 .layout-editor__element-handles {
