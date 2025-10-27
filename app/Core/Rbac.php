@@ -29,6 +29,7 @@ class Rbac
         'schedule' => ['admin', 'steward', 'announcer'],
         'display' => ['admin', 'steward', 'announcer', 'participant'],
         'signage' => ['admin', 'office', 'announcer'],
+        'layout_editor' => ['admin', 'office', 'announcer'],
         'sponsors' => ['admin', 'office', 'announcer'],
         'judge' => ['admin', 'judge', 'steward'],
         'results' => ['admin', 'office', 'steward'],
@@ -131,6 +132,13 @@ class Rbac
             'label_key' => 'nav.signage',
             'group' => 'operations',
             'tooltip_key' => 'nav.tooltips.signage',
+            'variant' => 'secondary',
+        ],
+        'layout_editor.php' => [
+            'key' => 'layout_editor',
+            'label_key' => 'nav.layout_editor',
+            'group' => 'operations',
+            'tooltip_key' => 'nav.tooltips.layout_editor',
             'variant' => 'secondary',
         ],
         'judge.php' => [
