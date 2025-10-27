@@ -49,6 +49,17 @@ $editorConfig = [
         'previewError' => t('layout_editor.properties.placeholder_preview_error'),
         'placeholderHint' => t('layout_editor.properties.placeholder_expression_hint'),
     ],
+    'export' => [
+        'endpoint' => 'layout_export.php',
+        'strings' => [
+            'queued' => t('layout_editor.export.queued'),
+            'processing' => t('layout_editor.export.processing'),
+            'completed' => t('layout_editor.export.completed'),
+            'error' => t('layout_editor.export.error'),
+            'progress' => t('layout_editor.export.progress'),
+            'none' => t('layout_editor.export.none_available'),
+        ],
+    ],
     'api' => [
         'base' => 'layout_editor_api.php',
     ],

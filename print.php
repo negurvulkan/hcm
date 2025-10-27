@@ -11,6 +11,9 @@ if (isset($_GET['download'])) {
     }
     $type = $_GET['download'];
     $classId = (int) ($_GET['class_id'] ?? 0);
+    $paperOption = strtolower((string) ($_GET['paper'] ?? 'a4'));
+    $orientationOption = strtolower((string) ($_GET['orientation'] ?? 'portrait'));
+    $bleedValue = isset($_GET['bleed']) ? max(0.0, (float) $_GET['bleed']) : 0.0;
     $view = app_view();
     $html = '';
     $filename = $type . '.pdf';
@@ -97,9 +100,22 @@ if (isset($_GET['download'])) {
         exit;
     }
 
+    $paperMap = [
+        'a4' => ['name' => 'A4', 'width_mm' => 210, 'height_mm' => 297],
+        'a5' => ['name' => 'A5', 'width_mm' => 148, 'height_mm' => 210],
+        'letter' => ['name' => 'letter', 'width_mm' => 216, 'height_mm' => 279],
+    ];
+    $paper = $paperMap[$paperOption] ?? $paperMap['a4'];
+    $orientation = $orientationOption === 'landscape' ? 'landscape' : 'portrait';
+
+    if ($bleedValue > 0) {
+        $padding = $bleedValue * 3.7795275591;
+        $html = '<div style="padding:' . $padding . 'px; box-sizing:border-box;">' . $html . '</div>';
+    }
+
     $dompdf = new Dompdf\Dompdf(['isRemoteEnabled' => true]);
     $dompdf->loadHtml($html);
-    $dompdf->setPaper('A4');
+    $dompdf->setPaper($paper['name'], $orientation);
     $dompdf->render();
     $dompdf->stream($filename);
     exit;
@@ -120,4 +136,7 @@ render_page('print.tpl', [
     'title' => t('print.title'),
     'page' => 'print',
     'classes' => $classes,
+    'paper' => $paperOption,
+    'orientation' => $orientationOption,
+    'bleed' => $bleedValue,
 ]);

@@ -282,6 +282,22 @@
             previewDataset: null,
         };
 
+        const exportConfig = typeof config.export === 'object' && config.export ? config.export : {};
+        const exportState = {
+            endpoint:
+                typeof exportConfig.endpoint === 'string' && exportConfig.endpoint
+                    ? exportConfig.endpoint
+                    : 'layout_export.php',
+            strings: typeof exportConfig.strings === 'object' && exportConfig.strings ? exportConfig.strings : {},
+            meta: null,
+            metaLoaded: false,
+            loadingMeta: false,
+            csrf: null,
+            jobId: null,
+            pollTimer: null,
+            modalInstance: null,
+        };
+
         const elements = {
             pagesList: root.querySelector('[data-layout-editor-pages]'),
             emptyState: root.querySelector('[data-layout-editor-empty-state]'),
@@ -302,6 +318,7 @@
             rulerVertical: root.querySelector('[data-layout-editor-ruler-scale="vertical"]'),
             toggleGridButton: root.querySelector('[data-layout-editor-action="toggle-grid"]'),
             toggleGuidesButton: root.querySelector('[data-layout-editor-action="toggle-guides"]'),
+            exportTrigger: root.querySelector('[data-layout-editor-export-trigger]'),
             propertiesPanel: root.querySelector('[data-layout-editor-properties]'),
             propertiesEmpty: root.querySelector('[data-layout-editor-properties-empty]'),
             propertiesForm: root.querySelector('[data-layout-editor-properties-form]'),
@@ -312,6 +329,38 @@
             selectedMeta: root.querySelector('[data-layout-editor-selected-meta]'),
             expressionError: root.querySelector('[data-layout-editor-expression-error]'),
         };
+
+        const exportElements = {
+            modal: document.getElementById('layoutExportModal'),
+            form: document.querySelector('[data-layout-export-form]'),
+            layoutSelect: document.querySelector('[data-layout-export-layout]'),
+            sourceSelect: document.querySelector('[data-layout-export-source]'),
+            classWrapper: document.querySelector('[data-layout-export-class-wrapper]'),
+            classSelect: document.querySelector('[data-layout-export-class]'),
+            paperSelect: document.querySelector('[data-layout-export-paper]'),
+            bleedInput: document.querySelector('[data-layout-export-bleed]'),
+            progressContainer: document.querySelector('[data-layout-export-progress]'),
+            progressBar: document.querySelector('[data-layout-export-progress-bar]'),
+            statusText: document.querySelector('[data-layout-export-status]'),
+            errorContainer: document.querySelector('[data-layout-export-error]'),
+            errorMessage: document.querySelector('[data-layout-export-error-message]'),
+            startButton: document.querySelector('[data-layout-export-start]'),
+            startLabel: document.querySelector('[data-layout-export-start-label]'),
+            spinner: document.querySelector('[data-layout-export-spinner]'),
+            downloadLink: document.querySelector('[data-layout-export-download]'),
+            closeButton: document.querySelector('[data-layout-export-close]'),
+        };
+
+        if (exportElements.startLabel) {
+            exportElements.startLabel.dataset.defaultLabel = exportElements.startLabel.textContent.trim();
+        }
+
+        if (exportElements.modal && window.bootstrap && window.bootstrap.Modal) {
+            exportState.modalInstance = new window.bootstrap.Modal(exportElements.modal);
+            exportElements.modal.addEventListener('hidden.bs.modal', () => {
+                resetExportModal();
+            });
+        }
 
         if (!elements.viewport || !elements.stage || !elements.inner || !elements.canvas || !elements.elementsLayer) {
             return;
@@ -1839,6 +1888,504 @@
             context.fillText('Canvas: ' + width + ' × ' + height + ' px', 52, 94);
         }
 
+        function translateExport(key, replacements) {
+            const template = exportState.strings && Object.prototype.hasOwnProperty.call(exportState.strings, key)
+                ? exportState.strings[key]
+                : '';
+            if (!template) {
+                return '';
+            }
+            return replacements ? formatTemplate(template, replacements) : template;
+        }
+
+        function hideExportError() {
+            if (!exportElements.errorContainer) {
+                return;
+            }
+            exportElements.errorContainer.hidden = true;
+            if (exportElements.errorMessage) {
+                exportElements.errorMessage.textContent = '';
+            }
+        }
+
+        function showExportError(message) {
+            if (!exportElements.errorContainer || !exportElements.errorMessage) {
+                return;
+            }
+            exportElements.errorContainer.hidden = false;
+            exportElements.errorMessage.textContent = message || translateExport('error') || '';
+        }
+
+        function stopStatusPolling() {
+            if (exportState.pollTimer) {
+                window.clearInterval(exportState.pollTimer);
+                exportState.pollTimer = null;
+            }
+        }
+
+        function setExportProcessing(active) {
+            if (exportElements.startButton) {
+                exportElements.startButton.disabled = active || !exportState.metaLoaded;
+            }
+            if (exportElements.spinner) {
+                exportElements.spinner.hidden = !active;
+            }
+            if (exportElements.form) {
+                exportElements.form.querySelectorAll('select, input').forEach((input) => {
+                    input.disabled = active;
+                });
+            }
+            if (exportElements.startLabel) {
+                const defaultLabel = exportElements.startLabel.dataset.defaultLabel
+                    || exportElements.startLabel.textContent
+                    || '';
+                exportElements.startLabel.textContent = active
+                    ? translateExport('processing') || defaultLabel
+                    : defaultLabel;
+            }
+        }
+
+        function resetExportModal() {
+            stopStatusPolling();
+            exportState.jobId = null;
+            if (exportElements.spinner) {
+                exportElements.spinner.hidden = true;
+            }
+            if (exportElements.progressContainer) {
+                exportElements.progressContainer.hidden = true;
+            }
+            if (exportElements.progressBar) {
+                exportElements.progressBar.style.width = '0%';
+                exportElements.progressBar.setAttribute('aria-valuenow', '0');
+            }
+            if (exportElements.statusText) {
+                exportElements.statusText.textContent = '';
+            }
+            if (exportElements.downloadLink) {
+                exportElements.downloadLink.hidden = true;
+                exportElements.downloadLink.removeAttribute('href');
+            }
+            if (exportElements.bleedInput) {
+                exportElements.bleedInput.value = '0';
+            }
+            hideExportError();
+            setExportProcessing(false);
+            if (exportElements.startButton) {
+                exportElements.startButton.disabled = !exportState.metaLoaded;
+            }
+            if (exportState.metaLoaded) {
+                toggleClassSelector();
+            }
+        }
+
+        function populateLayouts(layouts) {
+            if (!exportElements.layoutSelect) {
+                return;
+            }
+            exportElements.layoutSelect.innerHTML = '';
+            if (!Array.isArray(layouts) || !layouts.length) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = translateExport('none') || '—';
+                option.disabled = true;
+                option.selected = true;
+                exportElements.layoutSelect.appendChild(option);
+                return;
+            }
+            layouts.forEach((layout, index) => {
+                const option = document.createElement('option');
+                option.value = String(layout.id || '');
+                option.textContent = layout.name || layout.id || 'Layout';
+                if (index === 0) {
+                    option.selected = true;
+                }
+                exportElements.layoutSelect.appendChild(option);
+            });
+        }
+
+        function populateDataSources(sources) {
+            if (!exportElements.sourceSelect) {
+                return;
+            }
+            exportElements.sourceSelect.innerHTML = '';
+            if (!Array.isArray(sources) || !sources.length) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = translateExport('none') || '—';
+                option.disabled = true;
+                option.selected = true;
+                exportElements.sourceSelect.appendChild(option);
+                return;
+            }
+            sources.forEach((source, index) => {
+                const option = document.createElement('option');
+                option.value = String(source.id || '');
+                option.textContent = source.label || source.id || 'Source';
+                option.dataset.requiresClass = Array.isArray(source.options) && source.options.includes('class_id') ? '1' : '0';
+                if (index === 0) {
+                    option.selected = true;
+                }
+                exportElements.sourceSelect.appendChild(option);
+            });
+        }
+
+        function populatePapers(papers) {
+            if (!exportElements.paperSelect) {
+                return;
+            }
+            exportElements.paperSelect.innerHTML = '';
+            if (!Array.isArray(papers) || !papers.length) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'A4';
+                option.disabled = true;
+                option.selected = true;
+                exportElements.paperSelect.appendChild(option);
+                return;
+            }
+            papers.forEach((paper, index) => {
+                const option = document.createElement('option');
+                option.value = String(paper.id || '');
+                option.textContent = paper.label || paper.id || 'Paper';
+                if (index === 0) {
+                    option.selected = true;
+                }
+                exportElements.paperSelect.appendChild(option);
+            });
+        }
+
+        function populateClasses(classes) {
+            if (!exportElements.classSelect) {
+                return;
+            }
+            exportElements.classSelect.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '—';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            exportElements.classSelect.appendChild(placeholder);
+            if (!Array.isArray(classes)) {
+                return;
+            }
+            classes.forEach((item) => {
+                const option = document.createElement('option');
+                option.value = String(item.id || '');
+                const parts = [];
+                if (item.label) {
+                    parts.push(item.label);
+                }
+                if (item.event_title) {
+                    parts.push(item.event_title);
+                }
+                option.textContent = parts.join(' · ') || String(item.id || '');
+                exportElements.classSelect.appendChild(option);
+            });
+        }
+
+        function requiresClass(sourceId) {
+            if (!exportState.meta || !Array.isArray(exportState.meta.data_sources)) {
+                return false;
+            }
+            return exportState.meta.data_sources.some((source) => {
+                if (!source || source.id !== sourceId) {
+                    return false;
+                }
+                return Array.isArray(source.options) && source.options.includes('class_id');
+            });
+        }
+
+        function toggleClassSelector() {
+            if (!exportElements.classWrapper) {
+                return;
+            }
+            const selectedSource = exportElements.sourceSelect ? exportElements.sourceSelect.value : '';
+            const needsClass = selectedSource && requiresClass(selectedSource);
+            exportElements.classWrapper.hidden = !needsClass;
+            if (!needsClass && exportElements.classSelect) {
+                exportElements.classSelect.value = '';
+            }
+        }
+
+        function applyExportDefaults() {
+            if (exportElements.layoutSelect && exportElements.layoutSelect.options.length > 0) {
+                exportElements.layoutSelect.selectedIndex = 0;
+            }
+            if (exportElements.sourceSelect && exportElements.sourceSelect.options.length > 0) {
+                exportElements.sourceSelect.selectedIndex = 0;
+            }
+            if (exportElements.paperSelect && exportElements.paperSelect.options.length > 0) {
+                exportElements.paperSelect.selectedIndex = 0;
+            }
+            if (exportElements.bleedInput) {
+                exportElements.bleedInput.value = '0';
+            }
+            toggleClassSelector();
+            setExportProcessing(false);
+            if (exportElements.startButton) {
+                exportElements.startButton.disabled = false;
+            }
+        }
+
+        function loadExportMeta() {
+            if (exportState.loadingMeta) {
+                return exportState.loadingMetaPromise;
+            }
+            hideExportError();
+            exportState.loadingMeta = true;
+            if (exportElements.startButton) {
+                exportElements.startButton.disabled = true;
+            }
+            exportState.loadingMetaPromise = fetch(exportState.endpoint + '?action=meta', { credentials: 'same-origin' })
+                .then(async (response) => {
+                    let payload;
+                    try {
+                        payload = await response.json();
+                    } catch (error) {
+                        payload = null;
+                    }
+                    return payload;
+                })
+                .then((payload) => {
+                    exportState.loadingMeta = false;
+                    if (!payload || payload.status !== 'ok') {
+                        throw new Error('meta_failed');
+                    }
+                    exportState.meta = payload;
+                    exportState.metaLoaded = true;
+                    exportState.csrf = payload.csrf || null;
+                    populateLayouts(payload.layouts || []);
+                    populateDataSources(payload.data_sources || []);
+                    populatePapers(payload.paper || []);
+                    populateClasses(payload.classes || []);
+                    applyExportDefaults();
+                    return payload;
+                })
+                .catch((error) => {
+                    exportState.loadingMeta = false;
+                    console.error('Unable to load export metadata', error);
+                    showExportError(translateExport('error') || 'Metadaten konnten nicht geladen werden.');
+                    if (exportElements.startButton) {
+                        exportElements.startButton.disabled = true;
+                    }
+                    throw error;
+                });
+            return exportState.loadingMetaPromise;
+        }
+
+        function updateExportProgress(job) {
+            if (!exportElements.progressContainer || !exportElements.progressBar || !exportElements.statusText) {
+                return;
+            }
+            exportElements.progressContainer.hidden = false;
+            const total = Number.parseInt(job?.total ?? 0, 10) || 0;
+            const processed = Number.parseInt(job?.processed ?? 0, 10) || 0;
+            const percent = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+            exportElements.progressBar.style.width = percent + '%';
+            exportElements.progressBar.setAttribute('aria-valuenow', String(percent));
+            if (job?.status === 'completed') {
+                exportElements.statusText.textContent = translateExport('completed') || '';
+            } else if (job?.status === 'processing' && total > 0) {
+                exportElements.statusText.textContent = translateExport('progress', {
+                    current: processed,
+                    total,
+                });
+            } else if (job?.status === 'queued') {
+                exportElements.statusText.textContent = translateExport('queued') || '';
+            } else {
+                exportElements.statusText.textContent = '';
+            }
+        }
+
+        function updateExportFromJob(job) {
+            if (!job) {
+                return;
+            }
+            updateExportProgress(job);
+            if (job.status === 'completed') {
+                if (exportElements.downloadLink) {
+                    exportElements.downloadLink.hidden = false;
+                    exportElements.downloadLink.href = exportState.endpoint + '?action=download&job=' + encodeURIComponent(job.id);
+                }
+                setExportProcessing(false);
+            } else if (job.status === 'failed') {
+                showExportError(translateExport('error') || 'Export fehlgeschlagen.');
+                setExportProcessing(false);
+            }
+        }
+
+        function startStatusPolling(jobId) {
+            stopStatusPolling();
+            exportState.pollTimer = window.setInterval(() => {
+                fetch(exportState.endpoint + '?action=status&job=' + encodeURIComponent(jobId), {
+                    credentials: 'same-origin',
+                })
+                    .then(async (response) => {
+                        let payload;
+                        try {
+                            payload = await response.json();
+                        } catch (error) {
+                            payload = null;
+                        }
+                        return payload;
+                    })
+                    .then((payload) => {
+                        if (!payload || payload.status !== 'ok') {
+                            return;
+                        }
+                        if (payload.csrf) {
+                            exportState.csrf = payload.csrf;
+                        }
+                        updateExportFromJob(payload.job);
+                        if (payload.job && (payload.job.status === 'completed' || payload.job.status === 'failed')) {
+                            stopStatusPolling();
+                        }
+                    })
+                    .catch((error) => {
+                        console.warn('Export status polling failed', error);
+                    });
+            }, 1200);
+        }
+
+        function processJob(jobId) {
+            return fetch(exportState.endpoint + '?action=process', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': exportState.csrf || '',
+                },
+                body: JSON.stringify({ job: jobId, _token: exportState.csrf || undefined }),
+            })
+                .then(async (response) => {
+                    let payload;
+                    try {
+                        payload = await response.json();
+                    } catch (error) {
+                        payload = null;
+                    }
+                    return payload;
+                })
+                .then((payload) => {
+                    if (!payload || payload.status !== 'ok') {
+                        throw new Error(payload?.code || 'process_failed');
+                    }
+                    if (payload.csrf) {
+                        exportState.csrf = payload.csrf;
+                    }
+                    updateExportFromJob(payload.job);
+                    if (payload.job && payload.job.status === 'completed') {
+                        stopStatusPolling();
+                    }
+                    return payload;
+                })
+                .catch((error) => {
+                    console.error('Export processing failed', error);
+                    showExportError(translateExport('error') || 'Export fehlgeschlagen.');
+                    setExportProcessing(false);
+                    stopStatusPolling();
+                    throw error;
+                });
+        }
+
+        function startExport() {
+            if (!exportState.metaLoaded) {
+                loadExportMeta();
+                return;
+            }
+            hideExportError();
+            const layoutId = exportElements.layoutSelect ? exportElements.layoutSelect.value : '';
+            const dataSourceId = exportElements.sourceSelect ? exportElements.sourceSelect.value : '';
+            const paperId = exportElements.paperSelect ? exportElements.paperSelect.value : '';
+            const bleedValue = exportElements.bleedInput ? Number.parseFloat(exportElements.bleedInput.value || '0') : 0;
+            const classId = exportElements.classSelect ? exportElements.classSelect.value : '';
+            const needsClass = dataSourceId && requiresClass(dataSourceId);
+            if (!layoutId || !dataSourceId || !paperId || (needsClass && !classId)) {
+                showExportError(translateExport('error') || 'Bitte alle Felder ausfüllen.');
+                return;
+            }
+            exportState.jobId = null;
+            setExportProcessing(true);
+            updateExportProgress({ status: 'queued', total: 0, processed: 0 });
+
+            const payload = {
+                layout: layoutId,
+                data_source: dataSourceId,
+                paper: paperId,
+                bleed: Number.isFinite(bleedValue) ? bleedValue : 0,
+                _token: exportState.csrf || undefined,
+            };
+            if (needsClass) {
+                payload.class_id = classId ? Number.parseInt(classId, 10) : null;
+            }
+
+            fetch(exportState.endpoint + '?action=create', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': exportState.csrf || '',
+                },
+                body: JSON.stringify(payload),
+            })
+                .then(async (response) => {
+                    let result;
+                    try {
+                        result = await response.json();
+                    } catch (error) {
+                        result = null;
+                    }
+                    return result;
+                })
+                .then((result) => {
+                    if (!result || result.status !== 'ok' || !result.job) {
+                        throw new Error(result?.code || 'create_failed');
+                    }
+                    if (result.csrf) {
+                        exportState.csrf = result.csrf;
+                    }
+                    exportState.jobId = result.job.id;
+                    startStatusPolling(result.job.id);
+                    return processJob(result.job.id);
+                })
+                .catch((error) => {
+                    console.error('Unable to start export', error);
+                    showExportError(translateExport('error') || 'Export fehlgeschlagen.');
+                    setExportProcessing(false);
+                });
+        }
+
+        function openExportModal() {
+            if (!exportState.modalInstance) {
+                return;
+            }
+            resetExportModal();
+            exportState.modalInstance.show();
+            if (!exportState.metaLoaded) {
+                loadExportMeta();
+            } else {
+                setExportProcessing(false);
+            }
+        }
+
+        if (elements.exportTrigger) {
+            elements.exportTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                openExportModal();
+            });
+        }
+        if (exportElements.sourceSelect) {
+            exportElements.sourceSelect.addEventListener('change', () => {
+                toggleClassSelector();
+            });
+        }
+        if (exportElements.startButton) {
+            exportElements.startButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                startExport();
+            });
+        }
+
         function handleAction(action, target) {
             switch (action) {
                 case 'add-page':
@@ -1864,6 +2411,9 @@
                     break;
                 case 'toggle-guides':
                     toggleGuides();
+                    break;
+                case 'open-export':
+                    openExportModal();
                     break;
                 case 'bring-forward':
                     if (state.selectedElementId) {
