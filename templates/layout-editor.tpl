@@ -282,6 +282,12 @@ $fonts = $fontOptions ?? ($editorConfig['fonts'] ?? []);
                                         <label class="form-label form-label-sm" for="layout-editor-prop-label"><?= htmlspecialchars(t('layout_editor.properties.placeholder_label'), ENT_QUOTES, 'UTF-8') ?></label>
                                         <input type="text" class="form-control form-control-sm" id="layout-editor-prop-label" data-layout-editor-data="label">
                                     </div>
+                                    <div class="mb-3">
+                                        <label class="form-label form-label-sm" for="layout-editor-prop-expression"><?= htmlspecialchars(t('layout_editor.properties.placeholder_expression'), ENT_QUOTES, 'UTF-8') ?></label>
+                                        <textarea class="form-control form-control-sm font-monospace" id="layout-editor-prop-expression" data-layout-editor-data="expression" data-layout-editor-template-input rows="4" spellcheck="false" placeholder="{{ person.name }}"></textarea>
+                                        <div class="form-text small" data-layout-editor-expression-hint><?= htmlspecialchars(t('layout_editor.properties.placeholder_expression_hint'), ENT_QUOTES, 'UTF-8') ?></div>
+                                        <div class="invalid-feedback d-block layout-editor__expression-error" data-layout-editor-expression-error hidden></div>
+                                    </div>
                                     <div class="mb-0">
                                         <label class="form-label form-label-sm" for="layout-editor-prop-sample"><?= htmlspecialchars(t('layout_editor.properties.placeholder_sample'), ENT_QUOTES, 'UTF-8') ?></label>
                                         <input type="text" class="form-control form-control-sm" id="layout-editor-prop-sample" data-layout-editor-data="sample" placeholder="https://">

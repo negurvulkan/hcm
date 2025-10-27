@@ -13,6 +13,42 @@
         return Math.min(Math.max(value, min), max);
     }
 
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function ensureRuntime(element) {
+        if (!element) {
+            return null;
+        }
+        if (!Object.prototype.hasOwnProperty.call(element, '__runtime')) {
+            Object.defineProperty(element, '__runtime', {
+                value: {
+                    previewHtml: '',
+                    previewError: null,
+                    previewLoading: false,
+                    lastRequestId: 0,
+                },
+                writable: true,
+                configurable: true,
+                enumerable: false,
+            });
+        }
+        return element.__runtime;
+    }
+
+    function getRuntime(element) {
+        if (!element) {
+            return null;
+        }
+        return element.__runtime || null;
+    }
+
     function parseConfig(raw) {
         if (!raw) {
             return {};
@@ -62,6 +98,17 @@
             ? config.fonts.filter((font) => typeof font === 'string' && font.trim() !== '')
             : [];
         const fonts = configuredFonts.length ? configuredFonts : fallbackFonts;
+
+        const defaultMessages = {
+            previewLoading: 'Updating preview…',
+            previewError: 'Expression error',
+            placeholderHint: '',
+        };
+        const messages = Object.assign({}, defaultMessages, typeof config.messages === 'object' && config.messages ? config.messages : {});
+        const apiBase =
+            typeof config.api === 'object' && config.api && typeof config.api.base === 'string' && config.api.base
+                ? config.api.base
+                : 'layout_editor_api.php';
 
         const rawPages = Array.isArray(config.pages) ? config.pages.slice() : [];
         const pages = rawPages.map((page, index) => {
@@ -125,8 +172,9 @@
                 width: 220,
                 height: 220,
                 data: {
-                    label: 'QR Code',
-                    sample: 'https://example.com',
+                    label: 'Datenplatzhalter',
+                    sample: 'Anna Schmidt',
+                    expression: '{{ person.name }}',
                 },
             },
         };
@@ -184,6 +232,11 @@
             if (element.type === 'text' && (!element.data.fontFamily || element.data.fontFamily === '')) {
                 element.data.fontFamily = defaults.data.fontFamily || fonts[0] || fallbackFonts[0];
             }
+            if (element.type === 'placeholder') {
+                element.data.expression = typeof element.data.expression === 'string' ? element.data.expression : '';
+                element.data.sample = typeof element.data.sample === 'string' ? element.data.sample : '';
+                ensureRuntime(element);
+            }
             registerElementIdLocal(element.id);
             return element;
         }
@@ -192,6 +245,17 @@
             const rawPage = rawPages[index] || page;
             const rawElements = Array.isArray(rawPage.elements) ? rawPage.elements : [];
             elementsByPage[page.id] = rawElements.map((element) => normalizeElement(element));
+        });
+
+        Object.values(elementsByPage).forEach((pageElements) => {
+            pageElements.forEach((element) => {
+                if (element.type === 'placeholder') {
+                    const runtime = ensureRuntime(element);
+                    if (runtime && !runtime.previewHtml) {
+                        runtime.previewHtml = element.data.sample ? escapeHtml(element.data.sample) : '';
+                    }
+                }
+            });
         });
 
         const state = {
@@ -210,6 +274,12 @@
             elementCounter: initialElementCounter,
             interaction: null,
             fonts,
+            messages,
+            apiBase,
+            csrfToken: null,
+            placeholderGroups: [],
+            placeholderSuggestions: [],
+            previewDataset: null,
         };
 
         const elements = {
@@ -240,6 +310,7 @@
             opacityDisplay: root.querySelector('[data-layout-editor-property-display="opacity"]'),
             selectedName: root.querySelector('[data-layout-editor-selected-name]'),
             selectedMeta: root.querySelector('[data-layout-editor-selected-meta]'),
+            expressionError: root.querySelector('[data-layout-editor-expression-error]'),
         };
 
         if (!elements.viewport || !elements.stage || !elements.inner || !elements.canvas || !elements.elementsLayer) {
@@ -262,6 +333,8 @@
             }
         });
 
+        const expressionInput = dataInputs.expression || null;
+
         const propertySections = Array.from(root.querySelectorAll('[data-layout-editor-properties-for]'));
 
         const toolLabels = {};
@@ -277,6 +350,9 @@
         });
 
         const context = elements.canvas.getContext('2d');
+        const previewTimers = new Map();
+        let previewRequestSeq = 0;
+        const autocomplete = createAutocompleteOverlay();
 
         function applyDimensions() {
             root.style.setProperty('--layout-editor-canvas-width', state.canvasWidth + 'px');
@@ -425,6 +501,11 @@
                 if (elements.visibilityButton) {
                     elements.visibilityButton.disabled = true;
                 }
+                if (elements.expressionError) {
+                    elements.expressionError.hidden = true;
+                    elements.expressionError.textContent = '';
+                    elements.expressionError.classList.remove('text-danger', 'text-muted');
+                }
                 propertySections.forEach((section) => {
                     section.hidden = true;
                 });
@@ -510,8 +591,31 @@
             if (dataInputs.label) {
                 dataInputs.label.value = selected.data.label || '';
             }
+            if (dataInputs.expression) {
+                dataInputs.expression.value = selected.data.expression || '';
+            }
             if (dataInputs.sample) {
                 dataInputs.sample.value = selected.data.sample || '';
+            }
+            if (elements.expressionError) {
+                const runtime = getRuntime(selected);
+                const error = runtime ? runtime.previewError : null;
+                const loading = runtime ? runtime.previewLoading : false;
+                if (error) {
+                    elements.expressionError.hidden = false;
+                    elements.expressionError.textContent = error || state.messages.previewError;
+                    elements.expressionError.classList.remove('text-muted');
+                    elements.expressionError.classList.add('text-danger');
+                } else if (loading) {
+                    elements.expressionError.hidden = false;
+                    elements.expressionError.textContent = state.messages.previewLoading;
+                    elements.expressionError.classList.remove('text-danger');
+                    elements.expressionError.classList.add('text-muted');
+                } else {
+                    elements.expressionError.hidden = true;
+                    elements.expressionError.textContent = '';
+                    elements.expressionError.classList.remove('text-danger', 'text-muted');
+                }
             }
         }
 
@@ -585,8 +689,15 @@
                 case 'label':
                     element.data.label = value;
                     break;
+                case 'expression':
+                    element.data.expression = value;
+                    schedulePlaceholderPreview(element);
+                    break;
                 case 'sample':
                     element.data.sample = value;
+                    if (!element.data.expression || element.data.expression.trim() === '') {
+                        applySamplePreview(element);
+                    }
                     break;
                 default:
                     element.data[key] = value;
@@ -684,37 +795,6 @@
             return toolLabels[tool] || tool.charAt(0).toUpperCase() + tool.slice(1);
         }
 
-        function renderQrPreview(container, sampleText) {
-            if (!container) {
-                return;
-            }
-            container.innerHTML = '';
-            const text = sampleText || '';
-            if (typeof window !== 'undefined' && typeof window.QRCode === 'function') {
-                try {
-                    const size = Math.min(container.clientWidth || 120, container.clientHeight || 120);
-                    new window.QRCode(container, {
-                        text,
-                        width: size,
-                        height: size,
-                        colorDark: '#0f172a',
-                        colorLight: '#fefce8',
-                        correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.M : 0,
-                    });
-                    return;
-                } catch (error) {
-                    console.warn('Unable to render QR preview', error);
-                }
-            }
-
-            const fallback = document.createElement('span');
-            fallback.textContent = text || 'QR Preview';
-            fallback.style.fontSize = '0.75rem';
-            fallback.style.lineHeight = '1.2';
-            fallback.style.color = '#0f172a';
-            container.appendChild(fallback);
-        }
-
         function renderElementContent(element) {
             const container = document.createElement('div');
             container.className = 'layout-editor__element-content';
@@ -793,11 +873,37 @@
                     label.textContent = element.data.label || 'Placeholder';
                     label.style.fontWeight = '600';
                     label.style.fontSize = '0.85rem';
+                    container.appendChild(label);
                     const visual = document.createElement('div');
                     visual.className = 'layout-editor__element-placeholder-visual';
-                    container.appendChild(label);
+                    const runtime = getRuntime(element) || ensureRuntime(element);
+                    const previewError = runtime ? runtime.previewError : null;
+                    const previewLoading = runtime ? runtime.previewLoading : false;
+                    const previewHtml = runtime ? runtime.previewHtml : '';
+                    if (previewError) {
+                        const errorLabel = document.createElement('div');
+                        errorLabel.textContent = previewError || state.messages.previewError;
+                        errorLabel.style.color = '#b91c1c';
+                        errorLabel.style.fontWeight = '600';
+                        visual.appendChild(errorLabel);
+                    } else if (previewLoading) {
+                        const loadingLabel = document.createElement('div');
+                        loadingLabel.textContent = state.messages.previewLoading;
+                        loadingLabel.style.color = 'rgba(71, 85, 105, 0.9)';
+                        visual.appendChild(loadingLabel);
+                    } else if (previewHtml) {
+                        visual.innerHTML = previewHtml;
+                    } else if (element.data.sample) {
+                        const sample = document.createElement('div');
+                        sample.textContent = element.data.sample;
+                        visual.appendChild(sample);
+                    } else {
+                        const empty = document.createElement('div');
+                        empty.textContent = '—';
+                        empty.style.opacity = '0.75';
+                        visual.appendChild(empty);
+                    }
                     container.appendChild(visual);
-                    renderQrPreview(visual, element.data.sample || '');
                     break;
                 }
                 default: {
@@ -845,6 +951,7 @@
                 updatePropertyPanel();
                 return;
             }
+            closeAutocomplete();
             state.selectedElementId = elementId;
             updateSelectionStyles();
             updatePropertyPanel();
@@ -863,6 +970,433 @@
             });
             updateSelectionStyles();
             updatePropertyPanel();
+        }
+
+        function applySamplePreview(element) {
+            if (!element || element.type !== 'placeholder') {
+                return;
+            }
+            const runtime = ensureRuntime(element);
+            if (!runtime) {
+                return;
+            }
+            runtime.previewLoading = false;
+            runtime.previewError = null;
+            runtime.previewHtml = element.data.sample ? escapeHtml(element.data.sample) : '';
+        }
+
+        function schedulePlaceholderPreview(element) {
+            if (!element || element.type !== 'placeholder') {
+                return;
+            }
+            if (previewTimers.has(element.id)) {
+                clearTimeout(previewTimers.get(element.id));
+            }
+            const timeout = window.setTimeout(() => {
+                previewTimers.delete(element.id);
+                requestPlaceholderPreview(element);
+            }, 350);
+            previewTimers.set(element.id, timeout);
+        }
+
+        function requestPlaceholderPreview(element) {
+            if (!element || element.type !== 'placeholder') {
+                return;
+            }
+            const runtime = ensureRuntime(element);
+            if (!runtime) {
+                return;
+            }
+            const expression = (element.data.expression || '').trim();
+            if (expression === '') {
+                applySamplePreview(element);
+                renderElements();
+                updatePropertyPanel();
+                return;
+            }
+
+            if (!state.csrfToken) {
+                runtime.previewLoading = false;
+                runtime.previewError = null;
+                runtime.previewHtml = element.data.sample ? escapeHtml(element.data.sample) : '';
+                renderElements();
+                updatePropertyPanel();
+                return;
+            }
+
+            runtime.previewLoading = true;
+            runtime.previewError = null;
+            runtime.previewHtml = '';
+            renderElements();
+            updatePropertyPanel();
+
+            previewRequestSeq += 1;
+            const requestId = previewRequestSeq;
+            runtime.lastRequestId = requestId;
+
+            fetch(state.apiBase + '?action=render', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': state.csrfToken || '',
+                },
+                body: JSON.stringify({
+                    template: expression,
+                    _token: state.csrfToken || undefined,
+                }),
+            })
+                .then(async (response) => {
+                    let payload = {};
+                    try {
+                        payload = await response.json();
+                    } catch (error) {
+                        payload = {};
+                    }
+                    return payload;
+                })
+                .then((payload) => {
+                    const currentRuntime = getRuntime(element);
+                    if (!currentRuntime || currentRuntime.lastRequestId !== requestId) {
+                        return;
+                    }
+                    if (payload && typeof payload === 'object' && payload.csrf) {
+                        state.csrfToken = payload.csrf;
+                    }
+                    currentRuntime.previewLoading = false;
+                    if (payload && payload.status === 'ok') {
+                        currentRuntime.previewHtml = typeof payload.html === 'string' ? payload.html : '';
+                        currentRuntime.previewError = null;
+                    } else if (payload && payload.status === 'error') {
+                        currentRuntime.previewHtml = '';
+                        currentRuntime.previewError = payload.message || state.messages.previewError;
+                    } else {
+                        currentRuntime.previewHtml = '';
+                        currentRuntime.previewError = state.messages.previewError;
+                    }
+                    renderElements();
+                    updatePropertyPanel();
+                })
+                .catch((error) => {
+                    console.warn('Unable to render placeholder preview', error);
+                    const currentRuntime = getRuntime(element);
+                    if (!currentRuntime || currentRuntime.lastRequestId !== requestId) {
+                        return;
+                    }
+                    currentRuntime.previewLoading = false;
+                    currentRuntime.previewHtml = '';
+                    currentRuntime.previewError = state.messages.previewError;
+                    renderElements();
+                    updatePropertyPanel();
+                });
+        }
+
+        function refreshAllPlaceholderPreviews() {
+            Object.values(state.elementsByPage).forEach((pageElements) => {
+                pageElements.forEach((element) => {
+                    if (element.type === 'placeholder') {
+                        requestPlaceholderPreview(element);
+                    }
+                });
+            });
+        }
+
+        function flattenPlaceholderSuggestions(groups) {
+            const suggestions = [];
+            if (!Array.isArray(groups)) {
+                return suggestions;
+            }
+            groups.forEach((group) => {
+                const groupName = typeof group.group === 'string' ? group.group : '';
+                const items = Array.isArray(group.items) ? group.items : [];
+                items.forEach((item) => {
+                    if (!item || typeof item.insert !== 'string') {
+                        return;
+                    }
+                    const path = typeof item.path === 'string' ? item.path : '';
+                    const title = typeof item.label === 'string' && item.label !== '' ? item.label : path;
+                    suggestions.push({
+                        group: groupName,
+                        insert: item.insert,
+                        path,
+                        title,
+                        example: typeof item.example === 'string' ? item.example : '',
+                        type: typeof item.type === 'string' ? item.type : 'variable',
+                        hint: typeof item.hint === 'string' ? item.hint : '',
+                        search: typeof item.search === 'string'
+                            ? item.search
+                            : (path + ' ' + title + ' ' + groupName).toLowerCase(),
+                    });
+                });
+            });
+            return suggestions;
+        }
+
+        function loadPlaceholderMeta() {
+            fetch(state.apiBase + '?action=meta', { credentials: 'same-origin' })
+                .then(async (response) => {
+                    let payload = {};
+                    try {
+                        payload = await response.json();
+                    } catch (error) {
+                        payload = {};
+                    }
+                    return payload;
+                })
+                .then((payload) => {
+                    if (!payload || payload.status !== 'ok') {
+                        return;
+                    }
+                    if (payload.csrf) {
+                        state.csrfToken = payload.csrf;
+                    }
+                    state.placeholderGroups = Array.isArray(payload.placeholders) ? payload.placeholders : [];
+                    state.placeholderSuggestions = flattenPlaceholderSuggestions(state.placeholderGroups);
+                    state.previewDataset = payload.dataset || null;
+                    refreshAllPlaceholderPreviews();
+                })
+                .catch((error) => {
+                    console.error('Unable to load layout placeholders', error);
+                });
+        }
+
+        function createAutocompleteOverlay() {
+            const container = document.createElement('div');
+            container.className = 'layout-editor__autocomplete';
+            container.hidden = true;
+            container.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+            });
+            document.body.appendChild(container);
+            return {
+                container,
+                suggestions: [],
+                activeIndex: 0,
+                range: null,
+                anchor: null,
+                visible: false,
+            };
+        }
+
+        function positionAutocompleteOverlay() {
+            if (!autocomplete.anchor) {
+                return;
+            }
+            const rect = autocomplete.anchor.getBoundingClientRect();
+            autocomplete.container.style.left = rect.left + window.scrollX + 'px';
+            autocomplete.container.style.top = rect.bottom + window.scrollY + 4 + 'px';
+            autocomplete.container.style.width = rect.width + 'px';
+        }
+
+        function renderAutocompleteSuggestions() {
+            autocomplete.container.innerHTML = '';
+            autocomplete.suggestions.forEach((suggestion, index) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'layout-editor__autocomplete-item';
+                if (index === autocomplete.activeIndex) {
+                    item.classList.add('is-active');
+                }
+                const title = document.createElement('div');
+                title.className = 'layout-editor__autocomplete-label';
+                title.innerHTML = escapeHtml(suggestion.title || suggestion.path || suggestion.insert);
+                item.appendChild(title);
+                const metaParts = [];
+                if (suggestion.group) {
+                    metaParts.push(suggestion.group);
+                }
+                if (suggestion.path && suggestion.path !== suggestion.title) {
+                    metaParts.push(suggestion.path);
+                }
+                if (suggestion.hint) {
+                    metaParts.push(suggestion.hint);
+                }
+                if (metaParts.length) {
+                    const meta = document.createElement('div');
+                    meta.className = 'layout-editor__autocomplete-meta';
+                    meta.innerHTML = escapeHtml(metaParts.join(' · '));
+                    item.appendChild(meta);
+                }
+                if (suggestion.example) {
+                    const example = document.createElement('div');
+                    example.className = 'layout-editor__autocomplete-example';
+                    example.innerHTML = escapeHtml(suggestion.example);
+                    item.appendChild(example);
+                }
+                item.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    applyAutocompleteSelection(index);
+                });
+                autocomplete.container.appendChild(item);
+            });
+        }
+
+        function closeAutocomplete() {
+            autocomplete.visible = false;
+            autocomplete.container.hidden = true;
+            autocomplete.container.innerHTML = '';
+            autocomplete.suggestions = [];
+            autocomplete.activeIndex = 0;
+            autocomplete.range = null;
+            autocomplete.anchor = null;
+        }
+
+        function openAutocomplete(input, range, suggestions) {
+            autocomplete.anchor = input;
+            autocomplete.range = range;
+            autocomplete.suggestions = suggestions.slice(0, 12);
+            autocomplete.activeIndex = 0;
+            if (!autocomplete.suggestions.length) {
+                closeAutocomplete();
+                return;
+            }
+            renderAutocompleteSuggestions();
+            positionAutocompleteOverlay();
+            autocomplete.container.hidden = false;
+            autocomplete.visible = true;
+        }
+
+        function findAutocompleteRange(value, caret) {
+            const openIndex = value.lastIndexOf('{{', caret);
+            if (openIndex === -1) {
+                return null;
+            }
+            const closeIndex = value.lastIndexOf('}}', caret);
+            if (closeIndex !== -1 && closeIndex > openIndex) {
+                return null;
+            }
+            const segment = value.slice(openIndex + 2, caret);
+            if (segment.includes('\n')) {
+                return null;
+            }
+            return {
+                start: openIndex,
+                end: caret,
+                term: segment,
+            };
+        }
+
+        function filterSuggestions(term) {
+            if (!state.placeholderSuggestions.length) {
+                return [];
+            }
+            const raw = term.trim();
+            let mode = 'variable';
+            let searchTerm = raw;
+            if (raw.startsWith('#')) {
+                const remainder = raw.slice(1).trim();
+                if (remainder.startsWith('if')) {
+                    mode = 'if';
+                    searchTerm = remainder.slice(2).trim();
+                } else if (remainder.startsWith('each')) {
+                    mode = 'each';
+                    searchTerm = remainder.slice(4).trim();
+                } else {
+                    mode = 'block';
+                    searchTerm = remainder;
+                }
+            }
+            const normalized = searchTerm.toLowerCase();
+            return state.placeholderSuggestions
+                .filter((suggestion) => {
+                    if (mode === 'if') {
+                        if (!(suggestion.type === 'variable' || suggestion.type === 'if')) {
+                            return false;
+                        }
+                    } else if (mode === 'each') {
+                        if (suggestion.type !== 'each') {
+                            return false;
+                        }
+                    } else if (mode === 'block') {
+                        if (suggestion.type === 'variable') {
+                            return false;
+                        }
+                    }
+                    if (!normalized) {
+                        return true;
+                    }
+                    return (
+                        suggestion.search.includes(normalized) ||
+                        (suggestion.title && suggestion.title.toLowerCase().includes(normalized)) ||
+                        (suggestion.path && suggestion.path.toLowerCase().includes(normalized))
+                    );
+                })
+                .slice(0, 12);
+        }
+
+        function updateAutocompleteForExpression(input) {
+            if (!input) {
+                closeAutocomplete();
+                return;
+            }
+            const caret = input.selectionStart;
+            const end = input.selectionEnd;
+            if (caret === null || end === null || caret !== end) {
+                closeAutocomplete();
+                return;
+            }
+            const range = findAutocompleteRange(input.value, caret);
+            if (!range) {
+                closeAutocomplete();
+                return;
+            }
+            const suggestions = filterSuggestions(range.term);
+            if (!suggestions.length) {
+                closeAutocomplete();
+                return;
+            }
+            openAutocomplete(input, range, suggestions);
+        }
+
+        function applyAutocompleteSelection(index) {
+            const suggestion = autocomplete.suggestions[index];
+            if (!suggestion || !autocomplete.anchor || !autocomplete.range) {
+                return;
+            }
+            const input = autocomplete.anchor;
+            const before = input.value.slice(0, autocomplete.range.start);
+            const after = input.value.slice(autocomplete.range.end);
+            const insert = suggestion.insert;
+            input.value = before + insert + after;
+            const caret = before.length + insert.length;
+            input.setSelectionRange(caret, caret);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            closeAutocomplete();
+            input.focus();
+        }
+
+        function handleExpressionKeyDown(event) {
+            if (!autocomplete.visible) {
+                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && state.placeholderSuggestions.length) {
+                    updateAutocompleteForExpression(event.target);
+                    if (autocomplete.visible) {
+                        event.preventDefault();
+                    }
+                }
+                return;
+            }
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                autocomplete.activeIndex = (autocomplete.activeIndex + 1) % autocomplete.suggestions.length;
+                renderAutocompleteSuggestions();
+                return;
+            }
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                autocomplete.activeIndex =
+                    (autocomplete.activeIndex - 1 + autocomplete.suggestions.length) % autocomplete.suggestions.length;
+                renderAutocompleteSuggestions();
+                return;
+            }
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                applyAutocompleteSelection(autocomplete.activeIndex);
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeAutocomplete();
+            }
         }
 
         function updateElementNodeFromData(element) {
@@ -911,6 +1445,11 @@
                 data: Object.assign({}, defaults.data),
             };
             clampElementToCanvas(element);
+            if (tool === 'placeholder') {
+                ensureRuntime(element);
+                applySamplePreview(element);
+                schedulePlaceholderPreview(element);
+            }
             state.elementsByPage[state.activePageId].push(element);
             renderElements();
             setSelectedElement(element.id);
@@ -1462,6 +2001,25 @@
             elements.propertiesForm.addEventListener('change', handlePropertyInput);
         }
 
+        if (expressionInput) {
+            expressionInput.addEventListener('focus', () => {
+                updateAutocompleteForExpression(expressionInput);
+            });
+            expressionInput.addEventListener('blur', () => {
+                closeAutocomplete();
+            });
+            expressionInput.addEventListener('input', () => {
+                updateAutocompleteForExpression(expressionInput);
+            });
+            expressionInput.addEventListener('keyup', () => {
+                updateAutocompleteForExpression(expressionInput);
+            });
+            expressionInput.addEventListener('click', () => {
+                updateAutocompleteForExpression(expressionInput);
+            });
+            expressionInput.addEventListener('keydown', handleExpressionKeyDown);
+        }
+
         root.addEventListener('click', (event) => {
             const actionButton = event.target.closest('[data-layout-editor-action]');
             if (actionButton) {
@@ -1494,6 +2052,24 @@
                 }
             }
         });
+
+        window.addEventListener('resize', () => {
+            if (autocomplete.visible) {
+                positionAutocompleteOverlay();
+            }
+        });
+
+        window.addEventListener(
+            'scroll',
+            () => {
+                if (autocomplete.visible) {
+                    positionAutocompleteOverlay();
+                }
+            },
+            true
+        );
+
+        loadPlaceholderMeta();
 
         applyDimensions();
         applyTransform();
