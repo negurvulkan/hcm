@@ -18,6 +18,9 @@ $fonts = $fontOptions ?? ($editorConfig['fonts'] ?? []);
             <button type="button" class="btn btn-outline-secondary" data-layout-editor-action="toggle-grid">
                 <?= htmlspecialchars(t('layout_editor.actions.toggle_grid'), ENT_QUOTES, 'UTF-8') ?>
             </button>
+            <button type="button" class="btn btn-primary" data-layout-editor-action="open-export" data-layout-editor-export-trigger>
+                <?= htmlspecialchars(t('layout_editor.actions.export'), ENT_QUOTES, 'UTF-8') ?>
+            </button>
         </div>
     </div>
 
@@ -304,3 +307,5 @@ $fonts = $fontOptions ?? ($editorConfig['fonts'] ?? []);
         </div>
     </div>
 </div>
+
+<?php require __DIR__ . '/layout-editor-export-modal.tpl'; ?>
