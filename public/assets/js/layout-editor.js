@@ -52,6 +52,17 @@
             config.labels || {}
         );
 
+        const fallbackFonts = [
+            'Inter, "Segoe UI", sans-serif',
+            'Roboto, "Helvetica Neue", Arial, sans-serif',
+            'Montserrat, "Segoe UI", sans-serif',
+            'Open Sans, "Helvetica Neue", sans-serif',
+        ];
+        const configuredFonts = Array.isArray(config.fonts)
+            ? config.fonts.filter((font) => typeof font === 'string' && font.trim() !== '')
+            : [];
+        const fonts = configuredFonts.length ? configuredFonts : fallbackFonts;
+
         const rawPages = Array.isArray(config.pages) ? config.pages.slice() : [];
         const pages = rawPages.map((page, index) => {
             const copy = Object.assign({}, page);
@@ -84,6 +95,7 @@
                 data: {
                     text: 'Sample text block',
                     subline: 'Add your content',
+                    fontFamily: fonts[0] || fallbackFonts[0],
                 },
             },
             image: {
@@ -154,6 +166,8 @@
             const parsedWidth = raw && raw.width !== undefined ? Number.parseFloat(raw.width) : Number.NaN;
             const parsedHeight = raw && raw.height !== undefined ? Number.parseFloat(raw.height) : Number.NaN;
             const parsedRotation = raw && raw.rotation !== undefined ? Number.parseFloat(raw.rotation) : Number.NaN;
+            const parsedOpacity = raw && raw.opacity !== undefined ? Number.parseFloat(raw.opacity) : Number.NaN;
+            const rawVisible = raw && raw.visible !== undefined ? Boolean(raw.visible) : null;
 
             const element = {
                 id: raw && raw.id ? String(raw.id) : nextElementIdLocal(),
@@ -163,8 +177,13 @@
                 width: Number.isFinite(parsedWidth) ? Math.max(MIN_ELEMENT_SIZE, parsedWidth) : defaults.width,
                 height: Number.isFinite(parsedHeight) ? Math.max(MIN_ELEMENT_SIZE, parsedHeight) : defaults.height,
                 rotation: Number.isFinite(parsedRotation) ? parsedRotation : 0,
+                opacity: Number.isFinite(parsedOpacity) ? clamp(parsedOpacity, 0, 1) : 1,
+                visible: rawVisible !== null ? rawVisible : true,
                 data: Object.assign({}, defaults.data, raw && typeof raw.data === 'object' && raw.data ? raw.data : {}),
             };
+            if (element.type === 'text' && (!element.data.fontFamily || element.data.fontFamily === '')) {
+                element.data.fontFamily = defaults.data.fontFamily || fonts[0] || fallbackFonts[0];
+            }
             registerElementIdLocal(element.id);
             return element;
         }
@@ -190,6 +209,7 @@
             selectedElementId: null,
             elementCounter: initialElementCounter,
             interaction: null,
+            fonts,
         };
 
         const elements = {
@@ -212,11 +232,37 @@
             rulerVertical: root.querySelector('[data-layout-editor-ruler-scale="vertical"]'),
             toggleGridButton: root.querySelector('[data-layout-editor-action="toggle-grid"]'),
             toggleGuidesButton: root.querySelector('[data-layout-editor-action="toggle-guides"]'),
+            propertiesPanel: root.querySelector('[data-layout-editor-properties]'),
+            propertiesEmpty: root.querySelector('[data-layout-editor-properties-empty]'),
+            propertiesForm: root.querySelector('[data-layout-editor-properties-form]'),
+            visibilityButton: root.querySelector('[data-layout-editor-visibility-button]'),
+            layerIndicator: root.querySelector('[data-layout-editor-layer-indicator]'),
+            opacityDisplay: root.querySelector('[data-layout-editor-property-display="opacity"]'),
+            selectedName: root.querySelector('[data-layout-editor-selected-name]'),
+            selectedMeta: root.querySelector('[data-layout-editor-selected-meta]'),
         };
 
         if (!elements.viewport || !elements.stage || !elements.inner || !elements.canvas || !elements.elementsLayer) {
             return;
         }
+
+        const propertyInputs = {};
+        root.querySelectorAll('[data-layout-editor-property]').forEach((input) => {
+            const key = input.dataset.layoutEditorProperty;
+            if (key) {
+                propertyInputs[key] = input;
+            }
+        });
+
+        const dataInputs = {};
+        root.querySelectorAll('[data-layout-editor-data]').forEach((input) => {
+            const key = input.dataset.layoutEditorData;
+            if (key) {
+                dataInputs[key] = input;
+            }
+        });
+
+        const propertySections = Array.from(root.querySelectorAll('[data-layout-editor-properties-for]'));
 
         const toolLabels = {};
         root.querySelectorAll('[data-layout-editor-tool]').forEach((button) => {
@@ -350,6 +396,255 @@
             return pageElements.find((item) => item.id === elementId) || null;
         }
 
+        function getElementLayerIndex(elementId) {
+            if (!elementId) {
+                return -1;
+            }
+            const pageElements = getActiveElements();
+            return pageElements.findIndex((item) => item.id === elementId);
+        }
+
+        function getSelectedElement() {
+            return getElementById(state.selectedElementId);
+        }
+
+        function updatePropertyPanel() {
+            if (!elements.propertiesPanel) {
+                return;
+            }
+
+            const selected = getSelectedElement();
+            const pageElements = getActiveElements();
+            if (!selected) {
+                if (elements.propertiesForm) {
+                    elements.propertiesForm.hidden = true;
+                }
+                if (elements.propertiesEmpty) {
+                    elements.propertiesEmpty.hidden = false;
+                }
+                if (elements.visibilityButton) {
+                    elements.visibilityButton.disabled = true;
+                }
+                propertySections.forEach((section) => {
+                    section.hidden = true;
+                });
+                return;
+            }
+
+            if (elements.propertiesForm) {
+                elements.propertiesForm.hidden = false;
+            }
+            if (elements.propertiesEmpty) {
+                elements.propertiesEmpty.hidden = true;
+            }
+            if (elements.visibilityButton) {
+                elements.visibilityButton.disabled = false;
+                const labelVisible = elements.visibilityButton.dataset.layoutEditorVisibilityLabelVisible;
+                const labelHidden = elements.visibilityButton.dataset.layoutEditorVisibilityLabelHidden;
+                elements.visibilityButton.textContent = selected.visible && labelVisible ? labelVisible : labelHidden || elements.visibilityButton.textContent;
+                elements.visibilityButton.setAttribute('aria-pressed', selected.visible ? 'true' : 'false');
+            }
+            if (elements.selectedName) {
+                elements.selectedName.textContent = labelForTool(selected.type) || selected.type;
+            }
+            if (elements.selectedMeta) {
+                elements.selectedMeta.textContent = 'ID: ' + selected.id;
+            }
+            if (elements.layerIndicator) {
+                const index = getElementLayerIndex(selected.id);
+                const total = pageElements.length || 0;
+                elements.layerIndicator.textContent = index >= 0 ? index + 1 + ' / ' + total : '–';
+            }
+
+            const numericFields = {
+                x: Math.round(selected.x),
+                y: Math.round(selected.y),
+                width: Math.round(selected.width),
+                height: Math.round(selected.height),
+                rotation: Math.round(selected.rotation || 0),
+                opacity: Math.round((Number.isFinite(selected.opacity) ? clamp(selected.opacity, 0, 1) : 1) * 100),
+            };
+            Object.keys(numericFields).forEach((key) => {
+                if (propertyInputs[key]) {
+                    propertyInputs[key].value = String(numericFields[key]);
+                }
+            });
+            if (elements.opacityDisplay) {
+                elements.opacityDisplay.textContent = numericFields.opacity + '%';
+            }
+
+            propertySections.forEach((section) => {
+                const typesAttr = section.dataset.layoutEditorPropertiesFor || '';
+                const allowed = typesAttr.split(',').map((item) => item.trim()).filter(Boolean);
+                section.hidden = allowed.length > 0 && !allowed.includes(selected.type);
+            });
+
+            if (dataInputs.text) {
+                dataInputs.text.value = selected.data.text || '';
+            }
+            if (dataInputs.subline) {
+                dataInputs.subline.value = selected.data.subline || '';
+            }
+            if (dataInputs.fontFamily) {
+                dataInputs.fontFamily.value = selected.data.fontFamily || fonts[0] || fallbackFonts[0];
+            }
+            if (dataInputs.alt) {
+                dataInputs.alt.value = selected.data.alt || '';
+            }
+            if (dataInputs.src) {
+                dataInputs.src.value = selected.data.src || '';
+            }
+            if (dataInputs.variant) {
+                dataInputs.variant.value = selected.data.variant || 'rectangle';
+            }
+            if (dataInputs.rows) {
+                dataInputs.rows.value = Number.isFinite(Number.parseInt(selected.data.rows, 10))
+                    ? Number.parseInt(selected.data.rows, 10)
+                    : 3;
+            }
+            if (dataInputs.cols) {
+                dataInputs.cols.value = Number.isFinite(Number.parseInt(selected.data.cols, 10))
+                    ? Number.parseInt(selected.data.cols, 10)
+                    : 4;
+            }
+            if (dataInputs.label) {
+                dataInputs.label.value = selected.data.label || '';
+            }
+            if (dataInputs.sample) {
+                dataInputs.sample.value = selected.data.sample || '';
+            }
+        }
+
+        function updateSelectedElementProperty(property, rawValue) {
+            const element = getSelectedElement();
+            if (!element) {
+                return;
+            }
+            const parsedValue = Number.parseFloat(rawValue);
+            if (property === 'x' && Number.isFinite(parsedValue)) {
+                element.x = parsedValue;
+            } else if (property === 'y' && Number.isFinite(parsedValue)) {
+                element.y = parsedValue;
+            } else if (property === 'width' && Number.isFinite(parsedValue)) {
+                element.width = Math.max(MIN_ELEMENT_SIZE, parsedValue);
+            } else if (property === 'height' && Number.isFinite(parsedValue)) {
+                element.height = Math.max(MIN_ELEMENT_SIZE, parsedValue);
+            } else if (property === 'rotation' && Number.isFinite(parsedValue)) {
+                element.rotation = parsedValue;
+            } else if (property === 'opacity' && Number.isFinite(parsedValue)) {
+                element.opacity = clamp(parsedValue / 100, 0, 1);
+            }
+            clampElementToCanvas(element);
+            updateElementNodeFromData(element);
+            updatePropertyPanel();
+        }
+
+        function normalizeTableValue(raw, fallback) {
+            const parsed = Number.parseInt(raw, 10);
+            if (!Number.isFinite(parsed) || parsed <= 0) {
+                return fallback;
+            }
+            return Math.max(1, Math.min(parsed, 50));
+        }
+
+        function updateSelectedElementData(key, value) {
+            const element = getSelectedElement();
+            if (!element) {
+                return;
+            }
+            if (!element.data || typeof element.data !== 'object') {
+                element.data = {};
+            }
+            switch (key) {
+                case 'text':
+                    element.data.text = value;
+                    break;
+                case 'subline':
+                    element.data.subline = value;
+                    break;
+                case 'fontFamily':
+                    element.data.fontFamily = value || fonts[0] || fallbackFonts[0];
+                    break;
+                case 'alt':
+                    element.data.alt = value;
+                    break;
+                case 'src':
+                    element.data.src = value;
+                    break;
+                case 'variant': {
+                    const allowed = ['rectangle', 'circle'];
+                    element.data.variant = allowed.includes(value) ? value : 'rectangle';
+                    break;
+                }
+                case 'rows':
+                    element.data.rows = normalizeTableValue(value, 3);
+                    break;
+                case 'cols':
+                    element.data.cols = normalizeTableValue(value, 4);
+                    break;
+                case 'label':
+                    element.data.label = value;
+                    break;
+                case 'sample':
+                    element.data.sample = value;
+                    break;
+                default:
+                    element.data[key] = value;
+                    break;
+            }
+            renderElements();
+        }
+
+        function reorderElement(elementId, newIndex) {
+            const pageElements = getActiveElements();
+            const currentIndex = pageElements.findIndex((item) => item.id === elementId);
+            if (currentIndex === -1 || newIndex === currentIndex) {
+                return;
+            }
+            const targetIndex = clamp(newIndex, 0, pageElements.length - 1);
+            const [element] = pageElements.splice(currentIndex, 1);
+            pageElements.splice(targetIndex, 0, element);
+            renderElements();
+        }
+
+        function bringForward(elementId) {
+            const index = getElementLayerIndex(elementId);
+            if (index === -1) {
+                return;
+            }
+            reorderElement(elementId, index + 1);
+        }
+
+        function sendBackward(elementId) {
+            const index = getElementLayerIndex(elementId);
+            if (index === -1) {
+                return;
+            }
+            reorderElement(elementId, index - 1);
+        }
+
+        function bringToFront(elementId) {
+            const pageElements = getActiveElements();
+            if (!pageElements.length) {
+                return;
+            }
+            reorderElement(elementId, pageElements.length - 1);
+        }
+
+        function sendToBack(elementId) {
+            reorderElement(elementId, 0);
+        }
+
+        function toggleVisibility(elementId) {
+            const element = getElementById(elementId);
+            if (!element) {
+                return;
+            }
+            element.visible = !element.visible;
+            updateElementNodeFromData(element);
+            updatePropertyPanel();
+        }
+
         function clampElementToCanvas(element) {
             if (!element) {
                 return;
@@ -370,6 +665,16 @@
             node.style.top = element.y + 'px';
             node.style.width = element.width + 'px';
             node.style.height = element.height + 'px';
+            const rotation = Number.isFinite(element.rotation) ? element.rotation : 0;
+            node.style.transform = 'rotate(' + rotation + 'deg)';
+            const baseOpacity = Number.isFinite(element.opacity) ? clamp(element.opacity, 0, 1) : 1;
+            const effectiveOpacity = element.visible ? baseOpacity : Math.min(baseOpacity, 0.35);
+            node.style.opacity = effectiveOpacity;
+            node.classList.toggle('is-hidden', !element.visible);
+            const layerIndex = getElementLayerIndex(element.id);
+            if (layerIndex >= 0) {
+                node.style.zIndex = String(layerIndex + 1);
+            }
         }
 
         function labelForTool(tool) {
@@ -424,6 +729,8 @@
                     subline.textContent = element.data.subline || 'Add your content';
                     subline.style.fontSize = '0.85rem';
                     subline.style.opacity = '0.8';
+                    const fontFamily = element.data.fontFamily || fonts[0] || fallbackFonts[0];
+                    container.style.fontFamily = fontFamily;
                     container.appendChild(headline);
                     container.appendChild(subline);
                     break;
@@ -535,10 +842,12 @@
 
         function setSelectedElement(elementId) {
             if (state.selectedElementId === elementId) {
+                updatePropertyPanel();
                 return;
             }
             state.selectedElementId = elementId;
             updateSelectionStyles();
+            updatePropertyPanel();
         }
 
         function renderElements() {
@@ -552,6 +861,8 @@
                 }
                 elements.elementsLayer.appendChild(node);
             });
+            updateSelectionStyles();
+            updatePropertyPanel();
         }
 
         function updateElementNodeFromData(element) {
@@ -595,6 +906,8 @@
                 width: defaults.width,
                 height: defaults.height,
                 rotation: 0,
+                opacity: 1,
+                visible: true,
                 data: Object.assign({}, defaults.data),
             };
             clampElementToCanvas(element);
@@ -695,6 +1008,7 @@
 
             clampElementToCanvas(element);
             updateElementNodeFromData(element);
+            updatePropertyPanel();
             event.preventDefault();
         }
 
@@ -1012,6 +1326,31 @@
                 case 'toggle-guides':
                     toggleGuides();
                     break;
+                case 'bring-forward':
+                    if (state.selectedElementId) {
+                        bringForward(state.selectedElementId);
+                    }
+                    break;
+                case 'send-backward':
+                    if (state.selectedElementId) {
+                        sendBackward(state.selectedElementId);
+                    }
+                    break;
+                case 'bring-to-front':
+                    if (state.selectedElementId) {
+                        bringToFront(state.selectedElementId);
+                    }
+                    break;
+                case 'send-to-back':
+                    if (state.selectedElementId) {
+                        sendToBack(state.selectedElementId);
+                    }
+                    break;
+                case 'toggle-visibility':
+                    if (state.selectedElementId) {
+                        toggleVisibility(state.selectedElementId);
+                    }
+                    break;
                 default:
                     break;
             }
@@ -1103,6 +1442,25 @@
             },
             { passive: false }
         );
+
+        if (elements.propertiesForm) {
+            const handlePropertyInput = (event) => {
+                const target = event.target;
+                if (!target) {
+                    return;
+                }
+                const propertyKey = target.dataset.layoutEditorProperty;
+                const dataKey = target.dataset.layoutEditorData;
+                if (propertyKey) {
+                    updateSelectedElementProperty(propertyKey, target.value);
+                }
+                if (dataKey) {
+                    updateSelectedElementData(dataKey, target.value);
+                }
+            };
+            elements.propertiesForm.addEventListener('input', handlePropertyInput);
+            elements.propertiesForm.addEventListener('change', handlePropertyInput);
+        }
 
         root.addEventListener('click', (event) => {
             const actionButton = event.target.closest('[data-layout-editor-action]');
