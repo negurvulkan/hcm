@@ -41,6 +41,7 @@ class Rbac
         'system' => ['admin'],
         'sync' => ['admin'],
         'custom_fields' => ['admin', 'office'],
+        'layout_editor' => ['admin', 'office'],
     ];
 
     private const MENU = [

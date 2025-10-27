@@ -54,41 +54,58 @@ class Updater
      */
     private static function loadMigrations(): array
     {
-        $dir = __DIR__ . '/Migrations';
-        if (!is_dir($dir)) {
-            return [];
-        }
-
-        $files = glob($dir . '/*.php');
-        if (!$files) {
-            return [];
-        }
-
-        sort($files);
-
         $migrations = [];
-        foreach ($files as $file) {
-            $base = basename($file, '.php');
-            $parts = explode('__', $base, 2);
-            $version = $parts[0];
-            $definition = require $file;
-
-            if (isset($migrations[$version])) {
-                throw new RuntimeException(sprintf('Migration %s verwendet eine bereits bestehende Versionsnummer %s.', $file, $version));
+        foreach (self::migrationDirectories() as $directory) {
+            if (!is_dir($directory)) {
+                continue;
             }
 
-            if (!is_array($definition) || !isset($definition['up']) || !is_callable($definition['up'])) {
-                throw new RuntimeException(sprintf('Migration %s muss ein Array mit einem aufrufbaren "up"-Schlüssel zurückgeben.', $file));
+            $files = glob($directory . '/*.php');
+            if (!$files) {
+                continue;
             }
 
-            $description = $definition['description'] ?? ($parts[1] ?? $base);
-            $migrations[$version] = [
-                'description' => $description,
-                'up' => $definition['up'],
-            ];
+            sort($files);
+
+            foreach ($files as $file) {
+                $base = basename($file, '.php');
+                $parts = explode('__', $base, 2);
+                $version = $parts[0];
+                $definition = require $file;
+
+                if (isset($migrations[$version])) {
+                    throw new RuntimeException(sprintf('Migration %s verwendet eine bereits bestehende Versionsnummer %s.', $file, $version));
+                }
+
+                if (!is_array($definition) || !isset($definition['up']) || !is_callable($definition['up'])) {
+                    throw new RuntimeException(sprintf('Migration %s muss ein Array mit einem aufrufbaren "up"-Schlüssel zurückgeben.', $file));
+                }
+
+                $description = $definition['description'] ?? ($parts[1] ?? $base);
+                $migrations[$version] = [
+                    'description' => $description,
+                    'up' => $definition['up'],
+                ];
+            }
         }
 
         return $migrations;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function migrationDirectories(): array
+    {
+        $directories = [__DIR__ . '/Migrations'];
+
+        $projectRoot = dirname(__DIR__, 2);
+        $databaseDir = $projectRoot . '/database/migrations';
+        if (is_dir($databaseDir)) {
+            $directories[] = $databaseDir;
+        }
+
+        return $directories;
     }
 
     private static function ensureMigrationsTable(PDO $pdo, string $driver): void
