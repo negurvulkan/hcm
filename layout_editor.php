@@ -26,5 +26,8 @@ render_page('layout-editor.tpl', [
     'page' => 'layout_editor',
     'editorConfig' => $editorConfig,
     'extraStyles' => ['public/assets/css/layout-editor.css'],
-    'extraScripts' => ['public/assets/js/layout-editor.js'],
+    'extraScripts' => [
+        'public/assets/js/vendor/qrcode.min.js',
+        'public/assets/js/layout-editor.js',
+    ],
 ]);

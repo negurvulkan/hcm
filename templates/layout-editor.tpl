@@ -63,17 +63,31 @@ $pages = $editorConfig['pages'] ?? [];
                 <div class="card-body d-flex flex-column">
                     <div class="layout-editor__toolbar" data-layout-editor-toolbar>
                         <div class="layout-editor__toolbar-group" role="group" aria-label="<?= htmlspecialchars(t('layout_editor.toolbar.modes'), ENT_QUOTES, 'UTF-8') ?>">
-                            <button type="button" class="layout-editor__tool-button is-active" data-layout-editor-tool="select">
-                                <span>🖱</span>
+                            <button type="button" class="layout-editor__tool-button is-active" data-layout-editor-tool="select" data-layout-editor-tool-label="<?= htmlspecialchars(t('layout_editor.toolbar.select'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">🖱</span>
                                 <span><?= htmlspecialchars(t('layout_editor.toolbar.select'), ENT_QUOTES, 'UTF-8') ?></span>
                             </button>
-                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="frame">
-                                <span>▭</span>
-                                <span><?= htmlspecialchars(t('layout_editor.toolbar.frame'), ENT_QUOTES, 'UTF-8') ?></span>
-                            </button>
-                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="text">
-                                <span>✎</span>
+                        </div>
+                        <div class="layout-editor__toolbar-group" role="group" aria-label="<?= htmlspecialchars(t('layout_editor.toolbar.elements'), ENT_QUOTES, 'UTF-8') ?>">
+                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="text" data-layout-editor-tool-label="<?= htmlspecialchars(t('layout_editor.toolbar.text'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">✎</span>
                                 <span><?= htmlspecialchars(t('layout_editor.toolbar.text'), ENT_QUOTES, 'UTF-8') ?></span>
+                            </button>
+                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="image" data-layout-editor-tool-label="<?= htmlspecialchars(t('layout_editor.toolbar.image'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">🖼</span>
+                                <span><?= htmlspecialchars(t('layout_editor.toolbar.image'), ENT_QUOTES, 'UTF-8') ?></span>
+                            </button>
+                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="shape" data-layout-editor-tool-label="<?= htmlspecialchars(t('layout_editor.toolbar.shape'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">⬛</span>
+                                <span><?= htmlspecialchars(t('layout_editor.toolbar.shape'), ENT_QUOTES, 'UTF-8') ?></span>
+                            </button>
+                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="table" data-layout-editor-tool-label="<?= htmlspecialchars(t('layout_editor.toolbar.table'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">≣</span>
+                                <span><?= htmlspecialchars(t('layout_editor.toolbar.table'), ENT_QUOTES, 'UTF-8') ?></span>
+                            </button>
+                            <button type="button" class="layout-editor__tool-button" data-layout-editor-tool="placeholder" data-layout-editor-tool-label="<?= htmlspecialchars(t('layout_editor.toolbar.placeholder'), ENT_QUOTES, 'UTF-8') ?>">
+                                <span aria-hidden="true">⌗</span>
+                                <span><?= htmlspecialchars(t('layout_editor.toolbar.placeholder'), ENT_QUOTES, 'UTF-8') ?></span>
                             </button>
                         </div>
                         <div class="layout-editor__toolbar-divider" role="presentation"></div>
@@ -100,6 +114,7 @@ $pages = $editorConfig['pages'] ?? [];
                                 <div class="layout-editor__grid" data-layout-editor-grid></div>
                                 <div class="layout-editor__guides" data-layout-editor-guides></div>
                                 <canvas class="layout-editor__canvas" data-layout-editor-canvas width="<?= (int) ($editorConfig['canvas']['width'] ?? 1024) ?>" height="<?= (int) ($editorConfig['canvas']['height'] ?? 768) ?>"></canvas>
+                                <div class="layout-editor__elements" data-layout-editor-elements></div>
                                 <div class="layout-editor__canvas-placeholder" data-layout-editor-placeholder>
                                     <?= htmlspecialchars(t('layout_editor.canvas.placeholder'), ENT_QUOTES, 'UTF-8') ?>
                                 </div>
