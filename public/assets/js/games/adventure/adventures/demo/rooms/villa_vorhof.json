@@ -1,0 +1,8 @@
+{
+  "id": "villa_vorhof",
+  "name": "Vorhof der Villa",
+  "description": "Ein gepflasterter Vorhof vor einer alten Villa. Ein Tor blockiert den Weg nach Norden.",
+  "exits": {
+    "nord": { "to": "villa_innenhof", "unlocked": false }
+  }
+}
