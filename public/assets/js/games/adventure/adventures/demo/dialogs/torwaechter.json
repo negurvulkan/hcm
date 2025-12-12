@@ -1,0 +1,32 @@
+{
+  "npc": "torwaechter",
+  "start": "intro",
+  "nodes": {
+    "intro": {
+      "text": "Der Torwächter mustert dich misstrauisch.",
+      "choices": [
+        { "text": "Was ist hinter dem Tor?", "next": "info" },
+        {
+          "text": "Ich habe hier etwas für dich…",
+          "next": "intro",
+          "events": [
+            { "type": "remove_item", "id": "goldmuenze" },
+            { "type": "flag_set", "key": "tor_auf", "value": true },
+            { "type": "unlock_exit", "room": "villa_vorhof", "direction": "nord" }
+          ],
+          "requires": {
+            "inventory": ["goldmuenze"]
+          }
+        },
+        { "text": "Tschüss.", "next": "end" }
+      ]
+    },
+    "info": {
+      "text": "Hinter dem Tor beginnt der Junklerwald.",
+      "choices": [
+        { "text": "Zurück", "next": "intro" },
+        { "text": "Okay.", "next": "end" }
+      ]
+    }
+  }
+}

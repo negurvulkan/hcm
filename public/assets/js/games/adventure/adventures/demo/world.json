@@ -1,0 +1,6 @@
+{
+  "id": "demo",
+  "title": "Demo Abenteuer",
+  "start_room": "villa_vorhof",
+  "npcs": ["torwaechter"]
+}
